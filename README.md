@@ -11,7 +11,7 @@ Extremely simple GUI in pure python for easy use and modification
 3. go to unzipped directory
 4. run:
 """
-python3 Track.py [dataset name]
+python3 gui_launcher.py [dataset name]
 """
 
 
