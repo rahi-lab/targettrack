@@ -1,5 +1,5 @@
-# Simple-Annotation-GUI
-Extremely Simply GUI in pure python for easy use and modification
+# Targettrack
+Extremely simple GUI in pure python for easy use and modification
 
 # Requirements
 - python3.6 or higher
