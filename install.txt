@@ -1,0 +1,5 @@
+conda install numpy scipy matplotlib pyqt pyqtgraph h5py scikit-learn pytorch scikit-image tqdm pandas
+python -m pip install opencv-python sparse nd2reader importlib-metadata
+cd gmmreg-python/src
+python setup.py install --user
+cd ../..
