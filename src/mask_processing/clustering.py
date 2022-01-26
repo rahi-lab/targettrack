@@ -116,7 +116,6 @@ class ClusteringAlgoInterface:
 
 class KmRangeClustering(ClusteringAlgoInterface):
     """Perform K-Means clustering over a range of number of clusters."""
-    print("KmRangeClustering start")
     def __init__(self, features, params):
         super(KmRangeClustering, self).__init__(features, params)
         self.logger = logging.getLogger("KmCluster")
@@ -153,7 +152,6 @@ class KmRangeClustering(ClusteringAlgoInterface):
             plt.show()
 
         k_cluster_dict = {ncl: x.labels_ for ncl, x in km_dict.items()}
-        print("KmRangeClustering finished")
         return k_cluster_dict
 
 
