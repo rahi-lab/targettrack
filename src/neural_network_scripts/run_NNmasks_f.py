@@ -28,11 +28,9 @@ dataset_path=sys.argv[1]#MB: I think a copy of the whole data set is in this pat
 dataset_name=os.path.split(dataset_path)[1].split(".")[0]#MB first split pathname into a pair.component [1] has no slash
 props=dataset_name.split("_")
 NetName=props[-2]
-print("NetName")
-print(NetName)
+print("NetName:  "+NetName)
 runname=props[-1]
-print("runname")
-print(runname)
+print("runname:  "+runname)
 identifier="net/"+NetName+"_"+runname
 GetTrain = int(sys.argv[5])#int(input("train on previous training set?(Press 1 for yes)")) #MB added# init:#4
 #### These are the run options
@@ -309,7 +307,7 @@ try:
     #for i in allset.indlist :
     #    U=U.union(set(np.unique(h5[str(i)+"/mask"])))
     #num_classes = len(U)#MB added
-    print("MB check: total number of cells in the segmented frames")
+    print("Total number of cells in the segmented frames")
     print(num_classes)
     print(U)
     totnum=len(allset)
