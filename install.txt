@@ -1,4 +1,4 @@
-conda install numpy scipy matplotlib pyqt pyqtgraph h5py scikit-learn pytorch scikit-image tqdm pandas
+conda install numpy scipy matplotlib pyqt pyqtgraph h5py scikit-learn pytorch scikit-image tqdm pandas six configobj
 python -m pip install opencv-python sparse nd2reader importlib-metadata torchvision albumentations connected-components-3d
 cd gmmreg-python/src
 python setup.py install --user
