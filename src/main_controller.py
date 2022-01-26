@@ -1833,11 +1833,11 @@ class Controller():
             shutil.move(newpath, os.path.join(key, nnewpath))
             shutil.copyfile(os.path.join("./src/neural_network_scripts/models", modelname + ".py"),
                             os.path.join(key, modelname + ".py"))
-            shutil.copyfile("./src/neural_network_scripts/run_NNmasks.py", os.path.join(key, "run_NNmasks.py"))
+            shutil.copyfile("./src/neural_network_scripts/run_NNmasks_f.py", os.path.join(key, "run_NNmasks_f.py"))
             shutil.copyfile("./src/neural_network_scripts/NNtools.py", os.path.join(key, "NNtools.py"))
             with open(os.path.join(key, "run.sh"), "w") as f:
                 Totstring = "0 " + str(epoch)+" 0 "+"0 "+str(train)+ " " +str(validation)
-                f.write("python3 run_NNmasks.py" + " " + nnewpath + " " + nnewlogpath + " " +Totstring)
+                f.write("python3 run_NNmasks_f.py" + " " + nnewpath + " " + nnewlogpath + " " +Totstring)
             return True, ""
         return self.subprocmanager.run(key, args, newlogpath)
 
