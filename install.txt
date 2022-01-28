@@ -1,4 +1,4 @@
-git clone https://github.com/lpbsscientist/targettrack.git 
+git clone https://github.com/lpbsscientist/targettrack.git
 cd targettrack/
 conda create -n Targettrack python=3.8.5
 conda activate Targettrack
@@ -7,4 +7,3 @@ pip install sparse==0.13.0 nd2reader==3.2.3 PyQt5==5.12 pyqtgraph==0.11.1 opencv
 cd gmmreg-python/src
 python setup.py install --user
 cd ../..
-
