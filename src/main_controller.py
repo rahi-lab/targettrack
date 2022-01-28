@@ -135,6 +135,7 @@ class Controller():
         self.options["AutoDelete"] = False
         self.options["save_after_reversing"] = False
         self.options["boxing_mode"] = False
+        self.options["ShowDim"] = True
 
 
         self.tr_fut=5
@@ -248,8 +249,8 @@ class Controller():
             if not self.point_data:
                 k=str(self.i)+"/mask"
                 if self.data.check_key(k):
-                    self.mask = self.data.get_mask(self.i, force_original=False)#MB added
-                    #self.mask = self.data[k][...] # SJR: added [...] to get array back, without [...] got a 'h5py._hl.dataset.Dataset' back #MB removed
+                    #MB: so the mask transformation matches those of the frame which are determined by gui's checkboxes
+                    self.mask = self.data.get_mask(self.i, force_original=False)
                     self.data.nb_neurons = int(self.mask.max())
                     self.n_neurons = self.data.nb_neurons
                 else:
@@ -258,14 +259,26 @@ class Controller():
                     self.n_neurons = 0
 
         #load the images from the dataset
-        self.im_rraw = self.data.get_frame(self.i)
-        print(np.shape(self.im_rraw))#MB check
 
-        if self.channel_num == 2 and not self.options["first_channel_only"]:
-            self.im_graw = self.data.get_frame(self.i, col="green")
+        if self.channel_num == 2:
+            if self.options["first_channel_only"]:
+                self.im_rraw = self.data.get_frame(self.i)
+                self.im_graw = None
+            elif self.options["second_channel_only"]:#MB: switch R and G channel if g is only supposed to show
+                self.im_rraw = self.data.get_frame(self.i, col="green")
+                self.im_graw = None
+            else:
+                self.im_rraw = self.data.get_frame(self.i)
+                self.im_graw = self.data.get_frame(self.i, col="green")
 
         else:
+            self.im_rraw = self.data.get_frame(self.i)
             self.im_graw = None
+
+
+        if self.options["ShowDim"]:
+            print("Frame dimensions: "+ str(np.shape(self.im_rraw)))#MB check
+            self.options["ShowDim"]=False
 
         for client in self.frame_img_registered_clients:
             client.change_img_data(self.im_rraw, self.im_graw)
@@ -521,7 +534,8 @@ class Controller():
 
                     self.n_neurons = self.data.nb_neurons
                     self.signal_nb_neurons_changed()
-            #MB added this extra condition to renumber only one connected component of the mask, not all
+            #MB added this extra condition to renumber only one connected component of the mask, not the whole object
+            #this function works in either of mask annotation mode and boxing mode
             elif button == 2 and self.options["RenumberComp"]:
                 if not (coord[0] >= 0 and coord[0] < self.frame_shape[0] and coord[1] >= 0 and coord[1] < self.frame_shape[1] and coord[
                     2] >= 0 and coord[2] < self.frame_shape[2]):
@@ -545,7 +559,7 @@ class Controller():
 
 
             # SJR: User left clicks (arg[0]==1) to select which cell to delete
-            elif button == 1:
+            elif button == 1 and not self.options["boxing_mode"]:
                 if not (0 <= coord[0] < self.frame_shape[0] and 0 <= coord[1] < self.frame_shape[1] and 0 <= coord[2] < self.frame_shape[2]):
                     return
                 sel = self.mask[coord[0], coord[1], coord[2]]
@@ -554,11 +568,11 @@ class Controller():
                     self.highlight_neuron(sel)
                 else:
                     self.highlight_neuron(0)
-
-        elif self.options["boxing_mode"]:
+        #MB: to ba able to draw boxes around objects of interest
+        if self.options["boxing_mode"]:
             w,h,d,box_id = self.box_details
             coord = np.array(coords).astype(np.int16)
-            if button == 2:#left clicks are only accepted
+            if button == 1 and not self.options["RenumberComp"]:#left clicks are only accepted
                 if not (coord[0] >= 0 and coord[0] < self.frame_shape[0] and coord[1] >= 0 and coord[1] < self.frame_shape[1] and coord[
                     2] >= 0 and coord[2] < self.frame_shape[2]):
                     return
@@ -570,6 +584,26 @@ class Controller():
 
                 self.n_neurons = self.data.nb_neurons
                 self.signal_nb_neurons_changed()
+            if button == 2 and self.options["RenumberComp"]:
+                if not (coord[0] >= 0 and coord[0] < self.frame_shape[0] and coord[1] >= 0 and coord[1] < self.frame_shape[1] and coord[
+                    2] >= 0 and coord[2] < self.frame_shape[2]):
+                    return
+
+                regs = sim.label(self.mask==self.highlighted)
+                ind=regs[0][coord[0],coord[1],coord[2]]#MB: label assigned to the coordinate of the clicked point
+                if ind==0:
+                    return
+                loc=(regs[0]==ind)#MB: location of the all the pixels connected to the clicked point(all with the same label)
+
+                self.mask_temp= self.mask.copy()
+
+                self.mask[loc] = self.options["RenumberComp"]
+                self.data.save_mask(self.i, self.mask, False, True)
+                self.update()
+
+                self.n_neurons = self.data.nb_neurons
+                self.signal_nb_neurons_changed()
+                self.options["RenumberComp"] = False
 
         elif None not in coords:  # skip when the coordinate is NaN
             coord = np.array(coords).astype(np.int16)
@@ -697,7 +731,6 @@ class Controller():
         shapeCheck = np.shape(frameCheck)
         transformBack = self.options["save_after_reversing"]
         for t in range(ExtFile.dataset.attrs["T"]):
-            #print(t)
             mkey = str(t) + "/mask"
             #Assuming the imported file was a derivative of the current file after cropping, rotating and other preprocesses,
             #fr t of imported file corresponds to frame "orig_index" of the current file
@@ -708,7 +741,6 @@ class Controller():
                 print("The map between the two files frame numbers is not found. It is taken to be identity")
                 origIndex = t
             origfrkey = str(origIndex) + "/frame"
-            #print(origfrkey)
             if mkey in ExtFile.dataset.keys() and transformBack and origfrkey in self.data.dataset.keys():
                 maskTemp = ExtFile.get_mask(t,force_original=True)#don't apply crop and rotate on the imported masks
                 ExtFile.crop = True
@@ -767,7 +799,7 @@ class Controller():
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
                     Zvec = ExtFile.dataset.attrs["original_Z_interval"]
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
-                    imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img#np.shape(img)[2]] = img
+                    imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img
                     if green:
                         self.data.save_green_mask(origIndex, imgT, True, True)
                     else:
@@ -984,7 +1016,7 @@ class Controller():
 
 
     def Blur(self,frame,blur_b=40,blur_s=6, Subt_bg=False,subtVal = 1):
-        #this blures the images and subtracts background if asked
+        """this blures the images and subtracts background if asked"""
         dimensions=(.1625, .1625, 1.5)
         sigm=blur_s#value between 1-10
         bg_factor=blur_b#value between 0-100
@@ -1003,15 +1035,16 @@ class Controller():
         return frame
 
     def SubtBg(self,frame,subtVal):
+        """subtracts a constant background valuefrom your movie"""
         im_rraw = frame
         threshold_r=(im_rraw<subtVal)
         im_rraw[threshold_r]=0
         return im_rraw
 
     def resize_frame(self, frame, width,height, mask=False):
+        """resizes the frame to the dimensions given as width and height"""
         #width = 16*int(width/16)
         #height = 16*int(height/16)
-
         frameResize = np.zeros((width,height,np.shape(frame)[2]))
         for j in range(np.shape(frame)[2]):
             if mask:

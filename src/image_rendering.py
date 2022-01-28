@@ -190,10 +190,12 @@ class ImageRendering:
             self.im_rraw = img_r#MB added to change threshold obtained from blurred image
         else:
             img_r = self.im_rraw
-        mean_r = np.mean(img_r)
 
+
+        mean_r = np.mean(img_r)
         threshold_r = ((self.low * mean_r) <= img_r)
         img_r = np.clip(threshold_r * img_r, 0, (mean_r + (255 - mean_r) * self.high)) / 255 * self.blend_r
+        
         if self.im_graw is not None:
             mean_g = np.mean(self.im_graw)
             threshold_g = ((self.low * mean_g) <= self.im_graw)

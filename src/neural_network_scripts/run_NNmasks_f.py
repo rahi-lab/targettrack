@@ -36,7 +36,7 @@ GetTrain = int(sys.argv[5])#int(input("train on previous training set?(Press 1 f
 #### These are the run options
 ########################################################################
 #Run status
-deformInput=int(sys.argv[3])#int(input("Do you want to generate deformed frames?(press 1 for yes) "))#1
+deformInput=int(sys.argv[3])#determines whether to generate the deformed frames or not
 if deformInput==1:
     deformation_trick=True
 else:
@@ -68,8 +68,9 @@ if get_points:
 
 #neural network training parameters
 batch_size=1
+#determines what augmentation method is used and when that is stopped and replaced by affine transformations
 aug_dict={0:"aff_cut",50:"aff"}
-num_epochs=int(sys.argv[4])#int(input("Enter number of epochs: ")) #MB added# init: 150#2
+num_epochs=int(sys.argv[4])#number of epochs
 origfrNum = 1716#786#786#761
 ep_augoff=30
 lr=0.003
@@ -80,7 +81,7 @@ tnum=50#"all"#number of training set members - MB
 vnum=10#0 #number of validation set members - MB
 
 if deformation_trick:
-    num_additional=int(sys.argv[8])#80#int(input("How many deformed frames do you need? "))#3
+    num_additional=int(sys.argv[8])#number of deformed frames you are generating
     deformation_num_epochs=2
     deformation_augdict={0:"aff_cut"}
 
@@ -198,9 +199,6 @@ try:
     #### get basic parameters
     if from_points:
         pointdat=np.array(h5["pointdat"])
-        #checked=np.array(h5["checked"])
-        #checked=np.array([checked,checked,checked]).transpose(1,2,0)
-        #pointdat=np.where(checked,pointdat,np.nan)
         existing=np.logical_not(np.isnan(pointdat[:,:,0]))
         pointdat[np.sum(existing,axis=1)<min_num_for_mask,:,:]=np.nan
         existing=np.logical_not(np.isnan(pointdat[:,:,0]))
@@ -221,7 +219,6 @@ try:
         os.mkdir(os.path.join(datadir,"frames"))
         os.mkdir(os.path.join(datadir,"highs"))
         os.mkdir(os.path.join(datadir,"masks"))
-        print("make zmdir")
         Ntot=0
         Nans=0
         print("unpacking frames")#MB check
@@ -248,7 +245,6 @@ try:
         if GetTrain == 1:
             k = 0#index of the dataset you want to copy, usually 0 for the first datasset
             NNname = list(h5['net'].keys())#the new network is NNname[0] so use NNname[1] to access previous networks training set
-            print(NNname)
             traininds = h5['net'][NNname[k]].attrs['traininds']#train indices are saved as an attribute of the first dataset(run w/O deformation)
             for j in traininds:#placing the training frames and masks in the deformation folder
                 np.save(os.path.join(datadir,"masks","mask_"+str(j)+".npy"),np.array(h5[str(j)+"/mask"]).astype(np.int16))
@@ -257,18 +253,10 @@ try:
                 num_added_frames = int(sys.argv[7])
                 if num_added_frames==0:
                     for l in range(origfrNum,T):#to add the deformed frames-761
-                        print(l)
-                        #if not(i==576) and not(i==586):
-                        #    os.remove(os.path.join(datadir,"OldTrain","frames","frame_"+str(i)+".npy"))
-                        #    os.remove(os.path.join(datadir,"OldTrain","masks","mask_"+str(i)+".npy"))
                         np.save(os.path.join(datadir,"masks","mask_"+str(l)+".npy"),np.array(h5[str(l)+"/mask"]).astype(np.int16))
                         Nans+=1
                 else:
                     for l in range(origfrNum,origfrNum+num_added_frames):#to add the deformed frames-761
-                        print(l)
-                        #if not(i==576) and not(i==586):
-                        #    os.remove(os.path.join(datadir,"OldTrain","frames","frame_"+str(i)+".npy"))
-                        #    os.remove(os.path.join(datadir,"OldTrain","masks","mask_"+str(i)+".npy"))
                         np.save(os.path.join(datadir,"masks","mask_"+str(l)+".npy"),np.array(h5[str(l)+"/mask"]).astype(np.int16))
                         Nans+=1
 
@@ -277,8 +265,6 @@ try:
 
         assert Nans>0, "At least one mask is needed"
 
-    ###
-    print(shape)
     allset=NNtools.TrainDataset(datadir,shape)
 
     ''' MB added the following section to get the right total number of cells as categories'''
@@ -289,7 +275,6 @@ try:
     #### Initialize the network ####
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     log+="device= "+str(device)+"\n"
-    print(NetName)
     NetMod = importlib.import_module(NetName)
     net=NetMod.Net(n_channels=shape[0],num_classes=num_classes)
     if requeue:
@@ -302,11 +287,7 @@ try:
     log+="Total number of parameters:"+str(n_params)+"\n"
 
     allset=NNtools.TrainDataset(datadir,shape)
-    ''' MB added the following section to get the right total number of cells as categories'''
-    #U =set() #MB added
-    #for i in allset.indlist :
-    #    U=U.union(set(np.unique(h5[str(i)+"/mask"])))
-    #num_classes = len(U)#MB added
+    ''' MB: added the following section to get the right total number of cells as categories'''
     print("Total number of cells in the segmented frames")
     print(num_classes)
     print(U)
@@ -781,7 +762,7 @@ try:
                     gauss = gauss.reshape(row,col,ch)
                     noisy = image + image * gauss
                     return noisy
-            defTrick = int(sys.argv[7])#int(input("Which deformation trich do you like to use?(press 1 for core's, 2 for scikit) "))#9
+            defTrick = int(sys.argv[7])#whether to use the def trick designed for the point data or the masks
             if verbose:
                 print("Adding Deformed Frames")
             #copy the existing masks first
@@ -796,10 +777,7 @@ try:
                 shutil.copyfile(os.path.join(datadir,"frames","frame_"+str(i)+".npy"),os.path.join(datadir,"deformations","frames","frame_"+str(i)+".npy"))
                 shutil.copyfile(name,os.path.join(datadir,"deformations","masks","mask_"+str(i)+".npy"))
 
-            #distmat=np.zeros([T,T])
-            #for i in range(T):
-            #    for j in range(T):
-            #        distmat[i,j] = abs(i-j)
+
             distmat=np.array(h5["distmat"])
             additional_inds=NNtools.select_additional(T,traininds,distmat,num_additional)[len(traininds):]#index of frames used for augmentation
             h5[identifier].attrs["Deforminds"]=additional_inds# MB added
@@ -807,8 +785,8 @@ try:
             countpl = 0
             totFrameChecked = 0
             ExtframeCount = 0
-            ManualCheck = 1#int(input("Want to check Manually?(press 1 for yes) "))#10
-            ignoreNN = 1#int(input("Want to ignore NN?(press 1 for yes) "))#11
+            ManualCheck = 1#whether to ask the user interactively about the acceptance of the frames  or not
+            ignoreNN = 1#ignore the NN that has jusn been run
             if ignoreNN:
                 NNname = list(h5['net'].keys())
             dum = 0
@@ -835,8 +813,6 @@ try:
                         print("frame not accepted")
                     else:
                         with torch.no_grad():
-
-                            #pts_child=NNtools.get_pts_from_masks0(predmask,num_classes)
                             i_parent=traininds[np.argmin(distmat[traininds,i])]#closest training set frame to frame i
                             fr,mask=evalset[i_parent]
                             maskTemp = mask.cpu().detach().numpy().astype(np.int16)
@@ -857,32 +833,15 @@ try:
                                 axs[1].set_title('deformed frame',fontsize=axisfontSize)
                                 axs[2].set_title('target frame',fontsize=axisfontSize)
                                 fig2, axs2 = plt.subplots(4,2)
-                                #fr_r=np.clip(fr_i[0,0].cpu().detach().numpy()*255,0,255).astype(np.int16)#zero'th channel weighting,
                                 im00=axs2[0,0].imshow(np.max(fr_r,axis=2).T)#plot the target frame
                                 fig.colorbar(im00, ax=axs2[0, 0])
                                 axs2[0,0].set_ylabel('target:'+str(i),rotation=0, labelpad=26)
                                 axs2[0,0].scatter(ptaug[:,0],ptaug[:,1],c="w",s=1)
                                 axs[2].imshow(np.max(fr_r,axis=2).T)#plot the target frame
-                                #plt.subplot(4,2,2)
                                 im01 = axs2[0,1].imshow(np.max(predmask,axis=2).T)#,cmap="nipy_spectral",interpolation="none")
                                 fig.colorbar(im01, ax=axs2[0, 1])
                                 axs2[0,1].set_ylabel('target mask',rotation=0, labelpad=26)
-                                """
-                                """
-                            '''
-                            To prevent passing on the points taken out side of the frame rangeby JV transformation:
-                            '''
-                            '''
-                            pts_child[pts_child[:,0]>W] = np.nan
-                            pts_child[pts_child[:,0]<0] = np.nan
-                            pts_child[pts_child[:,1]>H] = np.nan
-                            pts_child[pts_child[:,1]<0] = np.nan
-                            pts_child[pts_child[:,2]>D] = np.nan
-                            pts_child[pts_child[:,2]<0] = np.nan
-                            '''
-
                         transform_temp, loss_affine = NNtools.rotation_translation(pts_child,pts_parent)#find a linear transformation+translation that takes the two sets of points to each other
-                        #transform_temp = copy.deepcopy(transform_temp)
                         rot = transform_temp[:,:3]
                         offset = transform_temp[:,3]
                         print(i_parent)#MB check
@@ -899,10 +858,8 @@ try:
                         cval = 0
                         maskTempRot = affine_transform(maskTemp,rot,offset,mode=mode,cval = cval, order=order)#change new to fr
 
-                        #frRot_clip = np.clip(frRot*255,0,255).astype(np.int16)
                         frRot_clip = frRot
                         if countpl < 100 and ManualCheck==1:
-                            #plt.subplot(4,2,7)
                             im30 = axs2[3,0].imshow(np.max(frRot_clip,axis=2).T)
                             fig.colorbar(im30, ax=axs2[3, 0])
                             axs2[3,0].set_ylabel("Rotated frame",rotation=0, labelpad=26)
@@ -910,7 +867,6 @@ try:
 
                         if defTrick==1:
                             pts_Rot, pts_Rotts,ps_pred = NNtools.get_pts_from_masksJV(maskTempRot,predmask)
-                            #deformation,_,_,success=NNtools.get_deformation(ptfrom=pts_parent,ptto=pts_child,sh=(W,H,D),k_cut_dimless=2.5,scale=(1,1,5),device=device)
                             deformation,_,_,success=NNtools.get_deformation(ptfrom=pts_Rot,ptto=pts_Rotts,sh=(W,H,D),k_cut_dimless=2,iterations=400,lambda_div=1,scale=(1,1,1),device=device)
                             if success!=0:
                                 print("Deformation failed due to ",success)
@@ -935,7 +891,7 @@ try:
                             z_end = np.minimum(sh[2],np.max(z)+1)
                             image1_warp = frRot
 
-                            MaxPix = 20#np.max(np.max(np.max(mask_warp)))
+                            MaxPix = 20
                             mask_warp = mask_warp/MaxPix
                             mask_warp2 = mask_warp
                             for l in range(z_start,z_end):
@@ -973,8 +929,6 @@ try:
 
                                 origmask =  (maskTempRot>0)
                                 list = np.unique(maskTempRot[submask&origmask])
-                                #print(list)
-                                #if len(list)>0 and len(list)<2:
                                 if len(list)==2:
                                     submaskOrig1 =  (maskTempRot==list[0])
                                     submaskOrig2 =  (maskTempRot==list[1])
@@ -996,45 +950,38 @@ try:
                                 else:
                                     mask_warp2[submask]=np.max(np.unique(mask_warp2[submask]))
 
-                        """
-                        """
                         if countpl < 100 and ManualCheck==1:
                             im31 = axs2[3,1].imshow(np.max(maskTempRot,axis=2).T)
                             fig.colorbar(im31, ax=axs2[3, 1])
                             fr_rParent=fr.unsqueeze(0).to(device=device, dtype=torch.float32)#added for plotting
                             fr_rParent = fr_rParent[0,0].cpu().detach().numpy()
 
-                            #plt.subplot(4,2,3)
+
                             im10 = axs2[1,0].imshow(np.max(fr_rParent,axis=2).T)
                             axs2[1,0].set_ylabel('train frame:'+str(i_parent),rotation=0, labelpad=26)
                             fig.colorbar(im10, ax=axs2[1, 0])
                             axs[0].imshow(np.max(fr_rParent,axis=2).T)
-                            #plt.scatter(pts_parent[:,0],pts_parent[:,1],c="w",s=1)
 
-                            #plt.subplot(4,2,4)
                             im11 = axs2[1,1].imshow(np.max(mask.cpu().detach().numpy(),axis=2).T)#,cmap="nipy_spectral",interpolation="none")
                             fig.colorbar(im11, ax=axs2[1, 1])
                             axs2[1,1].scatter(pts_parent[:,0],pts_parent[:,1],c="w",s=1)
                             axs2[1,1].scatter(pts_child[:,0],pts_child[:,1],c="b",s=1)
-                        """
-                        """
+
                         if defTrick==1:
 
                             frA,maskDum=evalset[i_parent]
                             fr2 = torch.Tensor(frRot)
                             frA[0]= fr2
                             fr3=frA.unsqueeze(0).to(device=device, dtype=torch.float32)
-                            #fr4=fr3.unsqueeze(0)
+
                             mask = maskTempRot
                             mask = torch.Tensor(mask)
                             mask=mask.unsqueeze(0).to(device=device, dtype=torch.float32)
                             frB,mask=NNtools.deform((W,H,D),deformation,fr3,mask=mask)#apply the deformation on the training frame and its mask
                             frC=np.clip(frB[0].cpu().detach().numpy()*255,0,255).astype(np.int16)
-                            #frC = frB[0].cpu().detach().numpy().astype(np.int16)
+
                             mask=mask[0].cpu().detach().numpy().astype(np.int16)
-                            print(np.shape(frC))
-                            """
-                            """
+
 
                             if countpl < 100 and ManualCheck==1:
                                 plt.subplot(4,2,5)
@@ -1050,17 +997,16 @@ try:
                                 plt.scatter(pts_Rot[:,0],pts_Rot[:,1],c="blue",s=1)
                                 plt.show()
                                 countpl = countpl + 1
-                            """
-                            """
+
                         if defTrick == 2:
                             if countpl < 100 and ManualCheck==1:
-                                #plt.subplot(4,2,5)
+
                                 im20=axs2[2,0].imshow(np.max(image1_warp,axis=2).T)
                                 axs2[2,0].set_ylabel('warped image',rotation=0, labelpad=26)
                                 fig.colorbar(im20, ax=axs2[2, 0])
                                 axs[1].imshow(np.max(image1_warp,axis=2).T)
                                 fig.subplots_adjust(wspace=0.270)
-                                #plt.subplot(4,2,6)
+
                                 im21 = axs2[2,1].imshow(np.max(mask_warp2,axis=2).T)#,cmap="nipy_spectral",interpolation="none")
                                 axs2[2,1].set_ylabel('warped mask',rotation=0, labelpad=26)
                                 fig.colorbar(im21, ax=axs2[2, 1])
@@ -1068,7 +1014,7 @@ try:
                                 fig.savefig(str(i)+'.pdf')
                                 fig2.savefig(str(i)+'_2.pdf')
 
-                                #plt.show()
+
                             countpl = countpl + 1
                             mask = mask_warp2
                             ship = np.shape(image1_warp)
@@ -1080,9 +1026,6 @@ try:
 
                             checkCode = 0 #MB check
                             if checkCode==1:
-
-                                print(traininds)
-                                #SegFrames = [452, 584, 628, 910, 963, 994, 1050, 1105, 1106, 1139, 1164, 1203, 1219, 1220, 1261, 1274, 1319, 1324, 1391, 1395, 1514, 1563, 1576, 1586, 1591]
                                 sfr = traininds[dum]#SegFrames[dum]
                                 if True:# sfr not in traininds:
                                     fr,mask=evalset[sfr]
@@ -1109,8 +1052,6 @@ try:
                         else:
                             num_additional = num_additional+1
                 if num_additional > 0 :# if not enough frames were added
-                    print(totFrameChecked)#MB check
-                    print(num_additional)
                     additional_inds=NNtools.select_additional(T,traininds,distmat,totFrameChecked + num_additional)[len(traininds)+totFrameChecked:]
             #now add the new masks
             ContinueNNWDef = 0#int(input("Do you like to continue this NN training?(press 1 for yes) "))#13

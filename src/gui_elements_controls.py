@@ -548,7 +548,6 @@ class AnnotationTab(QWidget):
         mask_buttons = QGridLayout()
         subrow=0
         self.change_within_checkbox = QCheckBox("Change within")
-        #Blur_checkbox.toggled.connect(self.controller.toggle_save_blurred)
         mask_buttons.addWidget(self.change_within_checkbox, subrow, 0)
         self.mask_change_from = QLineEdit("0")
         self.mask_change_from .setValidator(QtGui.QIntValidator(0, frame_num -1))
@@ -574,7 +573,6 @@ class AnnotationTab(QWidget):
         row += 1
 
         Permute_buttons = QGridLayout()
-        #MB added
         self.cell_permutation_entry = QLineEdit("0")
         self.cell_permutation_entry.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
         Permute_buttons.addWidget(QLabel("Enter cell numbers separated with ,"), 0, 0)
@@ -707,7 +705,6 @@ class NNControlTab(QWidget):
 
         self.NN_pt_select = QComboBox()
         self.NN_pt_select.addItem("None")
-        # self.NN_pt_select.currentTextChanged.connect(self.make_sigfunc_arg("loadNNres")) MB removed
         self.NN_pt_select.currentTextChanged.connect(self._select_pt_instance)
         main_layout.addWidget(self.NN_pt_select, row, 0, 1, 2)
         row += 1
@@ -723,7 +720,6 @@ class NNControlTab(QWidget):
         row += 1
 
 
-        #MB added
         self.Exempt_Neurons = QLineEdit("0")
         self.Exempt_Neurons.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
         self.PostProc_Mode = QLineEdit("1")
@@ -733,6 +729,7 @@ class NNControlTab(QWidget):
 
         row += 1
 
+        #tab for determining different post processing modes
         PostProcess_mask = QPushButton("Post-process masks")
         PostProcess_mask.setStyleSheet("background-color: yellow")
         PostProcess_mask.clicked.connect(self._Postprocess_NN_masks)
@@ -752,13 +749,13 @@ class NNControlTab(QWidget):
 
         # MB added: to get the validation frames ids:
         val_frame_box = QtHelpers.CollapsibleBox("Validation frames id:")  # MB added
-        lay = QVBoxLayout()  # MB added
+        lay = QVBoxLayout()
         self.val_set_display = QLabel()
         self.val_set_display.setText("unknown at init")
         lay.addWidget(self.val_set_display)
-        val_frame_box.setContentLayout(lay)  # MB added
-        main_layout.addWidget(val_frame_box, row, 0, 1, 2)  # MB added
-        row += 1  # MB added
+        val_frame_box.setContentLayout(lay)
+        main_layout.addWidget(val_frame_box, row, 0, 1, 2)
+        row += 1
 
         main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
         row += 1
@@ -979,7 +976,7 @@ class SelectionTab(QWidget):
         selection_lay.addWidget(self.frac_entry, 0, 0)
         selection_lay.addWidget(QLabel("% of"), 0, 1)
 
-        #MB added
+        #MB added to selet individual frames manually
         self.fr_num_entry = QLineEdit("0")
         self.fr_num_entry.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
         selection_lay.addWidget(QLabel("Enter frame numbers separated with ,"), 1, 0)
@@ -1012,11 +1009,7 @@ class SelectionTab(QWidget):
         single_radiobtn.setChecked(False)
         self.population_buttons.addButton(single_radiobtn)
         buttons_layout.addWidget(single_radiobtn)
-        # nn_radiobtn = QRadioButton("NN results")   # todo
-        # nn_radiobtn.setChecked(False)
-        # # nn_radiobtn.toggled.connect(self.make_sigfunc("NN_res", True))
-        # self.population_buttons.addButton(nn_radiobtn)
-        # buttons_layout.addWidget(nn_radiobtn)
+
 
         selection_lay.addLayout(buttons_layout, 0, 2)
 
@@ -1089,7 +1082,7 @@ class MaskProcessingTab(QWidget):
         init_seg_btn.clicked.connect(self.controller.test_segmentation_params)
         main_layout.addWidget(init_seg_btn)
         seg_lay = QHBoxLayout()
-        coarse_seg_btn = QCheckBox("Coarse segmentation")  # MB added Jan2021
+        coarse_seg_btn = QCheckBox("Coarse segmentation")
         coarse_seg_btn.setChecked(False)
         coarse_seg_btn.toggled.connect(self.controller.toggle_coarse_seg_mode)
         seg_btn = QPushButton("Segmentation")
@@ -1101,7 +1094,7 @@ class MaskProcessingTab(QWidget):
         main_layout.addWidget(dum)
 
         ftr_lay = QHBoxLayout()
-        ftr_from_seg_check = QCheckBox("from segmentations")  # MB added Jan2021
+        ftr_from_seg_check = QCheckBox("from segmentations")
         ftr_from_seg_check.setChecked(False)
         ftr_from_seg_check.toggled.connect(self.controller.toggle_use_seg_for_feature)
         ftr_btn = QPushButton("Extract features")
@@ -1314,16 +1307,14 @@ class PreProcessTab(QWidget):
             subrow += 1
 
             approve_lay.addWidget(QLabel("Delete frames:"), subrow, 0)
-            #self.delete_select.clicked.connect(self._selective_approve)
-            #self.delete_select.setEnabled(False)
-            #approve_lay.addWidget(self.delete_select, subrow, 0)
+
             self.delete_fr = QLineEdit(str(frame_num)+","+str(frame_num+1))
             self.delete_fr.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
             approve_lay.addWidget(self.delete_fr, subrow, 1)
             approve_lay.addWidget(QLabel("and intervals:"), subrow, 2)
             self.delete_inter = QLineEdit(str(frame_num)+"-"+str(frame_num+1))
             self.delete_inter.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-            #self.delete_inter.setValidator(QtGui.QIntValidator(0, frame_num - 1))
+
             approve_lay.addWidget(self.delete_inter, subrow, 3)
             subrow += 1
 
@@ -1339,7 +1330,7 @@ class PreProcessTab(QWidget):
 
             approve_lay.addWidget(QLabel("Choose x from:"), subrow, 0)
             self.x_from = QLineEdit("0")
-            #self.x_from.setValidator(QtGui.QIntValidator(0, frame_num - 1))
+
             approve_lay.addWidget(self.x_from, subrow, 1)
             approve_lay.addWidget(QLabel("to:"), subrow, 2)
             self.x_to = QLineEdit("0")
