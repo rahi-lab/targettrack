@@ -1144,6 +1144,12 @@ class MaskProcessingTab(QWidget):
         rotation_btn = QPushButton("Compute rotation")
         rotation_btn.clicked.connect(self.controller.compute_rotation)
         main_layout.addWidget(rotation_btn)
+
+        coarot_btn = QPushButton("Coarse segmentation + rotation")
+        coarot_btn.clicked.connect(self.controller.segment)
+        coarot_btn.clicked.connect(self.controller.compute_rotation)
+        main_layout.addWidget(coarot_btn)
+
         crop_btn = QPushButton("Crop")
         crop_btn.clicked.connect(self.controller.define_crop_region)
         main_layout.addWidget(crop_btn)
