@@ -12,6 +12,10 @@ import h5py
 import scipy.spatial as spat
 import matplotlib.pyplot as plt
 import FourierAugment
+import scipy.ndimage as sim
+import sys
+from scipy.optimize import fmin_l_bfgs_b
+from skimage.measure import find_contours
 
 class TrainDataset(Dataset):
     def __init__(self,dirname,shape,meansub=False,high=False,maskdirname="masks"):
@@ -262,6 +266,269 @@ def get_pts_iou(package):
         return [pts,weights,iou]
     return [pts,iou]
 
+def get_pts_from_masks(mask,num_class):
+    '''
+    MB added: to extract points assigne to the center of each mask object, and point assigned to center of mass of each two object.
+    '''
+
+    Cells = np.unique(mask)
+    Cells = np.sort(Cells)
+    Vol = np.zeros(len(Cells))
+    CoM = np.zeros([len(Cells),3])
+    for i in range(len(Cells)):
+        Vol[i] = np.sum(mask==Cells[i])
+        Coor = np.nonzero(mask==Cells[i])
+        CoM[i] = [np.mean(Coor[0]), np.mean(Coor[1]), np.mean(Coor[2])]
+    num_pts = num_class+(num_class*num_class//2)
+    ptsCoor=np.full((num_pts,3),np.nan)
+    for i in range(1,len(Cells)):#exclude zero
+        C = Cells[i]
+        Pos = num_class*(C-1)-(C*(C-1)//2)
+        ptsCoor[Pos+i] = CoM[i]
+        for j in range(i, len(Cells)):
+            ptsCoor[Pos+j] = (CoM[i]*Vol[i]+CoM[j]*Vol[j])//(Vol[i]+Vol[j])
+    return ptsCoor
+
+
+def get_pts_from_masks0(mask,num_class):
+    '''
+    MB added: to extract points assigne to the center of each mask object, and point assigned to center of mass of each two object.
+    '''
+
+    Cells = np.unique(mask)
+    Cells = np.sort(Cells)
+    Vol = np.zeros(len(Cells))
+    CoM = np.zeros([len(Cells),3])
+    for i in range(len(Cells)):
+        Vol[i] = np.sum(mask==Cells[i])
+        Coor = np.nonzero(mask==Cells[i])
+        CoM[i] = [np.mean(Coor[0]), np.mean(Coor[1]), np.mean(Coor[2])]
+    num_pts = num_class-1
+    ptsCoor=np.full((num_pts,3),np.nan)
+    for i in range(1,len(Cells)):#exclude zero
+        C = Cells[i]
+        ptsCoor[i-1] = CoM[i]
+    return ptsCoor
+
+
+def get_pts_from_masksJV(maskFrom,maskTo):
+    '''
+    MB added: applies Jian-Vermuri registration between points on the border of
+    maskFrom and points on the border of maskTo
+    maskFrom: mask asarray
+    maskTo: maskArray
+    returns:
+    ptto: list of points on the border of mask objects of maskTo
+    after_tps: transformed result of the set "points"
+
+    '''
+
+    ptfrom = load_single_contour_Mask(maskFrom)# the frame in the training set
+    ptto = load_single_contour_Mask(maskTo)# the new augmented frame
+    ctrl_pts = ptto
+    points, ref_seg, after_tps, func_min = registration_JV(ptfrom, ptto, ctrl_pts)
+
+    return points, after_tps, ptto
+
+def get_pts_from_masks2(mask,num_class):
+    '''
+    MB added: to extract points assigne to the center of each mask object, and point assigned to center of mass of each two object.
+    '''
+    import math
+    Cells = np.unique(mask)
+    Cells = np.sort(Cells)
+    Vol = np.zeros(len(Cells))
+    CoM = np.zeros([len(Cells),3])
+    num_pts = (num_class-1)*(num_class-1)
+    ptsCoor=np.full((num_pts,3),np.nan)
+    for i in range(1,len(Cells)): #exclude zero
+        Vol[i] = np.sum(mask==Cells[i])
+        Coor = np.nonzero(mask==Cells[i])
+        CoM[i] = [np.mean(Coor[0]), np.mean(Coor[1]), np.mean(Coor[2])]
+        #distFromCenter = np.zeros(int(Vol[i]))# to get the point with highest distance from center
+        #for j in range(int(Vol[i])):
+        #    distFromCenter[j] = math.sqrt((Coor[0][j]-CoM[i][0])**2+(Coor[1][j]-CoM[i][0])**2+(Coor[2][j]-CoM[i][0])**2)
+        C = Cells[i]
+        #Pos = num_class*(C-1)-(C*(C-1)//2)
+        ptsCoor[(num_class-1)*(C-1)+C-1] = CoM[i]
+        for j in range(1, len(Cells)):
+            if j != i :
+                distvec = CoM[j]-CoM[i]
+                #gcd = math.gcd(int(distvec[0]),int(distvec[1]))
+                #gcd = math.gcd(gcd,int(distvec[2]))
+                print(np.max(abs(distvec)))
+                directionVec = 5*(distvec)/np.max(abs(distvec))
+                directionVec[0] = int(directionVec[0])
+                directionVec[1] = int(directionVec[1])
+                directionVec[2] = int(directionVec[2])
+                print(directionVec)
+                border = CoM[i]
+                border[0] = int(border[0])
+                border[1] = int(border[1])
+                border[2] = int(border[2])
+                check = 0
+                while ((border[0] in Coor[0]) and (border[1] in Coor[1]) and (border[2] in Coor[2])):
+                    border[0] = border[0]+directionVec[0]
+                    border[1] = border[1]+directionVec[1]
+                    border[2] = border[2]+directionVec[2]
+                    check = 1
+                if check ==1 :
+                    border[0] = border[0]-directionVec[0]
+                    border[1] = border[1]-directionVec[1]
+                    border[2] = border[2]-directionVec[2]
+                    ptsCoor[(num_class-1)*(C-1)+Cells[j]-1] = border
+    #print(ptsCoor)
+    return ptsCoor
+
+def registration_JV(points, reference, ctrl_pts):
+    """
+    :param points: (n,3) numpy array, the model to register
+    :param reference: (n,3) numpy array, the reference model
+    :param ctrl_pts: (n,3) numpy array, sample points of the model used for registration.
+    :return: points, reference and the transformed points and the registration loss.
+    after_tps: are the points after transformation to fit the ref
+    """
+    import gmmreg._core as core
+    level = 4
+    scales = [ .6, .3, .2, .1]
+    lambdas = [ 0.1, .01, .001, .001]
+    iters = [ 100, 100, 500, 300]
+    [points, c_m, s_m] = core.normalize(points)
+    [reference, c_s, s_s] = core.normalize(reference)
+    [ctrl_pts, c_c, s_c] = core.normalize(ctrl_pts)
+    after_tps, x0, loss = run_multi_level(points, reference, ctrl_pts, level, scales, lambdas, iters)
+    points = core.denormalize(points, c_m, s_m)
+    reference = core.denormalize(reference, c_s, s_s)
+    after_tps = core.denormalize(after_tps, c_s, s_s)
+    return points, reference, after_tps, loss
+
+def run_multi_level(model, scene, ctrl_pts, level, scales, lambdas, iters):
+    """
+    The point set registration by Jian Vemuri, check https://pubmed.ncbi.nlm.nih.gov/21173443/
+    :param model:(n,3) numpy array, the reference model
+    :param scene: (n,3) numpy array, the scene
+    :param ctrl_pts: (n,3) control points to register
+    :param level: Integer,
+    :param scales: list of scales of length level, Gaussian variance at each level,
+    :param lambdas: list of double of length level, Bending regularizer at each level.related to the energy of the nonlinear transformation
+    :param iters: list of Integers of length level,Number of iterations to run for each level
+    :return: the transformed points, also the registration loss
+    """
+    import gmmreg._core as core
+    [n, d] = ctrl_pts.shape
+    x0 = core.init_param(n, d)
+    [basis, kernel] = core.prepare_TPS_basis(model, ctrl_pts)
+    loss = 1
+    for i in range(level):
+        x = fmin_l_bfgs_b(core.obj_L2_TPS, x0, None, args=(basis, kernel, scene, scales[i], lambdas[i]),
+                          maxfun=iters[i])
+        x0 = x[0]
+        loss = x[1]
+    after_tps = core.transform_points(x0, basis)
+    return after_tps, x0, loss
+def rotation_translation(Initial, final):
+    """
+    compute the max x,y rotation R and translation T, such that final - R@Initial + offset
+    :param Initial: (n,3) numpy array, where n is number of 3D points
+    :param final: (n,3) numpy array, where n is number of 3D points.
+    :return: the concatenated numpy array
+    """
+
+    Initial = Initial[:, :2]
+    final = final[:, :2]
+    c_i = np.mean(Initial, axis=0)
+    Initial = Initial - c_i
+    c_f = np.mean(final, axis=0)
+    final = final - c_f
+    H = Initial.T @ final
+    U, D, V = np.linalg.svd(H)
+    R = V.T @ U.T
+    det = np.linalg.det(R)
+    D = np.diag([1, 1, det])
+    R = V.T @ (U.T)
+    offset = c_f - np.dot(R, c_i)
+    transform_points = np.matmul(Initial, R.T)
+    loss = np.linalg.norm(final - transform_points) / np.linalg.norm(final)
+    # offset = offset.reshape((offset.shape[0],1))
+    d_3_transform = np.zeros((3, 4))
+    d_3_transform[:2, :2] = R
+    d_3_transform[2, 2] = 1.0
+    d_3_transform[:2, 3] = offset
+    return d_3_transform, loss
+
+def find_3D_contour(segment_binary):
+    """
+    Finds the 3d contour of a neuron.
+    :param segment_binary: binary mask of one neuron
+    :return: np array [[x1, y1, z1],...], a list of coordinates of points of the contour
+    """
+    contour_points = []
+    for z in range(segment_binary.shape[2]):
+        z_conts = find_contours(segment_binary[:, :, z], 0.5)
+        for cont in z_conts:  # several contours
+            for pt in cont:  # all points in contour
+                contour_points.append([*pt, z])
+    return contour_points
+
+
+def sample_points_from_contour(contour):
+    """
+    Returns coordinates of points from the segment to be used for point set registration.
+    :param contour: array [[x1, y1, z1],...], a list of the coordinates of all points of the contour.
+    :return: list [[x1, y1, z1],...], a list of coordinates of approx n_points points from the contour
+    MB: returns evenly distributed points on the xy projection of the contour
+    """
+    num_samples_per_neuron = 10
+    n_points = num_samples_per_neuron
+    sampled_points = []
+    contour = np.asarray(contour)
+    all_xs = np.unique(contour[:, 0])  # is sorted
+    x_step = int(np.ceil(len(all_xs) / np.sqrt(n_points / 2)))
+    sample_xs = all_xs[(x_step - 1) // 2::x_step]
+    for x in sample_xs:
+        sample_x = contour[contour[:, 0] == x]
+        all_ys = np.unique(sample_x[:, 1])
+        y_step = int(np.ceil(len(all_ys) / np.sqrt(n_points / 2)))
+        sample_ys = all_ys[(y_step - 1) // 2::y_step]
+        for y in sample_ys:
+            sample_y = sample_x[sample_x[:, 1] == y]
+            mi = min(sample_y[:, 2])
+            sampled_points.append([x, y, mi])
+            ma = max(sample_y[:, 2])
+            if ma != mi:
+                sampled_points.append([x, y, ma])
+    return sampled_points
+def contour_of_segment(segdf):
+    """
+    :param segdf: numpy array, the mask of the segment
+    :return:
+    """
+    countor = find_3D_contour(segdf)
+    segdf = sample_points_from_contour(countor)
+    return segdf
+
+def load_single_contour_Mask(mask):
+    """
+    Returns a sample of points from the contour of the segments,
+    loads the entire segment file and filters the segment, to load for a set of frames use the load batch instead.
+    :param frame: Integer, the time
+    """
+    frame_segment = mask
+    segments_in_frame = np.unique(frame_segment)
+    points = []
+    for seg in segments_in_frame:
+        if True:
+            segdf = (np.array(frame_segment) == seg)#MB added np.array
+            print(seg)
+            print(np.shape(frame_segment))
+            print(np.shape(segdf[0]))
+            segdf = contour_of_segment(segdf.astype(int))
+            if len(points) == 0:
+                points = segdf
+            else:
+                points = np.append(points, segdf, axis=0)
+    return points
+
 def pack(h5,identifier,i,grid,num_classes,thres=4,weight=False):
     fr=np.array(h5[str(i)+"/frame"])[0]
     predmask=np.array(h5[identifier][str(i)+"/predmask"])
@@ -428,6 +695,7 @@ def get_deformation(ptfrom,ptto,sh,k_cut_dimless=2.5,lr=0.1,print_plot=False,ite
         gz=deformation[:,2,1:-1,1:-1,2:]-deformation[:,2,1:-1,1:-1,:-2]
         divergence=scale[0]*gx+scale[1]*gy+scale[2]*gz
         loss+=lambda_div*torch.mean(torch.abs(divergence))
+        #print(f.kgrid.shape)
         opt.zero_grad()
         loss.backward()
         opt.step()
