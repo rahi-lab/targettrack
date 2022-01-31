@@ -428,7 +428,6 @@ def get_deformation(ptfrom,ptto,sh,k_cut_dimless=2.5,lr=0.1,print_plot=False,ite
         gz=deformation[:,2,1:-1,1:-1,2:]-deformation[:,2,1:-1,1:-1,:-2]
         divergence=scale[0]*gx+scale[1]*gy+scale[2]*gz
         loss+=lambda_div*torch.mean(torch.abs(divergence))
-        #print(f.kgrid.shape)
         opt.zero_grad()
         loss.backward()
         opt.step()

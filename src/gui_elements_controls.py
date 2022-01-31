@@ -773,11 +773,15 @@ class NNControlTab(QWidget):
         subrow = 0
         options_checkboxes_lay = QGridLayout()
         old_train_checkbox = QCheckBox("Use old train set")
-        old_train_checkbox.toggled.connect(self.controller.toggle_save_crop_rotate)
+        old_train_checkbox.toggled.connect(self.controller.toggle_old_trainset)
         options_checkboxes_lay.addWidget(old_train_checkbox, subrow, 0)
         deform_checkbox = QCheckBox("Add deformation")
-        deform_checkbox.toggled.connect(self.controller.toggle_save_1st_channel)
+        deform_checkbox.toggled.connect(self.controller.toggle_add_deformation)
         options_checkboxes_lay.addWidget(deform_checkbox,subrow , 1)
+        options_checkboxes_lay.addWidget(QLabel("target frames:"), subrow, 2)
+        self.targset = QLineEdit("5")
+        self.targset.setValidator(QtGui.QIntValidator(0, 200))
+        options_checkboxes_lay.addWidget(self.targset, subrow, 3)
 
         subrow += 1
 
@@ -791,7 +795,7 @@ class NNControlTab(QWidget):
         options_checkboxes_lay.addWidget(self.trainset, subrow, 3)
 
         options_checkboxes_lay.addWidget(QLabel("epochs:"), subrow, 4)
-        self.epochs = QLineEdit("10")
+        self.epochs = QLineEdit("100")
         self.epochs.setValidator(QtGui.QIntValidator(0, 1000))
         options_checkboxes_lay.addWidget(self.epochs, subrow, 5)
 
@@ -877,7 +881,7 @@ class NNControlTab(QWidget):
         confirmation = msgBox.exec()
         if confirmation == QMessageBox.Ok:
             if mask:
-                runres, msg = self.controller.run_NN_masks(modelname,instancename,fol,int(self.epochs.text()),int(self.trainset.text()),int(self.valset.text()))
+                runres, msg = self.controller.run_NN_masks(modelname,instancename,fol,int(self.epochs.text()),int(self.trainset.text()),int(self.valset.text()),int(self.targset.text()))
             else:
                 runres, msg = self.controller.run_NN_points(modelname,instancename,fol)
             if not runres:
@@ -935,7 +939,7 @@ class NNControlTab(QWidget):
 
         Mode = int(self.PostProc_Mode.text())
         Modes = set([1,2,3,4])
-        assert Mode in Modes, "Acceptable modes are 1, 2, 4, and 4"
+        assert Mode in Modes, "Acceptable modes are 1, 2, 3, 4, and 5"
         if Mode ==1:
             self.controller.post_process_NN_masks(ExNeu)
         if Mode ==2:
@@ -944,7 +948,8 @@ class NNControlTab(QWidget):
             self.controller.post_process_NN_masks3(ExNeu)
         if Mode ==4:
             self.controller.post_process_NN_masks4(ExNeu)
-
+        if Mode ==5:
+            self.controller.post_process_NN_masks5(ExNeu)
 
 class SelectionTab(QWidget):
     """

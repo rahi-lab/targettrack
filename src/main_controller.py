@@ -134,6 +134,8 @@ class Controller():
         self.options["save_resized"] =  False
         self.options["AutoDelete"] = False
         self.options["save_after_reversing"] = False
+        self.options["generate_deformation"] = False
+        self.options["use_old_trainset"] = False
         self.options["boxing_mode"] = False
         self.options["ShowDim"] = True
 
@@ -686,6 +688,13 @@ class Controller():
             yright = int(np.ceil(yright))
             self.data.save_ROI_params(xleft, xright, yleft, yright)
             del self.crop_points
+    def toggle_old_trainset(self):
+        self.options["use_old_trainset"] = not self.options["use_old_trainset"]
+        self.update()
+
+    def toggle_add_deformation(self):
+        self.options["generate_deformation"] = not self.options["generate_deformation"]
+        self.update()
 
     def toggle_reverse_transform(self):
         self.options["save_after_reversing"] = not self.options["save_after_reversing"]
@@ -1789,7 +1798,7 @@ class Controller():
     def post_process_NN_masks4(self,ProcessedNeurons):
         """MB added: to post process the predicttions of NN for the selected frames as the ground truth
         ProcessedNeurons: neurons that you want to postprocess. if a certain neuron has multiple components
-         it deletes the components that have smalleer volume
+         it deletes the components that have smaller volume
 
         """
 
@@ -1821,6 +1830,38 @@ class Controller():
                     else:
                         print("There are no predictions for this frame")
         self.update()
+    def post_process_NN_masks5(self,ProcessedNeurons):
+        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
+        ProcessedNeurons: neurons that you want to postprocess. If two or three neurons touch each other
+         and are in one connected component it renames all to the first neuron in ProcessedNeurons vector
+
+        """
+        Vol = np.zeros([1,len(ProcessedNeurons)])
+        if self.NNmask_key == "":
+            print("You should first choose the NN instance")
+        else:
+            for t in self.selected_frames:
+                mkey = str(t) + "/mask"
+                if True:#not mkey in self.data.dataset.keys():
+                    knn="net/"+self.NNmask_key+"/"+str(t)+"/predmask"
+                    if knn in self.data.dataset.keys():
+                        mask = self.data[knn][...]
+                        if True:#for c in cell_list:
+                            labelArray, numFtr = sim.label(mask>0)#get all the disconnected components of the nonzero regions of mask
+                            for i in range(1,numFtr+1):
+                                submask =  (labelArray==i)#focus on each connected component separately
+                                for k in range(len(ProcessedNeurons)):
+                                    Vol[0,k] = np.sum(mask[submask]==ProcessedNeurons[k])#volume of each of the chosen neurons in this component
+                                #MaxInd = np.argmax(Vol[0,:])
+                                if not np.max(Vol[0,:])==0 and not Vol[0,0]==0:
+                                    for k1 in range(len(ProcessedNeurons)):
+                                        if not k1==0:
+                                            k1_comp = (submask&(mask==ProcessedNeurons[k1]))
+                                            mask[k1_comp] = int(ProcessedNeurons[0])
+                        self.data[knn][...] = mask
+                    else:
+                        print("There are no predictions for this frame")
+        self.update()
 
 
     def check_NN_run(self):
@@ -1831,7 +1872,7 @@ class Controller():
         dialog.exec_()
         dialog.deleteLater()
 
-    def run_NN_masks(self, modelname, instancename, fol,epoch,train,validation):
+    def run_NN_masks(self, modelname, instancename, fol,epoch,train,validation,targetframes):
         # Todo AD could this be factorized in some way?
         # run a mask prediction neural network
         self.save_status()
@@ -1854,7 +1895,14 @@ class Controller():
         self.data.close()  # close
         shutil.copyfile(dset_path, newpath)  # whole data set is copied in newpath
         self.data = DataSet.load_dataset(dset_path)
-        args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"0","0",str(train),str(validation)]
+        if not self.options["use_old_trainset"] and not self.options["generate_deformation"]:
+            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"0","0",str(train),str(validation)]
+        elif not self.options["use_old_trainset"] and self.options["generate_deformation"]:
+            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"1","1","1","0","2",str(targetframes)]
+        elif self.options["use_old_trainset"] and not self.options["generate_deformation"]:
+            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"1","1","0"]
+        else:
+            print("you cannot 'select use old deformation' and add deformation at the same time")
         if fol:
             os.mkdir(key)
             dfd = os.path.join("data", "data_temp")
@@ -1869,7 +1917,12 @@ class Controller():
             shutil.copyfile("./src/neural_network_scripts/run_NNmasks_f.py", os.path.join(key, "run_NNmasks_f.py"))
             shutil.copyfile("./src/neural_network_scripts/NNtools.py", os.path.join(key, "NNtools.py"))
             with open(os.path.join(key, "run.sh"), "w") as f:
-                Totstring = "0 " + str(epoch)+" 0 "+"0 "+str(train)+ " " +str(validation)
+                if not self.options["use_old_trainset"] and not self.options["generate_deformation"]:
+                    Totstring = "0 " + str(epoch)+" 0 "+"0 "+str(train)+ " " +str(validation)
+                elif not self.options["use_old_trainset"] and self.options["generate_deformation"]:
+                    Totstring =  "1 1 1 0 2 "+ str(targetframes)
+                elif self.options["use_old_trainset"] and not self.options["generate_deformation"]:
+                    Totstring = "0 " + str(epoch)+" 1 1 0"
                 f.write("python3 run_NNmasks_f.py" + " " + nnewpath + " " + nnewlogpath + " " +Totstring)
             return True, ""
         return self.subprocmanager.run(key, args, newlogpath)

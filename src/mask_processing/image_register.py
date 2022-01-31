@@ -421,6 +421,8 @@ class Register_Rotate:
         :param frame: Integer, the time
         """
         frame_segment = self.data.segmented_frame(frame)
+        if len(np.unique(frame_segment))<3:#MB added to avoid error when facing empty frames
+            frame_segment = self.rotseg
         segments_in_frame = np.unique(frame_segment)
         points = []
         for seg in segments_in_frame:
