@@ -71,7 +71,7 @@ batch_size=1
 #determines what augmentation method is used and when that is stopped and replaced by affine transformations
 aug_dict={0:"aff_cut",50:"aff"}
 num_epochs=int(sys.argv[4])#number of epochs
-origfrNum = 1716#786#786#761
+origfrNum = h5.attrs["oldT"]
 ep_augoff=30
 lr=0.003
 patience=8
@@ -252,11 +252,11 @@ try:
             if DeforemeFrames == 1:
                 num_added_frames = int(sys.argv[7])
                 if num_added_frames==0:
-                    for l in range(origfrNum,T):#to add the deformed frames-761
+                    for l in range(origfrNum,T):#to add the deformed frames
                         np.save(os.path.join(datadir,"masks","mask_"+str(l)+".npy"),np.array(h5[str(l)+"/mask"]).astype(np.int16))
                         Nans+=1
                 else:
-                    for l in range(origfrNum,origfrNum+num_added_frames):#to add the deformed frames-761
+                    for l in range(origfrNum,origfrNum+num_added_frames):#to add the deformed frames
                         np.save(os.path.join(datadir,"masks","mask_"+str(l)+".npy"),np.array(h5[str(l)+"/mask"]).astype(np.int16))
                         Nans+=1
 
@@ -1041,6 +1041,7 @@ try:
                         else:
                             checkMB = 1
                         if checkMB==1:
+                            h5.attrs["oldT"]=T
                             np.save(os.path.join(datadir,"deformations","frames","frame_"+str(T+ExtframeCount)+".npy"),frC) #we add T to avoid collision, but don't want to define another class
                             np.save(os.path.join(datadir,"deformations","masks","mask_"+str(T+ExtframeCount)+".npy"),mask)
                             dset=h5.create_dataset(str(T+ExtframeCount)+"/frame",fr.shape,  dtype="i2", compression="gzip")#to save the mask in data set

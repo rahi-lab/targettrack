@@ -432,4 +432,5 @@ class Register_Rotate:
                 points = segdf
             else:
                 points = np.append(points, segdf, axis=0)
+        self.rotseg = frame_segment
         return points
