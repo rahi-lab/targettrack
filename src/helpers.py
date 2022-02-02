@@ -44,6 +44,12 @@ def parallel_process(sequence, func, params):
         results = pool.map(ft.partial(func, **params), sequence)
     return results
 
+def parallel_process2(sequence, func):
+    """MB:parallelizing a function with multiple arguments as asequence"""
+    n_processes = GlobalParameters.n_processes
+    with multiprocessing.Pool(processes=n_processes) as pool:
+        results = pool.starmap(func, sequence)
+    return results
 
 def project(img, axis):
     """

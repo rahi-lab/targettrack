@@ -10,11 +10,12 @@ from mpl_toolkits.mplot3d import Axes3D
 
 from skimage.measure import find_contours
 from .. import helpers as h
+from itertools import repeat
 from ..datasets_code.EPFL_datasets.nd2Data import nd2Data
 
 # stop matplotlib debug-level spam
 plt.set_loglevel("info")
-
+ParallelCompute=True#whether to compute the transformation parallely or not
 
 class Register_Rotate:
 
@@ -69,13 +70,32 @@ class Register_Rotate:
         """
         batches = h.batch(self.frames_to_register)
         batches = list(batches)
-        for batch in batches:
-            non_ref = set(batch) - set(self.ref_frames)
-            all_frames = list(set(non_ref) - set(self.segments.keys()))
-            segments = {t: self.load_single_contour(t) for t in all_frames}
-            for frame in tqdm(non_ref):
-                self.transform_one(frame, self.ref_frames, segments=segments[frame])
-            del segments
+
+        if ParallelCompute:
+            #MB: ref_segs and origRef are computed outside of the function for parallelization
+            ref_segs = [np.asarray(self.segments[r]) for r in self.ref_frames]
+            origRef = self.original_reference
+            for batch in batches:
+                non_ref = set(batch) - set(self.ref_frames)
+                all_frames = list(set(non_ref) - set(self.segments.keys()))#MB: is this line necessary?
+                images = [int(time) for time in non_ref]
+                segs = [self.load_single_contour(time) for time in non_ref]
+                #MB: make a sequence of all the inpputs of the function batch:
+                sequence = zip(images,repeat(self.ref_frames),repeat(ref_segs),repeat(origRef),segs)
+                result = h.parallel_process2(sequence, transform_one)
+                for t, res in zip(non_ref, result):
+                    self.data.save_ref(t, res[1])
+                    self.data.save_score(t, res[2])
+                    self.data.save_transformation_matrix(t, res[0])
+        else:
+            for batch in batches:
+                non_ref = set(batch) - set(self.ref_frames)
+                all_frames = list(set(non_ref) - set(self.segments.keys()))
+                segments = {t: self.load_single_contour(t) for t in all_frames}
+                for frame in tqdm(non_ref):
+                    self.transform_one(frame, self.ref_frames, segments=segments[frame])
+                del segments
+
 
     def load_all_references(self):
         """
@@ -434,3 +454,229 @@ class Register_Rotate:
                 points = np.append(points, segdf, axis=0)
         self.rotseg = frame_segment
         return points
+
+
+########################################################################################################################
+# The main alignment functions repeated here for parallelization
+# Todo: if class methods can be pickled, then put these into the class
+
+def transform_one(frame, ref_frames,ref_segs,origRef, segments=None):
+    """
+    Computes and stores the translation and rotation of the frames w.r.t reference frames
+    :param frame: Integer, the time frame to compute transformation
+    :param ref_frames: The list of reference frames to compute.
+    :param segments: the sample of the contour to register
+    """
+    if segments is None:
+        points = load_single_contour(frame)
+    else:
+        points = segments
+    if len(points) == 0:
+        transform,min_frame,min_frame_value =assign_identity(frame)
+
+        return transform,min_frame, min_frame_value
+
+    points = np.asarray(points)
+    ctrl_pts = points
+    min_frame_value = 100
+    min_frame = frame
+
+    transform = None
+    for r in range(len(ref_frames)):
+        ref_frame=ref_frames[r]
+        ref_seg = ref_segs[r]
+
+        points, ref_seg, after_tps, func_min = registration_JV2D(points, ref_seg, ctrl_pts)
+        Initial = points
+        final = after_tps
+        transform_temp, loss_affine = rotation_translation(final, Initial)
+
+        if (10 * func_min + loss_affine < min_frame_value):
+            min_frame_value = 10 * func_min + loss_affine
+            transform = copy.deepcopy(transform_temp)
+            min_frame = ref_frame
+
+
+    if min_frame != origRef:#MB: is this necessary?
+        print("min_frame doesn't match original ref")
+        ref_to_orig = transform_temp, loss_affine#self.data.get_transformation(min_frame)
+        transform = composite_transform(ref_to_orig, transform)
+
+    return transform,min_frame, min_frame_value
+
+def composite_transform(ref_to_orig, image_to_ref):
+    """
+    Compose two both translations and rotations and return a composed transformation
+    :param ref_to_orig: (3,4) nparray, translation from original reference to the best reference
+    :param image_to_ref: (3,4) nparray, translation from current frame to best reference selected.
+    :return:
+    """
+    rot_ref_to_orig = ref_to_orig[:, :3]
+    rot = image_to_ref[:, :3]
+    offset = image_to_ref[:, 3]
+    offset_ref_to_orig = ref_to_orig[:, 3]
+    rot_final = rot @ rot_ref_to_orig
+    offset_final = rot @ offset_ref_to_orig + offset
+    transform = np.zeros((3, 4))
+    transform[:, :3] = rot_final
+    transform[:, 3] = offset_final
+    return transform
+
+def assign_identity(frame, is_ref = False):
+    """
+    Assigns a identity for the transformation in case it has no neurons.
+    """
+    transform_matrix = np.identity(3)
+    offset = np.zeros((3, 1))
+    transform_matrix = np.append(transform_matrix, offset, axis=1)
+    if is_ref:
+        minfr_val=0
+        minfr=frame
+    else:
+        minfr_val=-1
+        minfr=-1
+
+    return transform_matrix,minfr,minfr_val
+
+
+def registration_JV(points, reference, ctrl_pts):
+    """
+    :param points: (n,3) numpy array, the model to register
+    :param reference: (n,3) numpy array, the reference model
+    :param ctrl_pts: (n,3) numpy array, sample points of the model used for registration.
+    :return: points, reference and the transformed points and the registration loss.
+    """
+    level = 3
+    scales = [ .3, .2, .01]# the scale parameters of Gaussian mixtures, from coarse to fine,
+    lambdas = [ .01, .001, .001]# weights of the regularization term, e.g. the TPS bending energy
+    iters = [500, 500, 500]# the max number of function evaluations at each level
+    [points, c_m, s_m] = core.normalize(points)#translate and scale a point set so it has zero mean and unit variance
+    [reference, c_s, s_s] = core.normalize(reference)
+    [ctrl_pts, c_c, s_c] = core.normalize(ctrl_pts)
+    after_tps, x0, loss = self.run_multi_level(points, reference, ctrl_pts, level, scales, lambdas, iters)
+    points = core.denormalize(points, c_m, s_m)
+    reference = core.denormalize(reference, c_s, s_s)
+    after_tps = core.denormalize(after_tps, c_s, s_s)
+    #self.displayABC(points, reference, after_tps,str(loss)+".png")
+    return points, reference, after_tps, loss
+
+def registration_JV2D(points, reference, ctrl_pts):
+    """
+    :param points: (n,3) numpy array, the model to register
+    :param reference: (n,3) numpy array, the reference model
+    :param ctrl_pts: (n,3) numpy array, sample points of the model used for registration.
+    :return: points, reference and the transformed points and the registration loss.
+    """
+    points = points[:,:2]
+    reference = reference[:,:2]
+    ctrl_pts = ctrl_pts[:,:2]
+
+    level = 4#the levels changed from 3 to 4
+    scales = [.6, .3, .2, .1]# the scale parameters of Gaussian mixtures, from coarse to fine,
+    lambdas = [0.1, .01, .001, .001]# weights of the regularization term, e.g. the TPS bending energy
+    iters = [100, 100, 500, 300]# the max number of function evaluations at each level, changed itteer from 500 to 100
+    [points, c_m, s_m] = core.normalize(points)#translate and scale a point set so it has zero mean and unit variance
+    [reference, c_s, s_s] = core.normalize(reference)
+    [ctrl_pts, c_c, s_c] = core.normalize(ctrl_pts)
+    after_tps, x0, loss = run_multi_level(points, reference, ctrl_pts, level, scales, lambdas, iters)
+    points = core.denormalize(points, c_m, s_m)
+    reference = core.denormalize(reference, c_s, s_s)
+    after_tps = core.denormalize(after_tps, c_s, s_s)
+    #self.displayABC2D(points, reference, after_tps,str(loss)+".png")
+    return points, reference, after_tps, loss
+
+def run_multi_level(model, scene, ctrl_pts, level, scales, lambdas, iters):
+    """
+    The point set registration by Jian Vemuri, check https://pubmed.ncbi.nlm.nih.gov/21173443/
+    :param model:(n,3) numpy array, the reference model
+    :param scene: (n,3) numpy array, the scene
+    :param ctrl_pts: (n,3) control points to register
+    :param level: Integer,
+    :param scales: list of scales of length level, Gaussian variance at each level,
+    :param lambdas: list of double of length level, Bending regularizer at each level.related to the energy of the nonlinear transformation
+    :param iters: list of Integers of length level,Number of iterations to run for each level
+    :return: the transformed points, also the registration loss
+    """
+    [n, d] = ctrl_pts.shape
+    x0 = core.init_param(n, d)#initial parameters of thin plate spline
+    [basis, kernel] = core.prepare_TPS_basis(model, ctrl_pts)#basis for performing TPS transformation
+    loss = 1
+    for i in range(level):
+        x = fmin_l_bfgs_b(core.obj_L2_TPS, x0, None, args=(basis, kernel, scene, scales[i], lambdas[i]),
+                          maxfun=iters[i])
+        x0 = x[0]
+        loss = x[1]
+    after_tps = core.transform_points(x0, basis)
+    return after_tps, x0, loss
+
+def rotation_translation(Initial, final):
+    """
+    compute the max x,y rotation R and translation T, such that final - R@Initial + offset
+    :param Initial: (n,3) numpy array, where n is number of 3D points
+    :param final: (n,3) numpy array, where n is number of 3D points.
+    :return: the concatenated numpy array
+    """
+    Initial = Initial[:, :2]
+    final = final[:, :2]
+    c_i = np.mean(Initial, axis=0)
+    Initial = Initial - c_i
+    c_f = np.mean(final, axis=0)
+    final = final - c_f
+    H = Initial.T @ final
+    U, D, V = np.linalg.svd(H)
+    R = V.T @ U.T
+    det = np.linalg.det(R)
+    D = np.diag([1, 1, det])
+    R = V.T @ (U.T)
+    offset = c_f - np.dot(R, c_i)
+    transform_points = np.matmul(Initial, R.T)
+    loss = np.linalg.norm(final - transform_points) / np.linalg.norm(final)
+    # offset = offset.reshape((offset.shape[0],1))
+    d_3_transform = np.zeros((3, 4))
+    d_3_transform[:2, :2] = R
+    d_3_transform[2, 2] = 1.0
+    d_3_transform[:2, 3] = offset
+    return d_3_transform, loss
+def find_3D_contour(cls, segment_binary):
+    """
+    Finds the 3d contour of a neuron.
+    :param segment_binary: binary mask of one neuron
+    :return: np array [[x1, y1, z1],...], a list of coordinates of points of the contour
+    """
+    contour_points = []
+    for z in range(segment_binary.shape[2]):
+        z_conts = find_contours(segment_binary[:, :, z], 0.5)
+        for cont in z_conts:  # several contours
+            for pt in cont:  # all points in contour
+                contour_points.append([*pt, z])
+    return contour_points
+
+def contour_of_segment(segdf):
+    """
+    :param segdf: numpy array, the mask of the segment
+    :return:
+    """
+    countor = self.find_3D_contour(segdf)
+    segdf = sample_points_from_contour(countor)
+    return segdf
+
+def load_single_contour(frame):
+    """
+    Returns a sample of points from the contour of the segments,
+    loads the entire segment file and filters the segment, to load for a set of frames use the load batch instead.
+    :param frame: Integer, the time
+    """
+    frame_segment = self.data.segmented_frame(frame)
+    if len(np.unique(frame_segment))<3:#MB added to avoid error when facing empty frames
+        frame_segment = self.rotseg
+    segments_in_frame = np.unique(frame_segment)
+    points = []
+    for seg in segments_in_frame:
+        segdf = frame_segment == seg
+        segdf = contour_of_segment(segdf.astype(int))
+        if len(points) == 0:
+            points = segdf
+        else:
+            points = np.append(points, segdf, axis=0)
+    self.rotseg = frame_segment
+    return points
