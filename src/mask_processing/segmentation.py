@@ -1,11 +1,11 @@
 import logging
 import sys
 import itertools
-from .. import helpers as h
+from ..helpers import helpers as h
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.spatial
-from ..GlobalParameters import GlobalParameters
+from ..parameters.GlobalParameters import GlobalParameters
 
 from scipy import ndimage as ndi
 #from skimage.morphology import watershed#MB removed to prevent future warnings

@@ -3,7 +3,7 @@ import warnings
 import sys
 from tqdm import tqdm
 import numpy as np
-from ..GlobalParameters import GlobalParameters
+from ..parameters.GlobalParameters import GlobalParameters
 
 from scipy.spatial.distance import pdist
 

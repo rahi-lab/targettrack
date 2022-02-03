@@ -3,7 +3,7 @@ from .AnnotationData import AnnotationData
 from .worm_reader import WormReader
 from src.datasets_code.EPFL_datasets.feature_data import FeatureData
 from .orig_frame_info import OrigFrameInfo
-from src.parameters import ParameterInitializer
+from src.parameters.parameters import ParameterInitializer
 import os
 
 

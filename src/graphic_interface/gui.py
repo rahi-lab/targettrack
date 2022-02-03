@@ -4,7 +4,7 @@ from . import gui_elements_controls as controls
 from . import image_rendering
 from PyQt5.QtWidgets import *
 
-from . import QtHelpers
+from ..helpers import QtHelpers
 
 from PyQt5.QtGui import QKeySequence
 

@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.ndimage import affine_transform
 import matplotlib.pyplot as plt
-from .helpers import project
+from ..helpers.helpers import project
 
 
 class ImageAligner:

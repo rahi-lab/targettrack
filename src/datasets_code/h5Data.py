@@ -1,5 +1,5 @@
 from .DataSet import DataSet
-from src.parameters import ParameterInitializer
+from src.parameters.parameters import ParameterInitializer
 import h5py
 import numpy as np
 import os

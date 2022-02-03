@@ -3,8 +3,8 @@ import os
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from . import gui
-from .datasets_code.DataSet import DataSet
-from . import main_controller
+from ..datasets_code.DataSet import DataSet
+from .. import main_controller
 
 
 #This parses the settings as a dictionary
@@ -25,7 +25,7 @@ class gui_single(QWidget):
     def __init__(self,dset_path):
         super().__init__()
         #settings take care of the GUI settings.
-        self.settings=loaddict(os.path.join("src","current_settings.dat"))
+        self.settings=loaddict(os.path.join("src","parameters","current_settings.dat"))
         #this parses the properties of dataset. as above, we want to handle this with a h5 file later
         self.dataset = DataSet.load_dataset(dset_path)
         self.dataset.dset_path_from_GUI = dset_path   #MB added for solving the bug when using NN ("run_NNmasks" in Controller)
@@ -39,7 +39,7 @@ class gui_single(QWidget):
         #this sizes the main window proportionally to the screen
         self.centerandresize()
         self.setWindowTitle('Simple Annotation GUI - '+self.dataset.name)
-        self.setWindowIcon(QIcon(os.path.join("src","icon.png")))
+        self.setWindowIcon(QIcon(os.path.join("src","Images","icon.png")))
         #this is the main widget
         self.gui = gui.gui(self.settings, self.controller)   # create the tracking utility
         Layout = QHBoxLayout()

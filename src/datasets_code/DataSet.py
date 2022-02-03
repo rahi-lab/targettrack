@@ -1,6 +1,6 @@
 import abc
 import numpy as np
-from src.image_standardizer import ImageAligner, ImageCropper
+from src.graphic_interface.image_standardizer import ImageAligner, ImageCropper
 
 
 

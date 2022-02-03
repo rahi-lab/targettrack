@@ -2,8 +2,9 @@ from PyQt5 import QtGui
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import Qt
 from pyqtgraph.parametertree import Parameter, ParameterTree
-from . import QtHelpers
-from .parameters import Parameters
+
+from ..helpers import QtHelpers
+from ..parameters.parameters import Parameters
 from typing import Dict
 import numpy as np
 

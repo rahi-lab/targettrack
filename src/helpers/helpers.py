@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import multiprocessing
 import functools as ft
-from .GlobalParameters import GlobalParameters
+from ..parameters.GlobalParameters import GlobalParameters
 
 
 def timed_func(process_name):

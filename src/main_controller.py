@@ -17,7 +17,7 @@ import time
 import h5py
 
 #Internal classes
-from . import SubProcManager
+from .helpers import SubProcManager
 from . import h5utils
 from .datasets_code.DataSet import DataSet
 import shutil
@@ -26,7 +26,7 @@ import shutil
 from . import HarvardLab
 
 # EPFL lab specific processing and data structures
-from .GlobalParameters import GlobalParameters
+from .parameters.GlobalParameters import GlobalParameters
 from .mask_processing.segmentation import Segmenter
 from .mask_processing.features import FeatureBuilder
 from .mask_processing.clustering import Clustering
