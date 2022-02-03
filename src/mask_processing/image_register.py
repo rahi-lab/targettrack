@@ -42,13 +42,13 @@ class Register_Rotate:
         self.ref_frames_remaining = list(set(self.ref_frames) - set(all_transformed))
         self.frames_to_register = list(set(frames_to_register)- set(self.ref_frames))# MB: changed  and removed - set(all_transformed)  to register frames multiple times
         self.segments = dict()
-        orig_ref = self.data.base_ref_frame()
+        orig_ref = self.data.base_ref_frame()#TODO MB: solve the issue with orig ref assignment
         if orig_ref is None:
             orig_ref = self.ref_frames[0]
         if orig_ref not in self.ref_frames:
             warnings.warn("Cannot use same base reference frame as has been used before, which is {}.".format(orig_ref)
                           + " This can cause some inconsistencies in the alignment of images.")
-            orig_ref = self.ref_frames[0]
+            orig_ref = self.ref_frames[0]#MB changed orig_ref from 0 to -1
         self.original_reference = orig_ref
 
         self.assign_identity(self.original_reference,is_ref=True)
@@ -75,13 +75,14 @@ class Register_Rotate:
             #MB: ref_segs and origRef are computed outside of the function for parallelization
             ref_segs = [np.asarray(self.segments[r]) for r in self.ref_frames]
             origRef = self.original_reference
+            trans_to_refs = {refFr: self.data.get_transformation(refFr) for refFr in self.ref_frames}
             for batch in batches:
                 non_ref = set(batch) - set(self.ref_frames)
                 all_frames = list(set(non_ref) - set(self.segments.keys()))#MB: is this line necessary?
                 images = [int(time) for time in non_ref]
                 segs = [self.load_single_contour(time) for time in non_ref]
                 #MB: make a sequence of all the inpputs of the function batch:
-                sequence = zip(images,repeat(self.ref_frames),repeat(ref_segs),repeat(origRef),segs)
+                sequence = zip(images,repeat(self.ref_frames),repeat(ref_segs),repeat(origRef),repeat(trans_to_refs),segs)
                 result = h.parallel_process2(sequence, transform_one)
                 for t, res in zip(non_ref, result):
                     self.data.save_ref(t, res[1])
@@ -134,7 +135,7 @@ class Register_Rotate:
                 transform = copy.deepcopy(transform_temp)
                 min_frame = ref_frame
 
-        self.data.save_ref(frame, min_frame)
+        self.data.save_ref(frame, min_frame)#save the reference frames coresponding to the current frame
         self.data.save_score(frame, min_frame_value)
 
         if min_frame != self.original_reference:
@@ -345,6 +346,7 @@ class Register_Rotate:
         d_3_transform[:2, 3] = offset
         return d_3_transform, loss
 
+
     def add_good_to_ground_truth(self, n_display=6):
         all_dists = {t: self.data.get_score(t) for t in self.frames_to_register}
         # first, histogram:
@@ -460,7 +462,7 @@ class Register_Rotate:
 # The main alignment functions repeated here for parallelization
 # Todo: if class methods can be pickled, then put these into the class
 
-def transform_one(frame, ref_frames,ref_segs,origRef, segments=None):
+def transform_one(frame, ref_frames,ref_segs,origRef,trans_to_refs, segments=None):
     """
     Computes and stores the translation and rotation of the frames w.r.t reference frames
     :param frame: Integer, the time frame to compute transformation
@@ -496,10 +498,10 @@ def transform_one(frame, ref_frames,ref_segs,origRef, segments=None):
             transform = copy.deepcopy(transform_temp)
             min_frame = ref_frame
 
-
+    #MB TODO:Do we have to compute everything w.r.t. one single ref frame?
     if min_frame != origRef:#MB: is this necessary?
-        print("min_frame doesn't match original ref")
-        ref_to_orig = transform_temp, loss_affine#self.data.get_transformation(min_frame)
+        #print("for frame"+str(frame)+"min_frame "+str(min_frame)+" doesn't match original ref "+str(origRef))
+        ref_to_orig = trans_to_refs[min_frame]#self.data.get_transformation(min_frame)
         transform = composite_transform(ref_to_orig, transform)
 
     return transform,min_frame, min_frame_value
@@ -624,9 +626,9 @@ def rotation_translation(Initial, final):
     final = final - c_f
     H = Initial.T @ final
     U, D, V = np.linalg.svd(H)
-    R = V.T @ U.T
-    det = np.linalg.det(R)
-    D = np.diag([1, 1, det])
+    #R = V.T @ U.T
+    #det = np.linalg.det(R)
+    #D = np.diag([1, 1, det])
     R = V.T @ (U.T)
     offset = c_f - np.dot(R, c_i)
     transform_points = np.matmul(Initial, R.T)
@@ -637,6 +639,39 @@ def rotation_translation(Initial, final):
     d_3_transform[2, 2] = 1.0
     d_3_transform[:2, 3] = offset
     return d_3_transform, loss
+
+def rotation_translation2(Initial, final):
+    """
+    compute the max x,y rotation R and translation T, such that final - R@Initial + offset
+    this is more aligned with the results of the paper at:
+    https://ieeexplore.ieee.org/stamp/stamp.jsp?tp=&arnumber=88573&tag=1
+    :param Initial: (n,3) numpy array, where n is number of 3D points
+    :param final: (n,3) numpy array, where n is number of 3D points.
+    :return: the concatenated numpy array
+    """
+    Initial = Initial[:, :2]
+    final = final[:, :2]
+    c_i = np.mean(Initial, axis=0)
+    Initial = Initial - c_i
+    c_f = np.mean(final, axis=0)
+    final = final - c_f
+    H = final.T @ Initial
+    U, D, V = np.linalg.svd(H)
+    #R = V.T @ U.T
+    R = U @ V
+    det = np.linalg.det(R)
+    S = np.diag([1, det])
+    R = U @ S @ V.T
+    offset = c_f - np.dot(R, c_i)
+    transform_points = np.matmul(Initial, R.T)
+    loss = np.linalg.norm(final - transform_points) / np.linalg.norm(final)
+    # offset = offset.reshape((offset.shape[0],1))
+    d_3_transform = np.zeros((3, 4))
+    d_3_transform[:2, :2] = R
+    d_3_transform[2, 2] = 1.0
+    d_3_transform[:2, 3] = offset
+    return d_3_transform, loss
+
 def find_3D_contour(cls, segment_binary):
     """
     Finds the 3d contour of a neuron.
