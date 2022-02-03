@@ -2,7 +2,7 @@
 import sys
 assert len(sys.argv)==2, "No dataset name given"#Check that the dataset name is given
 from PyQt5.QtWidgets import QApplication
-from src import gui_single#import the main gui
+from src.graphic_interface import gui_single#import the main gui
 import time
 
 app = QApplication(sys.argv)

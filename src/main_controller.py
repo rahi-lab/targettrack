@@ -23,7 +23,7 @@ from .datasets_code.DataSet import DataSet
 import shutil
 
 #HarvardLab specific classes
-from . import HarvardLab
+from .calcium_activity import HarvardLab
 
 # EPFL lab specific processing and data structures
 from .parameters.GlobalParameters import GlobalParameters
