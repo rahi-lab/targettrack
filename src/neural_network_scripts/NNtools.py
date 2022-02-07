@@ -426,6 +426,7 @@ def run_multi_level(model, scene, ctrl_pts, level, scales, lambdas, iters):
         loss = x[1]
     after_tps = core.transform_points(x0, basis)
     return after_tps, x0, loss
+
 def rotation_translation(Initial, final):
     """
     compute the max x,y rotation R and translation T, such that final - R@Initial + offset
@@ -442,10 +443,9 @@ def rotation_translation(Initial, final):
     final = final - c_f
     H = Initial.T @ final
     U, D, V = np.linalg.svd(H)
-    R = V.T @ U.T
-    det = np.linalg.det(R)
-    D = np.diag([1, 1, det])
-    R = V.T @ (U.T)
+    det_sign = np.prod(D) > 0
+    D = np.diag([1, det_sign])
+    R = V.T @ D @ (U.T)
     offset = c_f - np.dot(R, c_i)
     transform_points = np.matmul(Initial, R.T)
     loss = np.linalg.norm(final - transform_points) / np.linalg.norm(final)
