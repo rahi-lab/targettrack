@@ -723,8 +723,8 @@ class NNControlTab(QWidget):
 
         self.Exempt_Neurons = QLineEdit("0")
         self.Exempt_Neurons.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-        self.PostProc_Mode = QLineEdit("1")
-        self.PostProc_Mode.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+        #self.PostProc_Mode = QLineEdit("1")
+        #self.PostProc_Mode.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
         main_layout.addWidget(QLabel("Neurons exempt from postprocessing:"),row,0,1, 1)
         main_layout.addWidget(self.Exempt_Neurons,row,1, 1, 1)
 
@@ -939,7 +939,7 @@ class NNControlTab(QWidget):
         ExNeu = [int(n) for n in ExNeu ]
 
         Mode = int(self.PostProc_Mode.text())
-        Modes = set([1,2,3,4])
+        Modes = set([1,2,3,4,5])
         assert Mode in Modes, "Acceptable modes are 1, 2, 3, 4, and 5"
         if Mode ==1:
             self.controller.post_process_NN_masks(ExNeu)

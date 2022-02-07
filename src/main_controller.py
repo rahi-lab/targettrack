@@ -1764,7 +1764,7 @@ class Controller():
     def post_process_NN_masks3(self,ProcessedNeurons):
         """MB added: to post process the predicttions of NN for the selected frames as the ground truth
         ProcessedNeurons: neurons that you want to postprocess. If two or three neurons touch each other
-         and are in one connected component it renames the smaller ones to the bigger one
+         and are in one connected component it renames the smaller ones to the largest one
 
         """
         Vol = np.zeros([1,len(ProcessedNeurons)])

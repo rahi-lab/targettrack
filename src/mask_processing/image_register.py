@@ -9,7 +9,7 @@ from scipy.optimize import fmin_l_bfgs_b
 from mpl_toolkits.mplot3d import Axes3D
 
 from skimage.measure import find_contours
-from .. import helpers as h
+from ..helpers import helpers as h
 from itertools import repeat
 from ..datasets_code.EPFL_datasets.nd2Data import nd2Data
 

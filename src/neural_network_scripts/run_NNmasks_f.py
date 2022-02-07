@@ -71,7 +71,7 @@ batch_size=1
 #determines what augmentation method is used and when that is stopped and replaced by affine transformations
 aug_dict={0:"aff_cut",50:"aff"}
 num_epochs=int(sys.argv[4])#number of epochs
-origfrNum = h5.attrs["oldT"]
+
 ep_augoff=30
 lr=0.003
 patience=8
@@ -119,6 +119,10 @@ for dep in dependencies:
         h5.close()
         assert False, "Dependency "+dep+" not in  attributes"
 T=h5.attrs["T"]
+if "oldT" in h5.attrs.keys():
+    origfrNum = h5.attrs["oldT"]
+else:
+    origfrNum = h5.attrs["T"]   
 C,W,H,D=h5.attrs["C"],h5.attrs["W"],h5.attrs["H"],h5.attrs["D"]#x,y,z ordering
 channel_num=min(channel_num,C)
 shape=(channel_num,W,H,D)#x,y,z ordering
