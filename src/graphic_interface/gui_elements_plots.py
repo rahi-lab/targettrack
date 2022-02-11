@@ -471,9 +471,9 @@ class TracksTable(QWidget):
 
         # remove all labels and tracks from display
         for neuron_idx_from1 in old_neurons:
-            self.tracksgrid_top.removeItem(self.tracks_col_labels[neuron_idx_from1])
+            self.tracksgrid_top.removeWidget(self.tracks_col_labels[neuron_idx_from1])
             for track in self.tracks[neuron_idx_from1]:
-                self.tracksgrid.removeItem(track)
+                self.tracksgrid.removeWidget(track)
 
         # delete label and tracks of removed neurons
         for neuron_idx_from1 in rm:
@@ -675,7 +675,7 @@ class TimeDisplay(QTabWidget):
             if key is None:
                 neurons_to_display.discard(neuron_idx_from1)
                 rm.append(neuron_idx_from1)
-            elif neuron_idx_from1 not in self.neuron_activities:
+            elif neuron_idx_from1 not in self.neuron_plotidx:
                 neurons_to_display.add(neuron_idx_from1)
                 add.append(neuron_idx_from1)
         if add or rm:   # if not, then the set of neurons to display has not changed.
