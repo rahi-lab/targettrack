@@ -283,7 +283,7 @@ def plot_optical_flow_results_projected(pts_train_warped, mask_warped, save_dir)
                               legend_pointsize=300, tick_fontsize=22, alphas=None, save_file=save_file)
 
 
-def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, identifier, shape, plot_results=True,
+def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, identifier, shape, num_classes,plot_results=True,
                           plots_dir=None):
     copy_files(datadir, allset, traininds)
     if plots_dir and not os.path.exists(plots_dir):
@@ -409,4 +409,3 @@ def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, ide
                 h5.attrs["T"] = int(frame_idx)
                 # Update the number of extra frames
                 ExtframeCount += 1
-

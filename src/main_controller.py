@@ -1895,6 +1895,12 @@ class Controller():
         self.data.close()  # close
         shutil.copyfile(dset_path, newpath)  # whole data set is copied in newpath
         self.data = DataSet.load_dataset(dset_path)
+        #setting the arguments of NN script.
+        # the ordeer of arguments are: path to dataset, path to log file,3:whether or not generate defrmed frames,
+        #4:number of training epochs. 5:whether or not train on previous training set
+        #6:whether or not add the deformed frames?
+        #7:based on the previous choices: a.number of deformed frames that are added  to the training set_title b.which deformation trick to use. c.training set number
+        #8: validation frames number
         if not self.options["use_old_trainset"] and not self.options["generate_deformation"]:
             args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"0","0",str(train),str(validation)]
         elif not self.options["use_old_trainset"] and self.options["generate_deformation"]:

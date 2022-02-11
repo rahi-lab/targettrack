@@ -34,7 +34,7 @@ print("NetName:  "+NetName)
 runname=props[-1]
 print("runname:  "+runname)
 identifier="net/"+NetName+"_"+runname
-GetTrain = int(sys.argv[5])#int(input("train on previous training set?(Press 1 for yes)")) #MB added# init:#4
+GetTrain = int(sys.argv[5])#train on previous training set or not
 #### These are the run options
 ########################################################################
 #Run status
@@ -79,8 +79,7 @@ lr=0.003
 patience=8
 num_workers=8
 print_iou_every=10
-tnum=50#"all"#number of training set members - MB
-vnum=10#0 #number of validation set members - MB
+
 
 if deformation_trick:
     num_additional=int(sys.argv[8])#number of deformed frames you are generating
@@ -124,7 +123,7 @@ T=h5.attrs["T"]
 if "oldT" in h5.attrs.keys():
     origfrNum = h5.attrs["oldT"]
 else:
-    origfrNum = h5.attrs["T"]   
+    origfrNum = h5.attrs["T"]
 C,W,H,D=h5.attrs["C"],h5.attrs["W"],h5.attrs["H"],h5.attrs["D"]#x,y,z ordering
 channel_num=min(channel_num,C)
 shape=(channel_num,W,H,D)#x,y,z ordering
@@ -219,7 +218,7 @@ try:
     ####Unpack for fast, multiprocessed loading, unless already unpacked
     #MB: if not already done, this part saves all the frames and all the masks (which are less than the number of frames.)
 
-    DeforemeFrames = int(sys.argv[6])#int(input("Want to add deformed frames?(Press 1 for yes)")) #MB added# init: 0#5
+    DeforemeFrames = int(sys.argv[6])#whether or not add the deformed frames?
     if reusedirec is None or not os.path.exists(reusedirec):
         os.mkdir(datadir)
         os.mkdir(os.path.join(datadir,"frames"))
@@ -266,7 +265,7 @@ try:
                         np.save(os.path.join(datadir,"masks","mask_"+str(l)+".npy"),np.array(h5[str(l)+"/mask"]).astype(np.int16))
                         Nans+=1
 
-            tnum=="all"
+            tnum="all"
             vnum=0
 
         assert Nans>0, "At least one mask is needed"
@@ -278,6 +277,7 @@ try:
     for i in allset.indlist :
         U=U.union(set(np.unique(h5[str(i)+"/mask"])))
     num_classes = len(U)#MB added
+
     #### Initialize the network ####
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     log+="device= "+str(device)+"\n"
@@ -306,9 +306,9 @@ try:
         MB: partition the dataset from scratch to training set and validation set
         '''
         if GetTrain == 0:
-            tnum = int(sys.argv[7])#int(input("Enter traning set number: ")) #MB added#6
-            vnum = int(sys.argv[8])#int(input("Enter validation set number: "))#7
-        if tnum=="all" or vnum==0:#vnum should exist if tnum!="all"
+            tnum = int(sys.argv[7])
+            vnum = int(sys.argv[8])
+        if tnum=="all" or vnum==0:
             traindataloader= torch.utils.data.DataLoader(allset, batch_size=batch_size,shuffle=True, num_workers=num_workers,pin_memory=True)
             traininds=allset.indlist
             tnum=len(allset)
@@ -318,6 +318,7 @@ try:
                 tset,vset=torch.utils.data.random_split(allset,[tnum,vnum])
             else:
                 tset,vset,_=torch.utils.data.random_split(allset,[tnum,vnum,totnum-tnum-vnum])
+
             traindataloader= torch.utils.data.DataLoader(tset, batch_size=batch_size,shuffle=True, num_workers=num_workers,pin_memory=True)
             valdataloader=torch.utils.data.DataLoader(vset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
             traininds=allset.indlist[tset.indices]
@@ -783,14 +784,14 @@ try:
                 shutil.copyfile(os.path.join(datadir,"frames","frame_"+str(i)+".npy"),os.path.join(datadir,"deformations","frames","frame_"+str(i)+".npy"))
                 shutil.copyfile(name,os.path.join(datadir,"deformations","masks","mask_"+str(i)+".npy"))
 
-            if defTrick == 2:
+            if defTrick == 3:
                 with torch.no_grad():
                     plots_dir = os.path.join(datadir, 'targeted_augmentation_plots')
                     if not os.path.exists(plots_dir):
                         os.makedirs(plots_dir)
                     plot_results = True
                     targeted_augmentation_objects.targeted_augmentation(h5, num_additional, datadir, allset, traininds,
-                                                                        T, identifier, shape, plot_results=plot_results,
+                                                                        T, identifier, shape,num_classes, plot_results=plot_results,
                                                                         plots_dir=plots_dir)
             else:
                 distmat=np.array(h5["distmat"])
