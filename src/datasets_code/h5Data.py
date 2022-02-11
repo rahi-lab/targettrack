@@ -12,7 +12,7 @@ class h5Data(DataSet):
         super(h5Data, self).__init__(dataset_path)
         self.dataset.attrs["dset_path_from_GUI"] = dataset_path
         if "name" not in self.dataset.attrs:
-            self.dataset.attrs["name"] = os.path.basename(dataset_path)
+            self.dataset.attrs["name"] = os.path.splitext(os.path.basename(dataset_path))[0]   # the filename without the extension
         if "seg_params" not in self.dataset:
             self.dataset.create_group("seg_params")
             for k, v in ParameterInitializer.new_parameters("segmentation", "dummy").items():

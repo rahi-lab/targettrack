@@ -17,7 +17,7 @@ import time
 import h5py
 
 #Internal classes
-from .helpers import SubProcManager
+from .helpers import SubProcManager, QtHelpers
 from . import h5utils
 from .datasets_code.DataSet import DataSet
 import shutil
@@ -1108,7 +1108,7 @@ class Controller():
 
         self.assigned_sorted_list = sorted(list(self.button_keys.values()))
 
-        self.set_activated_tracks()   # TODO
+        # self.set_activated_tracks()   # TODO if necessary
 
     def _get_neuron_key(self, neuron_id_from1:int):
         """
@@ -1936,6 +1936,7 @@ class Controller():
     def run_NN_points(self, modelname, instancename, fol):
         # Todo AD could this be factorized in some way?
         # run a point prediction neural network
+        os.makedirs(os.path.join("data", "data_temp"), exist_ok=True)
         self.save_status()
         RGN = (modelname == "RGN")
         dset_path = self.data.path_from_GUI
