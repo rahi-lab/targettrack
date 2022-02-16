@@ -1086,6 +1086,7 @@ class Controller():
     # this assigns the neuron keys without overlap
     def assign_neuron_key(self, i_from1, key):
         key_changes = []   # list of (ifrom1, newkey) that need to be changed
+        # For some of the clients it is important that the "removing" change be before the "adding" change, if the key is modified
         if key in self.button_keys:
             i_from1_prev = self.button_keys.pop(key)
             key_changes.append((i_from1_prev, None))
