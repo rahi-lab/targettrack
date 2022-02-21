@@ -295,8 +295,9 @@ def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, ide
     evalset = NNtools.EvalDataset(datadir, shape)  # gets the new frame(out side of training set) .npy files
     ExtframeCount = 0
     NNname = list(h5['net'].keys())
-
+    totFrameChecked=0
     while num_additional > 0:
+        totFrameChecked = totFrameChecked + num_additional
         num_additional = 0
 
         for i in additional_inds:
@@ -395,12 +396,17 @@ def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, ide
                 # Save the results
                 # Compute the frame index for the generated frame. We add T to avoid collision, but don't want to define
                 # another class.
-                frame_idx = str(T + ExtframeCount + temp_add)
+                #temp_add=0#TODO MB
+                frame_idx = str(T + ExtframeCount)
                 # Save the frame and mask
+                print("frameind")
+                print(frame_idx)
                 np.save(os.path.join(datadir, "deformations", "frames", "frame_" + frame_idx + ".npy"),
                         pts_train_warped)
                 np.save(os.path.join(datadir, "deformations", "masks", "mask_" + frame_idx + ".npy"), mask_warped)
                 # Add the frame and mask to the dataset
+                pts_train_warped[0]= np.clip(pts_train_warped[0]*255,0,255)
+                h5.attrs["oldT"]=T
                 dset = h5.create_dataset(frame_idx + "/frame", pts_train_warped.shape, dtype="i2", compression="gzip")
                 dset[...] = pts_train_warped
                 dset = h5.create_dataset(frame_idx + "/mask", mask_warped.shape, dtype="i2", compression="gzip")
@@ -409,3 +415,5 @@ def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, ide
                 h5.attrs["T"] = int(frame_idx)
                 # Update the number of extra frames
                 ExtframeCount += 1
+        if num_additional > 0 :# if not enough frames were added
+            additional_inds=NNtools.select_additional(T,traininds,distmat,totFrameChecked + num_additional)[len(traininds)+totFrameChecked:]
