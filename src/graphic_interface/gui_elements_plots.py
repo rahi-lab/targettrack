@@ -458,7 +458,7 @@ class TracksTable(QWidget):
         crow = self.parent.time_idx()
         self.tracks_time_labels[crow].setStyleSheet(
             "background-color: orange; height: 10px; width: 10px;min-width: 10px;")
-        self.tracks_scroll.ensureWidgetVisible(self.tracksgrid.itemAtPosition(crow + 1, 0).widget())
+        self.tracks_scroll.ensureWidgetVisible(self.tracksgrid.itemAtPosition(crow + 1, 1).widget())
 
     def neuron_keys_changed(self, changes: list, add=None, rm=None, old_neurons=None):
         """
