@@ -454,11 +454,11 @@ class TracksTable(QWidget):
 
     def t_row_changed(self, old_t):
         old_crow = self.parent.time_idx(old_t)
-        self.trackstable.tracks_time_labels[old_crow].setStyleSheet("height: 10px; width: 10px;min-width: 10px;")
+        self.tracks_time_labels[old_crow].setStyleSheet("height: 10px; width: 10px;min-width: 10px;")
         crow = self.parent.time_idx()
         self.tracks_time_labels[crow].setStyleSheet(
             "background-color: orange; height: 10px; width: 10px;min-width: 10px;")
-        self.tracks_scroll.ensureWidgetVisible(self.tracksgrid.itemAtPosition(crow + 1, 0).widget())
+        self.tracks_scroll.ensureWidgetVisible(self.tracksgrid.itemAtPosition(crow + 1, 1).widget())
 
     def neuron_keys_changed(self, changes: list, add=None, rm=None, old_neurons=None):
         """
@@ -575,12 +575,13 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
         self.autoRange(items=self.plots)
 
     def displayed_neurons_changed(self, add=None, rm=None):
+        if rm:
+            for neuron_idx_from1 in rm:
+                del self.neuron_activities[neuron_idx_from1]
         if add:
             for neuron_idx_from1 in add:
                 self.neuron_activities[neuron_idx_from1] = self.controller.neuron_ca_activity(neuron_idx_from1)
-        if rm:
-            for neuron_idx_from1 in add:
-                del self.neuron_activities[neuron_idx_from1]
+
         self._update_all_plots()
 
     def _update_all_plots(self):
@@ -675,7 +676,7 @@ class TimeDisplay(QTabWidget):
             if key is None:
                 neurons_to_display.discard(neuron_idx_from1)
                 rm.append(neuron_idx_from1)
-            elif neuron_idx_from1 not in self.neuron_plotidx:
+            elif neuron_idx_from1 not in neurons_to_display:
                 neurons_to_display.add(neuron_idx_from1)
                 add.append(neuron_idx_from1)
         if add or rm:   # if not, then the set of neurons to display has not changed.

@@ -37,24 +37,30 @@ class gui_single(QWidget):
 
     def initUI(self):
         #this sizes the main window proportionally to the screen
-        self.centerandresize()
+        size = self.centerandresize()
         self.setWindowTitle('Simple Annotation GUI - '+self.dataset.name)
         self.setWindowIcon(QIcon(os.path.join("src","Images","icon.png")))
         #this is the main widget
-        self.gui = gui.gui(self.settings, self.controller)   # create the tracking utility
+        self.gui = gui.gui(self.settings, self.controller, size)   # create the tracking utility
         Layout = QHBoxLayout()
         Layout.addWidget(self.gui)
         self.setLayout(Layout)
+        # self.layout().addWidget(self.gui)   # could replace the 3 above lines if gui_single was a QMainWindow
         self.show()
 
-    def centerandresize(self,rat=[0.7,0.8]):
+    def centerandresize(self,ratio=[0.7,0.8]):
+        # TODO: either find a way to let the window be resizeable, or at least allow user to set ratio in settings
         geo=QDesktopWidget().availableGeometry()
         w,h=geo.width(),geo.height()
-        self.resize(w*rat[0],h*rat[1])
+        size = (w*ratio[0], h*ratio[1])
+        self.resize(w*ratio[0],h*ratio[1])   # AD I think this is not working (at least on my Mac; the window is greater than my screen)
+        # AD added the following line to replace the above line
+        self.setFixedSize(*size)   # AD other option that works for me: setMaximumSize in self.gui
         qr = self.frameGeometry()
         cp = geo.center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
+        return size
 
     #this handles the closing button event.
     def closeEvent(self, event):
