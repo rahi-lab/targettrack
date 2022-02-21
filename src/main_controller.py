@@ -1904,7 +1904,7 @@ class Controller():
         if not self.options["use_old_trainset"] and not self.options["generate_deformation"]:
             args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"0","0",str(train),str(validation)]
         elif not self.options["use_old_trainset"] and self.options["generate_deformation"]:
-            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"1","1","1","0","2",str(targetframes)]
+            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"1","1","1","0","3",str(targetframes)]
         elif self.options["use_old_trainset"] and not self.options["generate_deformation"]:
             args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"1","1","0"]
         else:
