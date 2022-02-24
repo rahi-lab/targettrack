@@ -279,9 +279,9 @@ class Controller():
             self.im_rraw = self.data.get_frame(self.i)
             self.im_graw = None
 
-
+        #show the dimension of the image fot check:
         if self.options["ShowDim"]:
-            print("Frame dimensions: "+ str(np.shape(self.im_rraw)))#MB check
+            print("Frame dimensions: "+ str(np.shape(self.im_rraw)))
             self.options["ShowDim"]=False
 
         for client in self.frame_img_registered_clients:
@@ -300,8 +300,7 @@ class Controller():
                 self.mask=None
             '''
             visualizing masks for epfl lab-MB
-            I added this part since I wasn't
-            sure if get mask funct. works with lab data or not
+            to see the coarse segmentation when coarse seg check box is activated
             '''
             kcoarse=str(self.i)+"/coarse_mask"
             if not self.point_data:
@@ -332,8 +331,14 @@ class Controller():
         #  Also, I think n_neurons should not be the nb of neurons present in the current frame...
         if t_change and not self.point_data and old_n_neurons != self.n_neurons:
             self.signal_nb_neurons_changed()
+        if self.point_data:
+            present_neurons = np.nonzero(self.existing_annotations)[0]
+        elif not (self.mask is None):#MB: added this to have proper coloring of neuron bar for the masked data
+            neuronAndbg = np.unique(self.mask)
+            present_neurons = neuronAndbg[np.nonzero(neuronAndbg)]
+        else:
+            present_neurons = np.nonzero(self.existing_annotations)[0]
 
-        present_neurons = np.nonzero(self.existing_annotations)[0]
         for client in self.present_neurons_registered_clients:
             client.change_present_neurons(present_neurons)
 

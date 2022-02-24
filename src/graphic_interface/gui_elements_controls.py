@@ -98,7 +98,8 @@ class NeuronBar(QScrollArea):
         n_delete = len(self.neurons) - nb_neurons
 
         # SJR: if number of neurons decreased, reset neuron bar
-        if n_delete > 0:
+        #MB: set this loop to false because it gives an error for frames with no annotations
+        if False:#n_delete > 0:
             for i in reversed(range(self.neuron_bar_contents.count())):
                 self.neuron_bar_contents.itemAt(i).widget().setParent(None)   # Todo: or use self.removed_holder if we want to keep the buttons, not sure about that (same remark as above)
 
@@ -171,7 +172,7 @@ class NeuronBarItem(QWidget):
     """
     qss = """
              QPushButton{
-                   
+
              }
              QPushButton[color = "a"]{
                  background-color: red;
@@ -1508,16 +1509,33 @@ class TimeSlider(QVBoxLayout):
         self.timeslider.valueChanged.connect(lambda t: self.controller.go_to_frame(t))
 
         dummylay = QHBoxLayout()
-        dummylay.setContentsMargins(5, 5, 5, 5)
         self.time_labels = QGridLayout()
-        self.time_labels.setContentsMargins(5, 5, 5, 5)
-        for i in range(nb_time_labels):
-            lab = QLabel()
-            lab.setAlignment(Qt.AlignHCenter)
-            self.time_labels.addWidget(lab, 0, i)
-            self.time_labels.itemAt(i).widget().setText(str(int((i + 0.5) * nb_frames / nb_time_labels)))
+
+
+        if nb_frames<101:
+            self.time_labels.setContentsMargins(5, 0, 20, 0)
+            labelDist = int(nb_frames / nb_time_labels)
+            nb_time_labels = nb_frames-1
+            for i in range(nb_time_labels):
+                lab = QLabel()
+                self.time_labels.addWidget(lab, 0, i)
+
+                if i%labelDist==0:
+                    self.time_labels.itemAt(i).widget().setText(str(i))
+                else:
+                    self.time_labels.itemAt(i).widget().setText('')
+
+        else:
+            dummylay.setContentsMargins(5, 5, 5, 5)
+            self.time_labels.setContentsMargins(5, 5, 5, 5)
+            for i in range(nb_time_labels):
+                lab = QLabel()
+                lab.setAlignment(Qt.AlignHCenter)
+                self.time_labels.addWidget(lab, 0, i)
+                self.time_labels.itemAt(i).widget().setText(str(int((i+0.5) * nb_frames / nb_time_labels)))
         dummylay.addLayout(self.time_labels)
         self.addLayout(dummylay)
+
         self.addWidget(self.timeslider)
 
     def change_t(self, t):
