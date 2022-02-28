@@ -1890,6 +1890,9 @@ class Controller():
         name = self.data.name
 
         # temporary close
+        if "_" in name:
+            dividedName = name.split("_")
+            name = dividedName[0]
         key = name + "_" + modelname + "_" + instancename
         newpath = os.path.join("data", "data_temp", key + ".h5")
         newlogpath = os.path.join("data", "data_temp", key + ".log")
