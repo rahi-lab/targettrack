@@ -291,7 +291,7 @@ def plot_alpha_shape_results(mask_warped, save_dir):
     coords = np.array(np.where(mask_warped > 0)).T
     labels = mask_warped[np.where(mask_warped > 0)]
     title = 'Transformed training mask with alpha shapes'
-    save_file = os.path.join(save_dir, 'train_mask_alpha_shape_3d.svg')
+    save_file = os.path.join(save_dir, 'train_mask_alpha_shape.svg')
     plot_all_objects(coords, labels, title, markers=True, figsize=(20, 20), xlim=(0, 300),
                               ylim=(0, 300), legend=True, title_fontsize=32, legend_fontsize=24,
                               legend_pointsize=300, tick_fontsize=22, alphas=None, save_file=save_file)
@@ -305,7 +305,7 @@ def plot_alpha_shape_results(mask_warped, save_dir):
         labels = mask_warped[z_idxs[0], z_idxs[1], i]
         if len(coords) > 0:
             title = 'Transformed training mask with alpha shapes, z = ' + str(i)
-            save_file = os.path.join(save_dir, 'train_mask_alpha_shape' + '_z' + str(i) + '_3d.svg')
+            save_file = os.path.join(save_dir, 'train_mask_alpha_shape' + '_z' + str(i) + '.svg')
             plot_all_objects(coords, labels, title, markers=True, figsize=(20, 20), xlim=(0, 300),
                                       ylim=(0, 300), legend=True, title_fontsize=32, legend_fontsize=24,
                                       legend_pointsize=300, tick_fontsize=22, alphas=None, save_file=save_file)
