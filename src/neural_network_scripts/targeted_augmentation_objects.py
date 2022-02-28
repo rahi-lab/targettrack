@@ -1,9 +1,11 @@
+import alphashape
 import h5py
 import importlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import scipy.ndimage
+from shapely.geometry import Point
 import shutil
 from skimage.transform import warp
 from skimage.registration import optical_flow_tvl1
@@ -283,8 +285,35 @@ def plot_optical_flow_results_projected(pts_train_warped, mask_warped, save_dir)
                               legend_pointsize=300, tick_fontsize=22, alphas=None, save_file=save_file)
 
 
-def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, identifier, shape, num_classes,plot_results=True,
-                          plots_dir=None):
+def plot_alpha_shape_results(mask_warped, save_dir):
+    # Plot the projected training mask post-warping
+    plt.clf()
+    coords = np.array(np.where(mask_warped > 0)).T
+    labels = mask_warped[np.where(mask_warped > 0)]
+    title = 'Transformed training mask with alpha shapes'
+    save_file = os.path.join(save_dir, 'train_mask_alpha_shape_3d.svg')
+    plot_all_objects(coords, labels, title, markers=True, figsize=(20, 20), xlim=(0, 300),
+                              ylim=(0, 300), legend=True, title_fontsize=32, legend_fontsize=24,
+                              legend_pointsize=300, tick_fontsize=22, alphas=None, save_file=save_file)
+    plt.close()
+
+    # Plot the training mask for each z post-warping
+    for i in range(mask_warped.shape[-1]):
+        plt.clf()
+        coords = np.array(np.where(mask_warped[:, :, i] > 0)).T
+        z_idxs = np.where(mask_warped[:, :, i] > 0)
+        labels = mask_warped[z_idxs[0], z_idxs[1], i]
+        if len(coords) > 0:
+            title = 'Transformed training mask with alpha shapes, z = ' + str(i)
+            save_file = os.path.join(save_dir, 'train_mask_alpha_shape' + '_z' + str(i) + '_3d.svg')
+            plot_all_objects(coords, labels, title, markers=True, figsize=(20, 20), xlim=(0, 300),
+                                      ylim=(0, 300), legend=True, title_fontsize=32, legend_fontsize=24,
+                                      legend_pointsize=300, tick_fontsize=22, alphas=None, save_file=save_file)
+            plt.close()
+
+
+def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, identifier, shape, num_classes,
+                          scale=(0.1625, 0.1625, 1.5), plot_results=True, plots_dir=None):
     copy_files(datadir, allset, traininds)
     if plots_dir and not os.path.exists(plots_dir):
         os.makedirs(plots_dir)
@@ -388,6 +417,53 @@ def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, ide
 
                 # Plot the projected optical flow results
                 plot_optical_flow_results_projected(pts_train_warped, mask_warped, plots_dir_i)
+
+                # Smooth the labels using alpha shapes
+                ndim = 2
+                if ndim == 2:
+                    for z in range(mask_warped.shape[-1]):
+                        all_labels = sorted(np.unique(mask_warped[:, :, z]))[1:]
+                        for label in all_labels:
+                            label_pts = np.where(mask_warped[:, :, z] == label)
+                            label_pts = np.array(label_pts).T
+                            if len(label_pts) > 2:
+                                # Generate the alpha shape
+                                alpha_shape = alphashape.alphashape(label_pts, 1/5.0)
+                                # Construct a 2D mesh
+                                x = np.arange(0, mask_warped.shape[0])
+                                y = np.arange(0, mask_warped.shape[1])
+                                points = np.meshgrid(x, y)
+                                points = np.array(list(zip(*(dim.flat for dim in points))))
+                                # Check if each point falls inside the alpha shape
+                                in_shape = [alpha_shape.contains(Point(points[i])) for i in range(len(points))]
+                                valid_points = points[in_shape]
+                                mask_warped[valid_points[:, 0], valid_points[:, 1], z] = label
+                else:
+                    all_labels = sorted(np.unique(mask_warped))[1:]
+                    for label in all_labels:
+                        label_pts = np.where(mask_warped == label)
+                        label_pts = np.array(label_pts).T*scale
+                        if len(label_pts) > 3:
+                            alpha_shape = alphashape.alphashape(label_pts, 1/3.0)
+                            # Convert back to the original scale
+                            alpha_shape = alpha_shape.apply_scale(1/np.array(scale))
+                            # Construct a 3D mesh
+                            x = np.arange(0, mask_warped.shape[0])
+                            y = np.arange(0, mask_warped.shape[1])
+                            z = np.arange(0, mask_warped.shape[2])
+                            points = np.meshgrid(x, y, z)
+                            points = np.array(list(zip(*(dim.flat for dim in points))))
+                            # Check if each point falls inside the alpha shape
+                            try:
+                                in_shape = alpha_shape.contains(points)
+                            except:
+                                in_shape = [alpha_shape.contains(Point(points[i])) for i in range(len(points))]
+                            valid_points = points[in_shape]
+                            mask_warped[valid_points[:, 0], valid_points[:, 1], valid_points[:, 2]] = label
+
+                # Plot the results for each z level
+                if plot_results:
+                    plot_alpha_shape_results(mask_warped, plots_dir_i)
 
                 pts_train_warped = pts_train_warped[np.newaxis, :, :, :]
                 # TODO I'm not sure whether or not the line below is needed, but I think it isn't
