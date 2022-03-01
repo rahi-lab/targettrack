@@ -1213,7 +1213,7 @@ class PreProcessTab(QWidget):
             preproc_tab_grid = QGridLayout()
             row = 0
 
-            Import_section = QLabel("------------ Import Section ------------------------------------------------------------------------")
+            Import_section = QLabel("------------ Import Section -----------")
             preproc_tab_grid.addWidget(Import_section, row, 0)
             row += 1
 
@@ -1239,7 +1239,7 @@ class PreProcessTab(QWidget):
             preproc_tab_grid.addLayout(load_mask_lay,row,0)
             row += 1
 
-            Export_section = QLabel("------------ Export Section ------------------------------------------------------------------------")
+            Export_section = QLabel("------------ Export Section --------------")
             preproc_tab_grid.addWidget(Export_section, row, 0)
             row += 1
 

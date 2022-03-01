@@ -28,7 +28,6 @@ class gui(QWidget):
         tracking_grid.addLayout(tracking_grid_right,0,1)
 
 
-
         # this is the neuron bar at the top.
         neuron_bar = controls.NeuronBar(self.controller, reserved_keys=self.reserved_keys)
         tracking_grid_left.addWidget(neuron_bar, 0, 0, 1, 2)
@@ -103,8 +102,9 @@ class gui(QWidget):
         tracking_grid_right.setRowStretch(0, 6)
         tracking_grid_right.setRowStretch(1, 4)
 
-        tracking_grid.setRowStretch(0, 20)
-        tracking_grid.setRowStretch(1, 1)
+        #maximize image size
+        tracking_grid.setRowStretch(0, 1)
+        tracking_grid.setRowStretch(1, 0)
         tracking_grid.setColumnStretch(0, 20)
         tracking_grid.setColumnStretch(1, 1)
 
