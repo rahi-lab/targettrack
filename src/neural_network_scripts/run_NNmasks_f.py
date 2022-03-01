@@ -35,6 +35,7 @@ runname=props[-1]
 print("runname:  "+runname)
 identifier="net/"+NetName+"_"+runname
 GetTrain = int(sys.argv[5])#train on previous training set or not
+print("GetTrain:"+str(GetTrain))
 #### These are the run options
 ########################################################################
 #Run status
@@ -401,7 +402,8 @@ try:
     #measure time
     log+="Header Time"+str(time.time()-st)+" s \n"
     log+="Starting Training\n\n"
-
+    #if int(sys.argv[3])==1:
+    #    skiptrain=True
     if skiptrain:
         print("Skipping Training")
     elif adiabatic_trick:
@@ -621,7 +623,7 @@ try:
             if c%20==0:
                 repack()
                 save_backup()#save backup, harvard rc cluster
-    else:#usual neural network train
+    else:# not defTrick:#usual neural network train
         if verbose:
             print("Starting Train")
         ts=[]
@@ -629,104 +631,105 @@ try:
         eplosses=[]
         gc=0#global count
         #typical neural network training script
-        for epoch in range(num_epochs):
-            ts.append(time.time()-st)
-            if epoch in aug_dict.keys():
-                text="augment is now:"+allset.change_augment(aug_dict[epoch])
-                log+=text
+        if not int(sys.argv[3]):
+            for epoch in range(num_epochs):
+                ts.append(time.time()-st)
+                if epoch in aug_dict.keys():
+                    text="augment is now:"+allset.change_augment(aug_dict[epoch])
+                    log+=text
+                    if verbose:
+                        print(text)
+                log+="Epoch: "+str(epoch)+" lr: "+str(optimizer.param_groups[0]['lr'])+"\n"
                 if verbose:
-                    print(text)
-            log+="Epoch: "+str(epoch)+" lr: "+str(optimizer.param_groups[0]['lr'])+"\n"
-            if verbose:
-                print("Epoch: "+str(epoch)+" lr: "+str(optimizer.param_groups[0]['lr']))
-            net.train()
-            eploss=0
-            count=0
-            for i,(fr,mask) in enumerate(traindataloader):
-                fr = fr.to(device=device, dtype=torch.float32)
-                mask= mask.to(device=device, dtype=torch.long)
-                preds=net(fr)
-                loss=criterion(preds,mask)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-                eploss+=loss.item()
-                count+=1
-                losses.append(loss.item())
-                ious=get_ious(preds,mask,((gc%print_iou_every)!=0))
-                iouss.append(ious)
-                inds.append(0)
-
-                if verbose:
-                    print("    train"+str(i+1).zfill(digits)+"/"+str(num_trains)+" loss: "+str(loss.item())+" nanmeaniou: "+str("nan" if np.all(np.isnan(ious)) else np.nanmean(ious)))
-                log+="    train"+str(i+1).zfill(digits)+"/"+str(num_trains)+" loss: "+str(loss.item())+" nanmeaniou: "+str("nan" if np.all(np.isnan(ious)) else np.nanmean(ious))+"\n"
-                gc+=1
-            eploss=eploss/count
-            if allset.augment=="aff":
-                scheduler.step(eploss)#step scheduler by epoch loss
-            log+="Epoch Loss: "+str(eploss)+"\n"+"\n"
-            eplosses.append(eploss)
-            if vnum>0:
-                net.eval()
-                log+="Validation:"+"\n"
+                    print("Epoch: "+str(epoch)+" lr: "+str(optimizer.param_groups[0]['lr']))
+                net.train()
                 eploss=0
                 count=0
-                for i,(fr,mask) in enumerate(valdataloader):
+                for i,(fr,mask) in enumerate(traindataloader):
                     fr = fr.to(device=device, dtype=torch.float32)
                     mask= mask.to(device=device, dtype=torch.long)
-                    with torch.no_grad():
-                        preds=net(fr)
-                        loss=criterion(preds,mask)
-                    losses.append(loss.item())
+                    preds=net(fr)
+                    loss=criterion(preds,mask)
+                    optimizer.zero_grad()
+                    loss.backward()
+                    optimizer.step()
+
                     eploss+=loss.item()
                     count+=1
-
-                    ious=get_ious(preds,mask,False)
+                    losses.append(loss.item())
+                    ious=get_ious(preds,mask,((gc%print_iou_every)!=0))
                     iouss.append(ious)
+                    inds.append(0)
 
-                    inds.append(1)
                     if verbose:
-                        print("    val"+str(i+1).zfill(digits_v)+"/"+str(num_vals)+" loss: "+str(loss.item())+" nanmeaniou: "+str(np.nanmean(ious)))
-                    log+="    val"+str(i+1).zfill(digits_v)+"/"+str(num_vals)+" loss: "+str(loss.item())+" nanmeaniou: "+str(np.nanmean(ious))+"\n"
+                        print("    train"+str(i+1).zfill(digits)+"/"+str(num_trains)+" loss: "+str(loss.item())+" nanmeaniou: "+str("nan" if np.all(np.isnan(ious)) else np.nanmean(ious)))
+                    log+="    train"+str(i+1).zfill(digits)+"/"+str(num_trains)+" loss: "+str(loss.item())+" nanmeaniou: "+str("nan" if np.all(np.isnan(ious)) else np.nanmean(ious))+"\n"
+                    gc+=1
                 eploss=eploss/count
-                log+="Mean Validation Loss: "+str(eploss)+"\n"+"\n"
+                if allset.augment=="aff":
+                    scheduler.step(eploss)#step scheduler by epoch loss
+                log+="Epoch Loss: "+str(eploss)+"\n"+"\n"
                 eplosses.append(eploss)
+                if vnum>0:
+                    net.eval()
+                    log+="Validation:"+"\n"
+                    eploss=0
+                    count=0
+                    for i,(fr,mask) in enumerate(valdataloader):
+                        fr = fr.to(device=device, dtype=torch.float32)
+                        mask= mask.to(device=device, dtype=torch.long)
+                        with torch.no_grad():
+                            preds=net(fr)
+                            loss=criterion(preds,mask)
+                        losses.append(loss.item())
+                        eploss+=loss.item()
+                        count+=1
 
-            #save net in h5
-            if "net" in h5[identifier].keys():
-                del h5[identifier]["net"]
-            h5.create_group(identifier+"/net")
-            NNtools.save_into_h5(h5[identifier+"/net"],net.state_dict())
+                        ious=get_ious(preds,mask,False)
+                        iouss.append(ious)
 
-            #save loss and iou
-            if "loss_iou" in h5[identifier].keys():
-                del h5[identifier]["loss_iou"]
-            dset=h5[identifier].create_dataset("loss_iou",(len(losses),2+len(ious)),dtype="f4",compression="gzip")
-            dset[...]=np.concatenate((np.array(inds)[:,None],np.array(losses)[:,None],np.array(iouss)),axis=1).astype(np.float32)
+                        inds.append(1)
+                        if verbose:
+                            print("    val"+str(i+1).zfill(digits_v)+"/"+str(num_vals)+" loss: "+str(loss.item())+" nanmeaniou: "+str(np.nanmean(ious)))
+                        log+="    val"+str(i+1).zfill(digits_v)+"/"+str(num_vals)+" loss: "+str(loss.item())+" nanmeaniou: "+str(np.nanmean(ious))+"\n"
+                    eploss=eploss/count
+                    log+="Mean Validation Loss: "+str(eploss)+"\n"+"\n"
+                    eplosses.append(eploss)
 
-            log+="Results saved."+"\n"+"\n"
-            h5[identifier].attrs["log"]=log
+                #save net in h5
+                if "net" in h5[identifier].keys():
+                    del h5[identifier]["net"]
+                h5.create_group(identifier+"/net")
+                NNtools.save_into_h5(h5[identifier+"/net"],net.state_dict())
 
-            #CRITICAL, emergency break
-            if os.path.exists("STOP"):
-                break
-            #log
-            write_log(logform.format(1.,(epoch+1)/num_epochs,0.,0.))
-        write_log(logform.format(1.,1.,0.,0.))
+                #save loss and iou
+                if "loss_iou" in h5[identifier].keys():
+                    del h5[identifier]["loss_iou"]
+                dset=h5[identifier].create_dataset("loss_iou",(len(losses),2+len(ious)),dtype="f4",compression="gzip")
+                dset[...]=np.concatenate((np.array(inds)[:,None],np.array(losses)[:,None],np.array(iouss)),axis=1).astype(np.float32)
 
-        ts=np.array(ts).astype(np.float32)
-        if "ts" in h5[identifier].keys():
-            del h5[identifier]["ts"]
-        dset=h5[identifier].create_dataset("ts",ts.shape,dtype="f4")
-        dset[...]=ts
-        if verbose:
-            print("Training Successful\n")
-        log+="Training Successful\n\n"
-        '''
-        MB:
-        adding the new deformation technique for augmentation
-        '''
+                log+="Results saved."+"\n"+"\n"
+                h5[identifier].attrs["log"]=log
+
+                #CRITICAL, emergency break
+                if os.path.exists("STOP"):
+                    break
+                #log
+                write_log(logform.format(1.,(epoch+1)/num_epochs,0.,0.))
+            write_log(logform.format(1.,1.,0.,0.))
+
+            ts=np.array(ts).astype(np.float32)
+            if "ts" in h5[identifier].keys():
+                del h5[identifier]["ts"]
+            dset=h5[identifier].create_dataset("ts",ts.shape,dtype="f4")
+            dset[...]=ts
+            if verbose:
+                print("Training Successful\n")
+            log+="Training Successful\n\n"
+            '''
+            MB:
+            adding the new deformation technique for augmentation
+            '''
 
         if deformation_trick:
             import cv2
@@ -838,8 +841,7 @@ try:
                                 pts_parent = np.delete(pts_parent,NanElements,0)
                                 pts_child = np.delete(pts_child,NanElements,0)
 
-                                """
-                                """
+
                                 fr_r = fr_i[0,0].cpu().detach().numpy()
                                 if countpl < 100 and ManualCheck==1:
                                     import matplotlib.pyplot as plt
@@ -860,7 +862,7 @@ try:
                             transform_temp, loss_affine = NNtools.rotation_translation(pts_child,pts_parent)#find a linear transformation+translation that takes the two sets of points to each other
                             rot = transform_temp[:,:3]
                             offset = transform_temp[:,3]
-                            print(i_parent)#MB check
+
                             fr,mask=evalset[i_parent]
                             maskTemp = mask.cpu().detach().numpy().astype(np.int16)
                             #fr_temp = np.clip(fr[0].cpu().detach().numpy()*255,0,255).astype(np.int16)#NewChange
@@ -920,6 +922,7 @@ try:
                                     image1_warp[:,:,l] = warp(frRot[:,:,l], np.array([row_coords + v, col_coords + u]), mode='nearest')
                                 mask_warp2 = mask_warp2*MaxPix
                                 diag=0
+                                #setting mode of correction
                                 if diag==1:
                                     s = sim.generate_binary_structure(3,3)#considered together even if they touch diagonally
                                     labelArray, numFtr = sim.label(mask_warp2>0, structure=s)
@@ -1087,46 +1090,47 @@ try:
 
     #save log
     h5[identifier].attrs["log"]=log
+    if not int(sys.argv[3]):
+        print("predictions running:")
+        ##Prediction phase
+        evalset=NNtools.EvalDataset(datadir,shape)
+        iouss=np.full((T,num_classes),np.nan)
 
-    ##Prediction phase
-    evalset=NNtools.EvalDataset(datadir,shape)
-    iouss=np.full((T,num_classes),np.nan)
+        #predict all masks
+        net.eval()
+        for i in range(T):
+            if verbose:
+                print("Evaluating "+str(i)+"/"+str(T))
+            with torch.no_grad():
+                fr,mask=evalset[i]
+                fr=fr.unsqueeze(0).to(device=device, dtype=torch.float32)
+                pred=net(fr)
+                if mask is not None:
+                    mask=mask.unsqueeze(0).to(device=device, dtype=torch.long)
+                    ious=get_ious(pred,mask,False)
+                else:
+                    ious=np.full(num_classes,np.nan)
+                iouss[i]=ious
 
-    #predict all masks
-    net.eval()
-    for i in range(T):
+                predmask=torch.argmax(pred[0],dim=0).cpu().detach().numpy().astype(np.int16)
+
+            if identifier+"/"+str(i)+"/predmask" in h5.keys():
+                del h5[identifier+"/"+str(i)+"/predmask"]
+            h5[identifier].create_dataset(str(i)+"/predmask",(predmask.shape),dtype="i2",compression="gzip")
+            h5[identifier][str(i)+"/predmask"][...]=predmask
+            write_log(logform.format(1.,1.,i/T,0.))
+
+        #calculate prediction iou
+        if "pred_iou" in h5[identifier].keys():
+            del h5[identifier]["pred_iou"]
+        dset=h5[identifier].create_dataset("pred_iou",(T,num_classes),dtype="f4",compression="gzip")
+        dset[...]=np.array(iouss).astype(np.float32)
+
         if verbose:
-            print("Evaluating "+str(i)+"/"+str(T))
-        with torch.no_grad():
-            fr,mask=evalset[i]
-            fr=fr.unsqueeze(0).to(device=device, dtype=torch.float32)
-            pred=net(fr)
-            if mask is not None:
-                mask=mask.unsqueeze(0).to(device=device, dtype=torch.long)
-                ious=get_ious(pred,mask,False)
-            else:
-                ious=np.full(num_classes,np.nan)
-            iouss[i]=ious
+            print("Prediction Complete.\n")
 
-            predmask=torch.argmax(pred[0],dim=0).cpu().detach().numpy().astype(np.int16)
-
-        if identifier+"/"+str(i)+"/predmask" in h5.keys():
-            del h5[identifier+"/"+str(i)+"/predmask"]
-        h5[identifier].create_dataset(str(i)+"/predmask",(predmask.shape),dtype="i2",compression="gzip")
-        h5[identifier][str(i)+"/predmask"][...]=predmask
-        write_log(logform.format(1.,1.,i/T,0.))
-
-    #calculate prediction iou
-    if "pred_iou" in h5[identifier].keys():
-        del h5[identifier]["pred_iou"]
-    dset=h5[identifier].create_dataset("pred_iou",(T,num_classes),dtype="f4",compression="gzip")
-    dset[...]=np.array(iouss).astype(np.float32)
-
-    if verbose:
-        print("Prediction Complete.\n")
-
-    log+="Prediction Complete\n\n"
-    h5[identifier].attrs["log"]=log
+        log+="Prediction Complete\n\n"
+        h5[identifier].attrs["log"]=log
 
     #get points if needed
     if get_points:

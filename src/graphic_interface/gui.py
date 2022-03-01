@@ -13,7 +13,7 @@ class gui(QWidget):
 
     reserved_keys = ["z", "c", "a", "d", "v", "b", "n", "m", ",", ".", "\n", "", " "]
 
-    def __init__(self, settings, controller):
+    def __init__(self, settings, controller, windowsize):
         #we initialize this as a Widget
         super().__init__()
         self.controller = controller   # Todo AD not sure this is meant to stay, but for now I need to have a controller available right from the beginning
@@ -21,12 +21,17 @@ class gui(QWidget):
         self.settings = settings
 
         tracking_grid = QGridLayout()#this is the full grid
+        grid_left_wid = QWidget()
+        grid_right_wid = QWidget()
+        grid_left_wid.setFixedWidth(int(0.6 * windowsize[0]))
+        grid_right_wid.setFixedWidth(int(0.3 * windowsize[0]))
         tracking_grid_left = QGridLayout()#left grid is a subgrid
         tracking_grid_right = QGridLayout()#right as well
-        tracking_grid.setContentsMargins(5,5,5,5)
-        tracking_grid.addLayout(tracking_grid_left,0,0)
-        tracking_grid.addLayout(tracking_grid_right,0,1)
-
+        grid_left_wid.setLayout(tracking_grid_left)
+        grid_right_wid.setLayout(tracking_grid_right)
+        # tracking_grid.setContentsMargins(5,5,5,5)
+        tracking_grid.addWidget(grid_left_wid,0,0)
+        tracking_grid.addWidget(grid_right_wid,0,1)
 
         # this is the neuron bar at the top.
         neuron_bar = controls.NeuronBar(self.controller, reserved_keys=self.reserved_keys)
@@ -35,7 +40,7 @@ class gui(QWidget):
 
         # This is the holder for the main figure. MainFigLayout.
         self.fig = plots.MainFigWidget(settings, self.controller, self.controller.frame_shape)
-        tracking_grid_left.addWidget(self.fig, 1, 1)
+        tracking_grid_left.addWidget(self.fig, 1, 0, 1, 2)
         self.rendering = image_rendering.ImageRendering(self.controller, self.fig,
                                                         self.controller.data_name, self.controller.frame_num)
 
@@ -87,6 +92,7 @@ class gui(QWidget):
         # Time slider at the bottom
         slider = controls.TimeSlider(self.controller, self.controller.frame_num, int(settings["time_label_num"]))
         tracking_grid.addLayout(slider, 1, 0)
+        # Todo: do we not want the slider in tracking_grid_left rather than tracking_grid?
 
         # This is the goto frame button
         goto_layout = controls.GoTo(self.controller, self.controller.frame_num)

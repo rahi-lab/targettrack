@@ -1,4 +1,6 @@
 data/*
+!data/.placeholder
+!data/data_temp/.placeholder
 src/neural_network_scripts/184.h5
 *__pycache__*
 .idea/

@@ -33,18 +33,31 @@ class NeuronBar(QScrollArea):
         self.setWidgetResizable(True)
         dummy = QWidget()
         self.neuron_bar_holderLayout = QHBoxLayout()
-        self.neuron_bar_contents = QGridLayout()   # Todo: rename self.contents
-
-        self.activated_neuron_bar_contents = QGridLayout()
-        self.neuron_bar_holderLayout.addLayout(self.activated_neuron_bar_contents)
-        self.neuron_bar_holderLayout.addWidget(QLabel("|"))
-        self.neuron_bar_holderLayout.addLayout(self.neuron_bar_contents)
+        self._create_contents()
         dummy.setLayout(self.neuron_bar_holderLayout)
         self.setWidget(dummy)
 
-        self.neuron_buttons = {}
-        self.neuron_key_buttons = {}
+        self.neurons = {}
         self.keyed_neurons_from1 = set()   # set of neurons that have a key displayed
+        self.removed_holder = QWidget()   # a holder, not displayed, to keep alive the widgets removed from other layouts
+        # self.verticalScrollBar().setEnabled(False)   # this is to disable scrolling verticallyin the neuronbar. It should not be needed if all elements are the right size
+        self.setContentsMargins(0, 0, 0, 0)
+        self.neuron_bar_holderLayout.setSpacing(0)
+
+    def _create_contents(self):
+        for i in range(self.neuron_bar_holderLayout.count() - 1, -1, -1):
+            self.neuron_bar_holderLayout.itemAt(i).widget().setParent(self.removed_holder)
+        self.activated_contents = QWidget()
+        self.unactivated_contents = QWidget()
+        activated_layout = QHBoxLayout()
+        unactivated_layout = QHBoxLayout()
+        self.activated_contents.setLayout(activated_layout)
+        self.unactivated_contents.setLayout(unactivated_layout)
+        self.neuron_bar_holderLayout.addWidget(self.activated_contents)
+        self.neuron_bar_holderLayout.addWidget(QLabel("|"))
+        self.neuron_bar_holderLayout.addWidget(self.unactivated_contents)
+
+        return activated_layout, unactivated_layout
 
     def change_neuron_keys(self, changes:list):
         """
@@ -54,56 +67,45 @@ class NeuronBar(QScrollArea):
         """
         for neuron_idx_from1, key in changes:
             if key is None:
-                self.neuron_key_buttons[neuron_idx_from1].setText(" ")
+                self.neurons[neuron_idx_from1].set_text(" ")
                 self.keyed_neurons_from1.discard(neuron_idx_from1)
             else:
-                self.neuron_key_buttons[neuron_idx_from1].setText(key)
+                self.neurons[neuron_idx_from1].set_text(key)
                 self.keyed_neurons_from1.add(neuron_idx_from1)
-            self._restore_neuron_bar(neuron_idx_from1)   # Todo: not needed for every change?
         self._restore_activated_neurons()
-
-    def _restore_neuron_bar(self, neuron_idx_from1):
-        """
-        This is one of the dirtiest part in the code. the neuron bar is restored when some keys are disassigned
-        :param neuron_idx_from1: index (from 1) of the neuron to be restored
-        """
-        self.neuron_bar_contents.addWidget(self.neuron_key_buttons[neuron_idx_from1], 0, neuron_idx_from1 - 1)
-        self.neuron_bar_contents.addWidget(self.neuron_buttons[neuron_idx_from1], 1, neuron_idx_from1 - 1)
 
     def _restore_activated_neurons(self):
         """
         Re-creates the activated_neuron_bar_contents (a bar with only the neurons that have a key assigned??)
         """
-        self.neuron_bar_holderLayout.removeItem(self.activated_neuron_bar_contents)
-        self.activated_neuron_bar_contents = QGridLayout()
-        for i, i_from1 in enumerate(sorted(self.keyed_neurons_from1)):
-            self.activated_neuron_bar_contents.addWidget(self.neuron_key_buttons[i_from1], 0, i)
-            self.activated_neuron_bar_contents.addWidget(self.neuron_buttons[i_from1], 1, i)
-        self.neuron_bar_holderLayout.insertLayout(0, self.activated_neuron_bar_contents)
+        del self.activated_contents
+        del self.unactivated_contents
+        activated_layout, unactivated_layout = self._create_contents()
+        for i_from1 in sorted(self.neurons.keys()):
+            if i_from1 in self.keyed_neurons_from1:
+                self.neurons[i_from1].setParent(self.activated_contents)
+                activated_layout.addWidget(self.neurons[i_from1])
+            else:
+                self.neurons[i_from1].setParent(self.unactivated_contents)
+                unactivated_layout.addWidget(self.neurons[i_from1])
 
     def change_nb_neurons(self, nb_neurons):
         """
         Changes the number of neurons in the neuron bar.
         :param nb_neurons: new number of neurons
         """
-        # TODO AD this removes highlighting!!
-        n_delete = len(self.neuron_buttons) - nb_neurons
+        # TODO AD this removes highlighting and present/absent color...!! do we want that??
+        n_delete = len(self.neurons) - nb_neurons
 
         # SJR: if number of neurons decreased, reset neuron bar
-        if n_delete > 0:
+        #MB: set this loop to false because it gives an error for frames with no annotations
+        if False:#n_delete > 0:
             for i in reversed(range(self.neuron_bar_contents.count())):
-                self.neuron_bar_contents.itemAt(i).widget().setParent(None)
+                self.neuron_bar_contents.itemAt(i).widget().setParent(None)   # Todo: or use self.removed_holder if we want to keep the buttons, not sure about that (same remark as above)
 
         for i_from1 in range(1,nb_neurons+1):
-            self.neuron_key_buttons[i_from1] = QPushButton(" ")
-            self.neuron_key_buttons[i_from1].setStyleSheet("height: 10px; width: 20px;min-width: 20px;")
-            self.neuron_key_buttons[i_from1].clicked.connect(self._make_user_neuron_key(i_from1))
-            self.neuron_bar_contents.addWidget(self.neuron_key_buttons[i_from1],0,i_from1-1)
-
-            self.neuron_buttons[i_from1] = QPushButton(str(i_from1))
-            self.neuron_buttons[i_from1].setStyleSheet("background-color: red; height: 10px; width: 20px;min-width: 20px;")
-            self.neuron_buttons[i_from1].clicked.connect(self._make_neuron_highlight(i_from1))
-            self.neuron_bar_contents.addWidget(self.neuron_buttons[i_from1],1,i_from1-1)
+            self.neurons[i_from1] = NeuronBarItem(i_from1, self)
+            self._restore_activated_neurons()
 
     def _make_user_neuron_key(self, neuron_id_from1):
         """
@@ -114,7 +116,9 @@ class NeuronBar(QScrollArea):
             # Todo AD: should the parent not be the main gui rather than self??
             if not ok:
                 return
-            if len(text) != 1 or (text in self.reserved_keys):
+            if len(text) == 0:
+                text = None
+            elif len(text) != 1 or (text in self.reserved_keys):
                 errdial = QErrorMessage()
                 errdial.showMessage('Invalid key')
                 errdial.exec_()
@@ -137,34 +141,109 @@ class NeuronBar(QScrollArea):
         """
         # todo: don't reset all style sheet of all neurons every time?
         if present is not None:
-            for key, val in self.neuron_buttons.items():
-                val.setStyleSheet("background-color: red; height: 10px; width: 20px;min-width: 20px;")
-            for neuron_id_from1 in present:
-                self.neuron_buttons[neuron_id_from1].setStyleSheet("background-color: blue; height: 10px; width: 20px; min-width: 20px;")
+            for i_from1, neu in self.neurons.items():
+                if i_from1 in present:
+                    neu.set_present()
+                else:
+                    neu.set_absent()
             return
         if added is not None:
-            self.neuron_buttons[added].setStyleSheet(
-                "background-color: blue; height: 10px; width: 20px; min-width: 20px;")
+            self.neurons[added].set_present()
         if removed is not None:
-            self.neuron_buttons[removed].setStyleSheet(
-                "background-color: red; height: 10px; width: 20px;min-width: 20px;")
-
+            self.neurons[removed].set_absent()
 
     def change_highlighted_neuron(self, high: int=None, unhigh:int=None,
-                                  high_present: bool=False, unhigh_present: bool=False, **kwargs):
+                                  **kwargs):
         """
         Highlights or unhighlights neuron buttons.
         :param high: neuron id (from 1), will be highlighted if given
         :param unhigh: neuron id (from 1), will be unhighlighted if given
-        :param high_present and unhigh_present: boolean, determines the new color of the button
         """
         if high is not None:
-            self.neuron_buttons[high].setStyleSheet(
-                "background-color: {}; height: 10px; width: 20px; min-width: 20px;".format("green" if high_present else "orange"))
+            self.neurons[high].highlight()
 
         if unhigh is not None:
-            self.neuron_buttons[unhigh].setStyleSheet(
-                "background-color: {}; height: 10px; width: 20px;min-width: 20px;".format("blue" if unhigh_present else "red"))
+            self.neurons[unhigh].unhighlight()
+
+
+class NeuronBarItem(QWidget):
+    """
+    This is one neuron in the neuron bar. It contains the colored button with the neuron id (from1), and the key button.
+    """
+    qss = """
+             QPushButton{
+
+             }
+             QPushButton[color = "a"]{
+                 background-color: red;
+             }
+             QPushButton[color = "p"]{
+                 background-color: blue;
+             }
+             QPushButton[color = "hp"]{
+                 background-color: green;
+             }
+             QPushButton[color = "ha"]{
+                 background-color: orange;
+             }
+          """
+          # also had this inside the brackets of the first QPushButton:
+          # height: 10px;
+          # width: 20px;
+          # min-width: 20px;
+
+    def __init__(self, i_from1, parent):
+        super().__init__()
+        self.i_from1 = i_from1
+        self.parent = parent
+        layout = QVBoxLayout()
+        self.neuron_key_button = QPushButton(" ")
+        self.neuron_key_button.setStyleSheet(self.qss)
+        self.neuron_key_button.clicked.connect(self.parent._make_user_neuron_key(self.i_from1))
+        self.neuron_button = QPushButton(str(self.i_from1))
+        self.neuron_button.setStyleSheet(self.qss)  # TODO set correct color NOW??
+        self.neuron_button.clicked.connect(self.parent._make_neuron_highlight(self.i_from1))
+        layout.addWidget(self.neuron_key_button)
+        layout.addWidget(self.neuron_button)
+        self.setLayout(layout)
+        self.present = False   # Todo: set at init??
+        self.highlighted = False   # Todo: set at init??
+
+    def set_present(self):
+        self.present = True
+        if self.highlighted:
+            self.neuron_button.setProperty("color", "hp")
+        else:
+            self.neuron_button.setProperty("color", "p")
+        self.neuron_button.setStyle(self.neuron_button.style())   # for some reason this is needed to actually change the color
+
+    def set_absent(self):
+        self.present = False
+        if self.highlighted:
+            self.neuron_button.setProperty("color", "ha")
+        else:
+            self.neuron_button.setProperty("color", "a")
+        self.neuron_button.setStyle(self.neuron_button.style())   # for some reason this is needed to actually change the color
+
+    def highlight(self):
+        self.highlighted = True
+        self.neuron_button.setStyleSheet(self.qss)
+        if self.present:
+            self.neuron_button.setProperty("color", "hp")
+        else:
+            self.neuron_button.setProperty("color", "ha")
+        self.neuron_button.setStyle(self.neuron_button.style())   # for some reason this is needed to actually change the color
+
+    def unhighlight(self):
+        self.highlighted = False
+        if self.present:
+            self.neuron_button.setProperty("color", "p")
+        else:
+            self.neuron_button.setProperty("color", "a")
+        self.neuron_button.setStyle(self.neuron_button.style())   # for some reason this is needed to actually change the color
+
+    def set_text(self, text):
+        self.neuron_key_button.setText(text)
 
 
 class ViewTab(QScrollArea):
@@ -1430,16 +1509,33 @@ class TimeSlider(QVBoxLayout):
         self.timeslider.valueChanged.connect(lambda t: self.controller.go_to_frame(t))
 
         dummylay = QHBoxLayout()
-        dummylay.setContentsMargins(5, 5, 5, 5)
         self.time_labels = QGridLayout()
-        self.time_labels.setContentsMargins(5, 5, 5, 5)
-        for i in range(nb_time_labels):
-            lab = QLabel()
-            lab.setAlignment(Qt.AlignHCenter)
-            self.time_labels.addWidget(lab, 0, i)
-            self.time_labels.itemAt(i).widget().setText(str(int((i + 0.5) * nb_frames / nb_time_labels)))
+
+
+        if nb_frames<101:
+            self.time_labels.setContentsMargins(5, 0, 20, 0)
+            labelDist = int(nb_frames / nb_time_labels)
+            nb_time_labels = nb_frames-1
+            for i in range(nb_time_labels):
+                lab = QLabel()
+                self.time_labels.addWidget(lab, 0, i)
+
+                if i%labelDist==0:
+                    self.time_labels.itemAt(i).widget().setText(str(i))
+                else:
+                    self.time_labels.itemAt(i).widget().setText('')
+
+        else:
+            dummylay.setContentsMargins(5, 5, 5, 5)
+            self.time_labels.setContentsMargins(5, 5, 5, 5)
+            for i in range(nb_time_labels):
+                lab = QLabel()
+                lab.setAlignment(Qt.AlignHCenter)
+                self.time_labels.addWidget(lab, 0, i)
+                self.time_labels.itemAt(i).widget().setText(str(int((i+0.5) * nb_frames / nb_time_labels)))
         dummylay.addLayout(self.time_labels)
         self.addLayout(dummylay)
+
         self.addWidget(self.timeslider)
 
     def change_t(self, t):

@@ -16,6 +16,8 @@ import cv2
 import time
 import h5py
 
+from PyQt5.QtWidgets import QErrorMessage
+
 #Internal classes
 from .helpers import SubProcManager, QtHelpers
 from . import h5utils
@@ -223,8 +225,8 @@ class Controller():
         # now we actually initialize
         self.select_frames()
         self.ready = True
-        self.update(t_change=True)
         self.signal_nb_neurons_changed()
+        self.update(t_change=True)
 
     def update(self,t_change=False):
         if not self.ready:   # this is jsut to avoid gui elements from calling callbacks resulting in update during their init   # Todo AD: find more elegant way
@@ -277,9 +279,9 @@ class Controller():
             self.im_rraw = self.data.get_frame(self.i)
             self.im_graw = None
 
-
+        #show the dimension of the image fot check:
         if self.options["ShowDim"]:
-            print("Frame dimensions: "+ str(np.shape(self.im_rraw)))#MB check
+            print("Frame dimensions: "+ str(np.shape(self.im_rraw)))
             self.options["ShowDim"]=False
 
         for client in self.frame_img_registered_clients:
@@ -298,8 +300,7 @@ class Controller():
                 self.mask=None
             '''
             visualizing masks for epfl lab-MB
-            I added this part since I wasn't
-            sure if get mask funct. works with lab data or not
+            to see the coarse segmentation when coarse seg check box is activated
             '''
             kcoarse=str(self.i)+"/coarse_mask"
             if not self.point_data:
@@ -325,18 +326,24 @@ class Controller():
 
         # it is important that this be done AFTER self.signal_pts_changed so that self.NN_or_GT is updated
         self.existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[self.i][:,0]))   # TODO AD what about masks??
-        self.signal_nb_neurons_changed()#MB added
 
-        present_neurons = np.nonzero(self.existing_annotations)[0]
+        # TODO AD: this is terrible.
+        #  Also, I think n_neurons should not be the nb of neurons present in the current frame...
+        if t_change and not self.point_data and old_n_neurons != self.n_neurons:
+            self.signal_nb_neurons_changed()
+        if self.point_data:
+            present_neurons = np.nonzero(self.existing_annotations)[0]
+        elif not (self.mask is None):#MB: added this to have proper coloring of neuron bar for the masked data
+            neuronAndbg = np.unique(self.mask)
+            present_neurons = neuronAndbg[np.nonzero(neuronAndbg)]
+        else:
+            present_neurons = np.nonzero(self.existing_annotations)[0]
+
         for client in self.present_neurons_registered_clients:
             client.change_present_neurons(present_neurons)
 
         #peak calculation is only when requested
         self.peak_calced=False
-
-        # SJR: reset neuron bar if changing time point (but only in mask mode because Core et al. don't want that in point mode)
-        if t_change and not self.point_data and not old_n_neurons == self.n_neurons:
-            self.signal_nb_neurons_changed()
 
     def valid_points_from_all_points(self, points):
         """
@@ -392,9 +399,7 @@ class Controller():
         self._i = test_i
 
         # Finally, update according to new time
-        st = time.time()
         self.update(t_change=True)
-        print("total frame change time:", time.time() - st)
 
     def go_to_frame(self, t):
         """Moves to frame t and updates everything accordingly"""
@@ -1078,14 +1083,16 @@ class Controller():
             for client in self.highlighted_neuron_registered_clients:
                 client.change_highlighted_neuron(high=self.highlighted,
                                                  unhigh=(hprev if hprev else None),
-                                                 high_present=bool(not self.point_data or self.existing_annotations[self.highlighted]),
-                                                 unhigh_present=bool(not self.point_data or self.existing_annotations[hprev] if hprev else False),
+                                                 # high_present=bool(not self.point_data or self.existing_annotations[self.highlighted]),
+                                                 # unhigh_present=bool(not self.point_data or self.existing_annotations[hprev] if hprev else False),
                                                  high_key=self._get_neuron_key(self.highlighted))
         self.update()#MB added for solving points highlightimg issue. maybe instead, one could add Mainfigwidget to .highlighted_neuron_registered_clients
+        # TODO MB is right
 
     # this assigns the neuron keys without overlap
     def assign_neuron_key(self, i_from1, key):
         key_changes = []   # list of (ifrom1, newkey) that need to be changed
+        # For some of the clients it is important that the "removing" change be before the "adding" change, if the key is modified
         if key in self.button_keys:
             i_from1_prev = self.button_keys.pop(key)
             key_changes.append((i_from1_prev, None))
@@ -1095,7 +1102,7 @@ class Controller():
             self.button_keys.pop(key_prev)
 
         if len(self.button_keys) == int(self.settings["max_sim_tracks"]):
-            errdial = QErrorMessage()   # TODO AD
+            errdial = QErrorMessage()   # Todo AD: I think the controller should not import PyQt5 stuff
             errdial.showMessage("Too many keys set(>" + str(len(self.button_keys)) + "). Update settings if needed")
             errdial.exec_()
             return
@@ -1883,6 +1890,9 @@ class Controller():
         name = self.data.name
 
         # temporary close
+        if "_" in name:
+            dividedName = name.split("_")
+            name = dividedName[0]
         key = name + "_" + modelname + "_" + instancename
         newpath = os.path.join("data", "data_temp", key + ".h5")
         newlogpath = os.path.join("data", "data_temp", key + ".log")
@@ -1904,7 +1914,7 @@ class Controller():
         if not self.options["use_old_trainset"] and not self.options["generate_deformation"]:
             args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"0","0",str(train),str(validation)]
         elif not self.options["use_old_trainset"] and self.options["generate_deformation"]:
-            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"1","1","1","0","2",str(targetframes)]
+            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"1","1","1","0","3",str(targetframes)]
         elif self.options["use_old_trainset"] and not self.options["generate_deformation"]:
             args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"1","1","0"]
         else:
