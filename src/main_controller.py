@@ -462,8 +462,7 @@ class Controller():
             pts_dict["pts_act"] = np.zeros((0, 3))
 
         # highlighted point
-        #pts_dict["pts_high"] = np.array(self.NN_or_GT[self.i][self.highlighted])[None, :]#MB removed
-        pts_dict["pts_high"] = self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i][self.highlighted])[None, :])#MB added
+        pts_dict["pts_high"] = self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i][self.highlighted])[None, :])
         # TODO AD: set to np.array([[], [], []]).transpose() if not self.point_data, or not define?
 
         for client in self.points_registered_clients:
@@ -1085,9 +1084,14 @@ class Controller():
                                                  unhigh=(hprev if hprev else None),
                                                  # high_present=bool(not self.point_data or self.existing_annotations[self.highlighted]),
                                                  # unhigh_present=bool(not self.point_data or self.existing_annotations[hprev] if hprev else False),
-                                                 high_key=self._get_neuron_key(self.highlighted))
-        self.update()#MB added for solving points highlightimg issue. maybe instead, one could add Mainfigwidget to .highlighted_neuron_registered_clients
-        # TODO MB is right
+                                                 high_key=self._get_neuron_key(self.highlighted),
+                                                 high_pointdat=self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i, [self.highlighted]])))
+            if self.options["follow_high"]:
+                self.center_on_highlighted()
+
+            if self.options["overlay_tracks"]:
+                for client in self.highlighted_track_registered_clients:
+                    client.change_track(self.highlighted_track_data(self.highlighted))
 
     # this assigns the neuron keys without overlap
     def assign_neuron_key(self, i_from1, key):
@@ -1136,7 +1140,8 @@ class Controller():
         if self.existing_annotations[self.highlighted]:
         # set z to the highlighted neuron
             for client in self.zslice_registered_clients:
-                client.change_z(int(self.NN_or_GT[self.i][self.highlighted, 2] + 0.5))
+                new_z = int(self.NN_or_GT[self.i][self.highlighted, 2] + 0.5)
+                client.change_z(new_z)
 
     def toggle_first_channel_only(self):
         self.options["first_channel_only"] = not self.options["first_channel_only"]
