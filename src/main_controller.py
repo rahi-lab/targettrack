@@ -1615,7 +1615,6 @@ class Controller():
         """Loads neural network point predictions"""
         self.save_status()
         if not self.point_data:
-            print("No points")
             return
         if NetName == "":
             self.NNpts_key = ""

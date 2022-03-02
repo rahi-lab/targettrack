@@ -172,7 +172,9 @@ class NeuronBarItem(QWidget):
     """
     qss = """
              QPushButton{
-
+             height: 10px;
+             width: 20px;
+             min-width: 20px;
              }
              QPushButton[color = "a"]{
                  background-color: red;
