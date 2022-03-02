@@ -82,7 +82,7 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         self.controller.pointlinks_registered_clients.append(self)
         self.controller.highlighted_track_registered_clients.append(self)
         self.controller.zslice_registered_clients.append(self)
-        #self.controller.highlighted_neuron_registered_clients.append(self) MB:should this be added
+        self.controller.highlighted_neuron_registered_clients.append(self)
 
         # image holder for the video frame
         self.img = pg.ImageItem(np.zeros((100,100,3)))
@@ -131,6 +131,7 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         for key in pointsetnames:
             self.pointsetplots[key]=pg.ScatterPlotItem(pen=(self.pens[key] if key!="pts_act" else None),brush=(0,0,0,0))
             self.addItem(self.pointsetplots[key])
+        self.pointsetsdata = {}   # will contain the x,y,z position of the points of each set.
 
         self.linkplot=pg.GraphItem()
         self.addItem(self.linkplot)
@@ -188,7 +189,21 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
             else:
                 self.pointsetplots[key].setData(pos=val[:, :2])
             self.pointsetplots[key].setSize(size=self.size_func(val[:,2]))
+            self.pointsetsdata[key] = val
 
+    def change_highlighted_neuron(self, high: int=None, unhigh:int=None, high_pointdat=None, **kwargs):
+        """
+        :param high_pointdat: 1x3 array with the x, y, z coordinates of the highlighted point.
+            Must be given if high is not None.
+        """
+        high_key = "pts_high"
+        if high is None:
+            self.pointsetplots[high_key].setData(pos=[])
+            self.pointsetsdata[high_key] = []
+        else:
+            self.pointsetplots[high_key].setData(pos=high_pointdat[:, :2])
+            self.pointsetsdata[high_key] = high_pointdat
+            self.pointsetplots[high_key].setSize(size=self.size_func(high_pointdat[:, 2]))
 
     def change_links(self, link_data):
         """
@@ -221,6 +236,8 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         self.update_image_display()
         self.update_mask_display()
         self.label.setText(self.labeltext.format(self.z))
+        for key, plot in self.pointsetplots.items():
+            plot.setSize(self.size_func(self.pointsetsdata[key][:, 2]))
 
     def set_data(self, img=None, mask=None, label=None):
         """

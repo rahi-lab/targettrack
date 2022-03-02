@@ -105,7 +105,7 @@ class NeuronBar(QScrollArea):
 
         for i_from1 in range(1,nb_neurons+1):
             self.neurons[i_from1] = NeuronBarItem(i_from1, self)
-            self._restore_activated_neurons()
+        self._restore_activated_neurons()
 
     def _make_user_neuron_key(self, neuron_id_from1):
         """
@@ -1486,6 +1486,7 @@ class PreProcessTab(QWidget):
         def import_file_green(self):
             FileAddress = self.import_address.text()
             self.controller.import_mask_from_external_file(FileAddress,green=True)
+
 
 class TimeSlider(QVBoxLayout):
     """
