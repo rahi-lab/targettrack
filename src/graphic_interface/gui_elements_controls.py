@@ -1514,7 +1514,7 @@ class TimeSlider(QVBoxLayout):
 
         if nb_frames<101:
             self.time_labels.setContentsMargins(5, 0, 20, 0)
-            labelDist = int(nb_frames / nb_time_labels)
+            labelDist = np.max([int(nb_frames / nb_time_labels),1])
             nb_time_labels = nb_frames-1
             for i in range(nb_time_labels):
                 lab = QLabel()

@@ -1210,6 +1210,7 @@ class Controller():
 
     def toggle_display_cropped(self):
         self.data.crop = not self.data.crop
+        self.options["ShowDim"] = True
         self.update(t_change=True)  # todo: could be just update()?
 
     def toggle_z_follow_highlighted(self):
