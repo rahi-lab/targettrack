@@ -92,7 +92,8 @@ class gui(QWidget):
 
         # Time slider at the bottom
         slider = controls.TimeSlider(self.controller, self.controller.frame_num, int(settings["time_label_num"]))
-        tracking_grid.addLayout(slider, 1, 0)
+        #tracking_grid.addLayout(slider, 1, 0)
+        tracking_grid.addWidget(slider, 1, 0)
         # Todo: do we not want the slider in tracking_grid_left rather than tracking_grid?
 
         # This is the goto frame button
