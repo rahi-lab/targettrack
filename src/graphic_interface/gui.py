@@ -40,15 +40,15 @@ class gui(QWidget):
 
 
         # This is the holder for the main figure. MainFigLayout.
-        self.fig = plots.MainFigWidget(settings, self.controller, self.controller.frame_shape)
+        self.fig = plots.MainFigWidget(self.settings, self.controller, self.controller.frame_shape)
         tracking_grid_left.addWidget(self.fig, 1, 0, 1, 2)
         self.rendering = image_rendering.ImageRendering(self.controller, self.fig,
                                                         self.controller.data_name, self.controller.frame_num)
 
         #This is the tab of Tracks and Activities
-        self.timedisplaytabs = plots.TimeDisplay(self.controller, int(settings["max_sim_tracks"]),
+        self.timedisplaytabs = plots.TimeDisplay(self.controller, int(self.settings["max_sim_tracks"]),
                                                  int(self.settings["tracks_num_row"]),
-                                                 self.controller.frame_num, int(settings["tracks_cell_height"]))
+                                                 self.controller.frame_num, int(self.settings["tracks_cell_height"]))
 
         # Now add the tab to the right grid above
         tracking_grid_right.addWidget(self.timedisplaytabs, 0, 0)
@@ -91,7 +91,7 @@ class gui(QWidget):
         tracking_grid_right.addWidget(tracking_panel,1,0)
 
         # Time slider at the bottom
-        slider = controls.TimeSlider(self.controller, self.controller.frame_num, int(settings["time_label_num"]))
+        slider = controls.TimeSlider(self.controller, self.controller.frame_num, int(self.settings["time_label_num"]))
         #tracking_grid.addLayout(slider, 1, 0)
         tracking_grid.addWidget(slider, 1, 0)
         # Todo: do we not want the slider in tracking_grid_left rather than tracking_grid?

@@ -27,4 +27,4 @@ lab="HarvardLab"
 mask_threshold_for_new_region=7
 just_show_first_channel=0
 overlay_mask_by_default=0
-autolevels=1
+autolevels=0

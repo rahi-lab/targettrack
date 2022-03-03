@@ -264,6 +264,7 @@ class ViewTab(QScrollArea):
         super(ViewTab, self).__init__()
         self.controller = controller
         self.controlled_plot = controlled_plot
+        as_points = self.controller.point_data
 
         view_tab_grid = QGridLayout()
         row = 0
@@ -281,7 +282,7 @@ class ViewTab(QScrollArea):
         view_checkboxes_lay.addWidget(second_channel_only_checkbox, 0, 1)
 
         autolevels_checkbox = QCheckBox("Autolevels")
-        autolevels_checkbox.setChecked(int(default_values["autolevels"]))
+        autolevels_checkbox.setChecked(int(self.controlled_plot.figure.autolevels))
         autolevels_checkbox.toggled.connect(self.controlled_plot.change_autolevels)
         view_checkboxes_lay.addWidget(autolevels_checkbox, 0, 2)
         view_tab_grid.addLayout(view_checkboxes_lay, row, 0)
@@ -334,106 +335,107 @@ class ViewTab(QScrollArea):
         view_tab_grid.addLayout(thres_slider_lay, row, 0)
         row += 1
 
-        view_tab_grid.addWidget(QLabel("------------ Point mode ------------"), row, 0)
-        row += 1
+        if as_points:
+            # view_tab_grid.addWidget(QLabel("------------ Point mode ------------"), row, 0)
+            # row += 1
 
-        first_lay = QGridLayout()
-        curr_CheckBox = QCheckBox("Overlay Current Points")
-        curr_CheckBox.setChecked(True)
-        curr_CheckBox.toggled.connect(self.controller.toggle_pts_overlay)
-        first_lay.addWidget(curr_CheckBox, 0, 0)
-        NN_CheckBox = QCheckBox("Overlay NN Prediction")
-        NN_CheckBox.setChecked(True)
-        NN_CheckBox.toggled.connect(self.controller.toggle_NN_overlay)
-        first_lay.addWidget(NN_CheckBox, 0, 1)
+            first_lay = QGridLayout()
+            curr_CheckBox = QCheckBox("Overlay Current Points")
+            curr_CheckBox.setChecked(True)
+            curr_CheckBox.toggled.connect(self.controller.toggle_pts_overlay)
+            first_lay.addWidget(curr_CheckBox, 0, 0)
+            NN_CheckBox = QCheckBox("Overlay NN Prediction")
+            NN_CheckBox.setChecked(True)
+            NN_CheckBox.toggled.connect(self.controller.toggle_NN_overlay)
+            first_lay.addWidget(NN_CheckBox, 0, 1)
 
-        view_tab_grid.addLayout(first_lay, row, 0)
-        row += 1
+            view_tab_grid.addLayout(first_lay, row, 0)
+            row += 1
 
-        overlay_tracks_lay = QGridLayout()
-        overlay_tracks_CheckBox = QCheckBox("Overlay Tracks")
-        overlay_tracks_CheckBox.setChecked(True)
-        overlay_tracks_CheckBox.toggled.connect(self.controller.toggle_track_overlay)
-        overlay_tracks_lay.addWidget(overlay_tracks_CheckBox, 0, 0, 1, 2)
-        ov_tr_past = QLineEdit("-5")
-        ov_tr_past.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-        ov_tr_past.setValidator(QtGui.QIntValidator(-15, 0))
-        ov_tr_past.textChanged.connect(lambda x: self.controller.change_track_past(x))
-        ov_tr_future = QLineEdit("5")
-        ov_tr_future.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-        ov_tr_future.setValidator(QtGui.QIntValidator(0, 15))
-        ov_tr_future.textChanged.connect(lambda x: self.controller.change_track_future(x))
-        overlay_tracks_lay.addWidget(QLabel("Past"), 1, 0)
-        overlay_tracks_lay.addWidget(QLabel("Future"), 1, 1)
-        overlay_tracks_lay.addWidget(ov_tr_past, 2, 0)
-        overlay_tracks_lay.addWidget(ov_tr_future, 2, 1)
-        view_tab_grid.addLayout(overlay_tracks_lay, row, 0)
-        row += 1
+            overlay_tracks_lay = QGridLayout()
+            overlay_tracks_CheckBox = QCheckBox("Overlay Tracks")
+            overlay_tracks_CheckBox.setChecked(True)
+            overlay_tracks_CheckBox.toggled.connect(self.controller.toggle_track_overlay)
+            overlay_tracks_lay.addWidget(overlay_tracks_CheckBox, 0, 0, 1, 2)
+            ov_tr_past = QLineEdit("-5")
+            ov_tr_past.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            ov_tr_past.setValidator(QtGui.QIntValidator(-15, 0))
+            ov_tr_past.textChanged.connect(lambda x: self.controller.change_track_past(x))
+            ov_tr_future = QLineEdit("5")
+            ov_tr_future.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            ov_tr_future.setValidator(QtGui.QIntValidator(0, 15))
+            ov_tr_future.textChanged.connect(lambda x: self.controller.change_track_future(x))
+            overlay_tracks_lay.addWidget(QLabel("Past"), 1, 0)
+            overlay_tracks_lay.addWidget(QLabel("Future"), 1, 1)
+            overlay_tracks_lay.addWidget(ov_tr_past, 2, 0)
+            overlay_tracks_lay.addWidget(ov_tr_future, 2, 1)
+            view_tab_grid.addLayout(overlay_tracks_lay, row, 0)
+            row += 1
 
-        adjLayout = QHBoxLayout()
-        getadj = QLineEdit("-1")
-        getadj.setValidator(QtGui.QIntValidator(-10, 10))
-        getadj.textChanged.connect(lambda x: self._adjacent_changed(x))
-        self.getadjlab = QLabel("-1")
-        adj_CheckBox = QCheckBox("Overlay Adjacent Points")
-        adj_CheckBox.toggled.connect(self.controller.toggle_adjacent_overlay)
-        adjLayout.addWidget(adj_CheckBox)
-        adjLayout.addWidget(getadj)
-        adjLayout.addWidget(self.getadjlab)
-        view_tab_grid.addLayout(adjLayout, row, 0)
-        row += 1
+            adjLayout = QHBoxLayout()
+            getadj = QLineEdit("-1")
+            getadj.setValidator(QtGui.QIntValidator(-10, 10))
+            getadj.textChanged.connect(lambda x: self._adjacent_changed(x))
+            self.getadjlab = QLabel("-1")
+            adj_CheckBox = QCheckBox("Overlay Adjacent Points")
+            adj_CheckBox.toggled.connect(self.controller.toggle_adjacent_overlay)
+            adjLayout.addWidget(adj_CheckBox)
+            adjLayout.addWidget(getadj)
+            adjLayout.addWidget(self.getadjlab)
+            view_tab_grid.addLayout(adjLayout, row, 0)
+            row += 1
 
+        else:
+            # view_tab_grid.addWidget(QLabel("------------ Mask mode ------------"), row, 0)
+            # row += 1
 
-        view_tab_grid.addWidget(QLabel("------------ Mask mode ------------"), row, 0)
-        row += 1
+            # SJR: I copied the code from above and got rid of point-specific stuff
+            mask_boxes = QGridLayout()
+            mask_checkbox = QCheckBox("Overlay Mask")
+            mask_checkbox.setChecked(int(default_values["overlay_mask_by_default"]))
+            mask_checkbox.toggled.connect(self.controller.toggle_mask_overlay)
+            mask_boxes.addWidget(mask_checkbox, 0, 0)
 
-        # SJR: I copied the code from above and got rid of point-specific stuff
-        mask_boxes = QGridLayout()
-        mask_checkbox = QCheckBox("Overlay Mask")
-        mask_checkbox.setChecked(int(default_values["overlay_mask_by_default"]))
-        mask_checkbox.toggled.connect(self.controller.toggle_mask_overlay)
-        mask_boxes.addWidget(mask_checkbox, 0, 0)
+            # MB: the following 3 lines si for overlaying the NN mask
+            NNmask_checkbox = QCheckBox("Only NN mask")
+            NNmask_checkbox.setChecked(False)
+            NNmask_checkbox.toggled.connect(self.controller.toggle_NN_mask_only)
+            mask_boxes.addWidget(NNmask_checkbox, 0, 1)
 
-        # MB: the following 3 lines si for overlaying the NN mask
-        NNmask_checkbox = QCheckBox("Only NN mask")
-        NNmask_checkbox.setChecked(False)
-        NNmask_checkbox.toggled.connect(self.controller.toggle_NN_mask_only)
-        mask_boxes.addWidget(NNmask_checkbox, 0, 1)
+            aligned_checkbox = QCheckBox("Aligned")
+            aligned_checkbox.setChecked(False)
+            aligned_checkbox.toggled.connect(self.controller.toggle_display_alignment)
+            mask_boxes.addWidget(aligned_checkbox, 0, 2)
+            cropped_checkbox = QCheckBox("Cropped")
+            cropped_checkbox.setChecked(False)
+            cropped_checkbox.toggled.connect(self.controller.toggle_display_cropped)
+            mask_boxes.addWidget(cropped_checkbox, 0, 3)
+            view_tab_grid.addLayout(mask_boxes, row, 0)
+            row += 1
 
-        aligned_checkbox = QCheckBox("Aligned")
-        aligned_checkbox.setChecked(False)
-        aligned_checkbox.toggled.connect(self.controller.toggle_display_alignment)
-        mask_boxes.addWidget(aligned_checkbox, 0, 2)
-        cropped_checkbox = QCheckBox("Cropped")
-        cropped_checkbox.setChecked(False)
-        cropped_checkbox.toggled.connect(self.controller.toggle_display_cropped)
-        mask_boxes.addWidget(cropped_checkbox, 0, 3)
-        view_tab_grid.addLayout(mask_boxes, row, 0)
-        row += 1
-
-        # SJR: code below is for blurring button and slider
-        blur_checkbox = QCheckBox("Blur image")
-        blur_checkbox.toggled.connect(self.controlled_plot.change_blur_image)
-        view_tab_grid.addWidget(blur_checkbox, row, 0)
-        row += 1
-        blur_slider_lay = QGridLayout()
-        blur_slider_lay.addWidget(QLabel("Blur sigm parameter"), 0, 0)
-        blur_slider_lay.addWidget(QLabel("Blur bg_factor parameter"), 0, 1)
-        blur_slider_s = QSlider(Qt.Horizontal)
-        blur_slider_s.setMinimum(1)
-        blur_slider_s.setMaximum(10)
-        blur_slider_s.setValue(1)
-        blur_slider_s.valueChanged.connect(lambda val: self.controlled_plot.change_blur_s(val))
-        blur_slider_lay.addWidget(blur_slider_s, 1, 0)
-        blur_slider_b = QSlider(Qt.Horizontal)
-        blur_slider_b.setMinimum(0)
-        blur_slider_b.setMaximum(100)
-        blur_slider_b.setValue(25)
-        blur_slider_b.valueChanged.connect(lambda val: self.controlled_plot.change_blur_b(val))
-        blur_slider_lay.addWidget(blur_slider_b, 1, 1)
-        view_tab_grid.addLayout(blur_slider_lay, row, 0)
-        row += 1
-        # SJR: code above is for blurring button and slider
+            # SJR: code below is for blurring button and slider
+            blur_checkbox = QCheckBox("Blur image")
+            blur_checkbox.toggled.connect(self.controlled_plot.change_blur_image)
+            view_tab_grid.addWidget(blur_checkbox, row, 0)
+            row += 1
+            blur_slider_lay = QGridLayout()
+            blur_slider_lay.addWidget(QLabel("Blur sigm parameter"), 0, 0)
+            blur_slider_lay.addWidget(QLabel("Blur bg_factor parameter"), 0, 1)
+            blur_slider_s = QSlider(Qt.Horizontal)
+            blur_slider_s.setMinimum(1)
+            blur_slider_s.setMaximum(10)
+            blur_slider_s.setValue(1)
+            blur_slider_s.valueChanged.connect(lambda val: self.controlled_plot.change_blur_s(val))
+            blur_slider_lay.addWidget(blur_slider_s, 1, 0)
+            blur_slider_b = QSlider(Qt.Horizontal)
+            blur_slider_b.setMinimum(0)
+            blur_slider_b.setMaximum(100)
+            blur_slider_b.setValue(25)
+            blur_slider_b.valueChanged.connect(lambda val: self.controlled_plot.change_blur_b(val))
+            blur_slider_lay.addWidget(blur_slider_b, 1, 1)
+            view_tab_grid.addLayout(blur_slider_lay, row, 0)
+            row += 1
+            # SJR: code above is for blurring button and slider
 
         self.setWidgetResizable(True)
         self.setContentsMargins(5, 5, 5, 5)
@@ -465,208 +467,210 @@ class AnnotationTab(QWidget):
         self.controller.highlighted_neuron_registered_clients.append(self)
         self.controller.mask_thres_registered_clients.append(self)
         self.controller.autocenter_registered_clients.append(self)
+        as_points = self.controller.point_data
 
         main_layout = QGridLayout()
 
         row = 0
 
-        points_lab = QLabel("------------ Point mode ------------")
-        main_layout.addWidget(points_lab, row, 0)
-        row += 1
+        if as_points:
+            # points_lab = QLabel("------------ Point mode ------------")
+            # main_layout.addWidget(points_lab, row, 0)
+            # row += 1
 
-        subrow = 0
-        approve_lay = QGridLayout()
-        self.approve_lab = QLabel("Approve")
-        approve_lay.addWidget(self.approve_lab, subrow, 0)
-        subrow += 1
+            subrow = 0
+            approve_lay = QGridLayout()
+            self.approve_lab = QLabel("Approve")
+            approve_lay.addWidget(self.approve_lab, subrow, 0)
+            subrow += 1
 
-        self.delete_clear = QPushButton("Clear This frame")
-        self.delete_clear.setStyleSheet("background-color: red")
-        self.delete_clear.clicked.connect(self.controller.clear_frame_NN)
-        approve_lay.addWidget(self.delete_clear, subrow, 0)
-        subrow += 1
+            self.delete_clear = QPushButton("Clear This frame")
+            self.delete_clear.setStyleSheet("background-color: red")
+            self.delete_clear.clicked.connect(self.controller.clear_frame_NN)
+            approve_lay.addWidget(self.delete_clear, subrow, 0)
+            subrow += 1
 
-        self.delete_select = QPushButton("Delete Within")
-        self.delete_select.setStyleSheet("background-color: red")
-        self.delete_select.clicked.connect(self._selective_delete)
-        self.delete_select.setEnabled(False)
-        approve_lay.addWidget(self.delete_select, subrow, 0)
-        self.delete_select_from = QLineEdit("0")
-        self.delete_select_from.setValidator(QtGui.QIntValidator(0, frame_num - 1))
-        approve_lay.addWidget(self.delete_select_from, subrow, 1)
-        self.delete_select_to = QLineEdit(str(frame_num - 1))
-        self.delete_select_to.setValidator(QtGui.QIntValidator(0, frame_num - 1))
-        approve_lay.addWidget(self.delete_select_to, subrow, 2)
-        subrow += 1
+            self.delete_select = QPushButton("Delete Within")
+            self.delete_select.setStyleSheet("background-color: red")
+            self.delete_select.clicked.connect(self._selective_delete)
+            self.delete_select.setEnabled(False)
+            approve_lay.addWidget(self.delete_select, subrow, 0)
+            self.delete_select_from = QLineEdit("0")
+            self.delete_select_from.setValidator(QtGui.QIntValidator(0, frame_num - 1))
+            approve_lay.addWidget(self.delete_select_from, subrow, 1)
+            self.delete_select_to = QLineEdit(str(frame_num - 1))
+            self.delete_select_to.setValidator(QtGui.QIntValidator(0, frame_num - 1))
+            approve_lay.addWidget(self.delete_select_to, subrow, 2)
+            subrow += 1
 
-        self.approve_select = QPushButton("Approve Within")
-        self.approve_select.setStyleSheet("background-color: green")
-        self.approve_select.clicked.connect(self._selective_approve)
-        self.approve_select.setEnabled(False)
-        approve_lay.addWidget(self.approve_select, subrow, 0)
-        self.approve_select_from = QLineEdit("0")
-        self.approve_select_from.setValidator(QtGui.QIntValidator(0, frame_num - 1))
-        approve_lay.addWidget(self.approve_select_from, subrow, 1)
-        self.approve_select_to = QLineEdit(str(frame_num - 1))
-        self.approve_select_to.setValidator(QtGui.QIntValidator(0, frame_num - 1))
-        approve_lay.addWidget(self.approve_select_to, subrow, 2)
-        subrow += 1
+            self.approve_select = QPushButton("Approve Within")
+            self.approve_select.setStyleSheet("background-color: green")
+            self.approve_select.clicked.connect(self._selective_approve)
+            self.approve_select.setEnabled(False)
+            approve_lay.addWidget(self.approve_select, subrow, 0)
+            self.approve_select_from = QLineEdit("0")
+            self.approve_select_from.setValidator(QtGui.QIntValidator(0, frame_num - 1))
+            approve_lay.addWidget(self.approve_select_from, subrow, 1)
+            self.approve_select_to = QLineEdit(str(frame_num - 1))
+            self.approve_select_to.setValidator(QtGui.QIntValidator(0, frame_num - 1))
+            approve_lay.addWidget(self.approve_select_to, subrow, 2)
+            subrow += 1
 
-        main_layout.addLayout(approve_lay, row, 0)
-        row += 1
+            main_layout.addLayout(approve_lay, row, 0)
+            row += 1
 
-        rotate_lay = QGridLayout()
-        main_layout.addLayout(rotate_lay, row, 0)
-        row += 1
+            rotate_lay = QGridLayout()
+            main_layout.addLayout(rotate_lay, row, 0)
+            row += 1
 
-        fh_checkbox = QCheckBox("Follow Highlighted")
-        fh_checkbox.setChecked(True)
-        fh_checkbox.toggled.connect(self.controller.toggle_z_follow_highlighted)
-        main_layout.addWidget(fh_checkbox, row, 0)
-        row += 1
+            fh_checkbox = QCheckBox("Follow Highlighted")
+            fh_checkbox.setChecked(True)
+            fh_checkbox.toggled.connect(self.controller.toggle_z_follow_highlighted)
+            main_layout.addWidget(fh_checkbox, row, 0)
+            row += 1
 
-        AutoCenterMode = QGridLayout()
-        if True:
-            AutoCenterWidget1 = QHBoxLayout()
-            en_AutoCenter = QLabel("Auto Center Size:")
-            getSize_AutoCenter = QLineEdit("3")
-            getSize_AutoCenter.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-            getSize_AutoCenter.setValidator(QtGui.QIntValidator(0, 10))
-            getSize_AutoCenter.textChanged.connect(self._set_xy_autocenter)
-            getSize_AutoCenterz = QLineEdit("2")
-            getSize_AutoCenterz.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-            getSize_AutoCenterz.setValidator(QtGui.QIntValidator(0, 5))
-            getSize_AutoCenterz.textChanged.connect(self._set_z_autocenter)
-            self.autocenterlabxy = QLabel("3")
-            self.autocenterlabz = QLabel("2")
-            AutoCenterWidget1_btn = QRadioButton("Nearest maximum intensity")
+            AutoCenterMode = QGridLayout()
+            if True:
+                AutoCenterWidget1 = QHBoxLayout()
+                en_AutoCenter = QLabel("Auto Center Size:")
+                getSize_AutoCenter = QLineEdit("3")
+                getSize_AutoCenter.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+                getSize_AutoCenter.setValidator(QtGui.QIntValidator(0, 10))
+                getSize_AutoCenter.textChanged.connect(self._set_xy_autocenter)
+                getSize_AutoCenterz = QLineEdit("2")
+                getSize_AutoCenterz.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+                getSize_AutoCenterz.setValidator(QtGui.QIntValidator(0, 5))
+                getSize_AutoCenterz.textChanged.connect(self._set_z_autocenter)
+                self.autocenterlabxy = QLabel("3")
+                self.autocenterlabz = QLabel("2")
+                AutoCenterWidget1_btn = QRadioButton("Nearest maximum intensity")
 
-            AutoCenterWidget1.addWidget(en_AutoCenter)
-            AutoCenterWidget1.addWidget(QLabel("X,Y:"))
-            AutoCenterWidget1.addWidget(self.autocenterlabxy)
-            AutoCenterWidget1.addWidget(getSize_AutoCenter)
+                AutoCenterWidget1.addWidget(en_AutoCenter)
+                AutoCenterWidget1.addWidget(QLabel("X,Y:"))
+                AutoCenterWidget1.addWidget(self.autocenterlabxy)
+                AutoCenterWidget1.addWidget(getSize_AutoCenter)
 
-            AutoCenterWidget1.addWidget(QLabel("Z:"))
-            AutoCenterWidget1.addWidget(self.autocenterlabz)
-            AutoCenterWidget1.addWidget(getSize_AutoCenterz)
+                AutoCenterWidget1.addWidget(QLabel("Z:"))
+                AutoCenterWidget1.addWidget(self.autocenterlabz)
+                AutoCenterWidget1.addWidget(getSize_AutoCenterz)
 
-            AutoCenterWidget2 = QHBoxLayout()
-            getthres_peaks = QLineEdit("4")
-            getthres_peaks.setValidator(QtGui.QIntValidator(0, 255))
-            getthres_peaks.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-            getthres_peaks.textChanged.connect(self._set_peak_thresh)
-            self.peak_thres_lab = QLabel("4")
-            getsep_peaks = QLineEdit("2")
-            getsep_peaks.setValidator(QtGui.QIntValidator(0, 10))
-            getsep_peaks.textChanged.connect(self._set_peak_sep)
-            getsep_peaks.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-            self.peak_sep_lab = QLabel("2")
+                AutoCenterWidget2 = QHBoxLayout()
+                getthres_peaks = QLineEdit("4")
+                getthres_peaks.setValidator(QtGui.QIntValidator(0, 255))
+                getthres_peaks.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+                getthres_peaks.textChanged.connect(self._set_peak_thresh)
+                self.peak_thres_lab = QLabel("4")
+                getsep_peaks = QLineEdit("2")
+                getsep_peaks.setValidator(QtGui.QIntValidator(0, 10))
+                getsep_peaks.textChanged.connect(self._set_peak_sep)
+                getsep_peaks.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+                self.peak_sep_lab = QLabel("2")
 
-            AutoCenterWidget2.addWidget(QLabel("Intensity Threshold:"))
-            AutoCenterWidget2.addWidget(self.peak_thres_lab)
-            AutoCenterWidget2.addWidget(getthres_peaks)
+                AutoCenterWidget2.addWidget(QLabel("Intensity Threshold:"))
+                AutoCenterWidget2.addWidget(self.peak_thres_lab)
+                AutoCenterWidget2.addWidget(getthres_peaks)
 
-            AutoCenterWidget2.addWidget(QLabel("Minimum Separation:"))
-            AutoCenterWidget2.addWidget(self.peak_sep_lab)
-            AutoCenterWidget2.addWidget(getsep_peaks)
+                AutoCenterWidget2.addWidget(QLabel("Minimum Separation:"))
+                AutoCenterWidget2.addWidget(self.peak_sep_lab)
+                AutoCenterWidget2.addWidget(getsep_peaks)
 
-            AutoCenterWidget2_btn = QRadioButton("Nearest Peak")
-            AutoCenterWidget2_btn.setChecked(True)
-            AutoCenterWidget2_btn.toggled.connect(self.controller.toggle_autocenter_peakmode)
+                AutoCenterWidget2_btn = QRadioButton("Nearest Peak")
+                AutoCenterWidget2_btn.setChecked(True)
+                AutoCenterWidget2_btn.toggled.connect(self.controller.toggle_autocenter_peakmode)
 
-            autocenter_enable_lay = QHBoxLayout()
-            autocenter_enable_lay.addWidget(QLabel("Autocenter Enabled [A]:"))
-            self.auto_en_lab = QLabel("  ")
-            self.auto_en_lab.setStyleSheet("background-color: green; height: 5px; width: 5px;min-width: 5px;")
-            autocenter_enable_lay.addWidget(self.auto_en_lab)
+                autocenter_enable_lay = QHBoxLayout()
+                autocenter_enable_lay.addWidget(QLabel("Autocenter Enabled [A]:"))
+                self.auto_en_lab = QLabel("  ")
+                self.auto_en_lab.setStyleSheet("background-color: green; height: 5px; width: 5px;min-width: 5px;")
+                autocenter_enable_lay.addWidget(self.auto_en_lab)
 
-            rowi = 0
-            AutoCenterMode.addLayout(autocenter_enable_lay, rowi, 0, 1, 2)
-            rowi += 1
-            AutoCenterMode.addWidget(QLabel("  "), rowi, 0)
-            AutoCenterMode.addWidget(QLabel("Select Auto Center Mode"), rowi, 1)
-            rowi += 1
-            AutoCenterMode.addWidget(AutoCenterWidget2_btn, rowi, 1)
-            rowi += 1
-            AutoCenterMode.addLayout(AutoCenterWidget2, rowi, 1)
-            rowi += 1
-            AutoCenterMode.addWidget(AutoCenterWidget1_btn, rowi, 1)
-            rowi += 1
-            AutoCenterMode.addLayout(AutoCenterWidget1, rowi, 1)
-            rowi += 1
-        main_layout.addLayout(AutoCenterMode, row, 0)
-        row += 1
+                rowi = 0
+                AutoCenterMode.addLayout(autocenter_enable_lay, rowi, 0, 1, 2)
+                rowi += 1
+                AutoCenterMode.addWidget(QLabel("  "), rowi, 0)
+                AutoCenterMode.addWidget(QLabel("Select Auto Center Mode"), rowi, 1)
+                rowi += 1
+                AutoCenterMode.addWidget(AutoCenterWidget2_btn, rowi, 1)
+                rowi += 1
+                AutoCenterMode.addLayout(AutoCenterWidget2, rowi, 1)
+                rowi += 1
+                AutoCenterMode.addWidget(AutoCenterWidget1_btn, rowi, 1)
+                rowi += 1
+                AutoCenterMode.addLayout(AutoCenterWidget1, rowi, 1)
+                rowi += 1
+            main_layout.addLayout(AutoCenterMode, row, 0)
+            row += 1
 
-        mask_lab = QLabel("------------ Mask mode ------------")
-        main_layout.addWidget(mask_lab, row, 0)
-        row += 1
+        else:
+            # mask_lab = QLabel("------------ Mask mode ------------")
+            # main_layout.addWidget(mask_lab, row, 0)
+            # row += 1
 
-        # SJR: Annotate mask section in the annotate tab
-        mask_annotation_Layout = QGridLayout()
-        subrow=0
-        mask_annotation_checkbox = QCheckBox("Mask annotation mode")
-        mask_annotation_checkbox.toggled.connect(self.controller.toggle_mask_annotation_mode)
-        mask_annotation_Layout.addWidget(mask_annotation_checkbox,subrow, 0)
-        self.mask_annotation_thresh = QLineEdit(mask_threshold_for_new_region)
-        self.mask_annotation_thresh.setValidator(QtGui.QIntValidator(1, 1000))
-        self.mask_annotation_thresh.textChanged.connect(lambda x: self.controller.set_mask_annotation_threshold(x))
-        mask_annotation_Layout.addWidget(self.mask_annotation_thresh,subrow, 1)
-        mask_annotation_thresh_label = QLabel("Treshold for adding regions")
-        mask_annotation_Layout.addWidget(mask_annotation_thresh_label,subrow, 2)
-        subrow += 1
-        box_mode_checkbox = QCheckBox("boxing mode")
-        box_mode_checkbox.toggled.connect(self.controller.toggle_box_mode)
-        mask_annotation_Layout.addWidget(box_mode_checkbox,subrow, 0)
-        self.box_dimensions = QLineEdit("1,1,1-0")
-        self.box_dimensions.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-        self.box_dimensions.textChanged.connect(lambda x: self.controller.set_box_dimensions(x))
-        mask_annotation_Layout.addWidget(self.box_dimensions,subrow, 1)
-        boxing_dim_label = QLabel("Box details (W,H,D-box_id)")
-        mask_annotation_Layout.addWidget(boxing_dim_label,subrow, 2)
+            # SJR: Annotate mask section in the annotate tab
+            mask_annotation_Layout = QGridLayout()
+            subrow=0
+            mask_annotation_checkbox = QCheckBox("Mask annotation mode")
+            mask_annotation_checkbox.toggled.connect(self.controller.toggle_mask_annotation_mode)
+            mask_annotation_Layout.addWidget(mask_annotation_checkbox,subrow, 0)
+            self.mask_annotation_thresh = QLineEdit(mask_threshold_for_new_region)
+            self.mask_annotation_thresh.setValidator(QtGui.QIntValidator(1, 1000))
+            self.mask_annotation_thresh.textChanged.connect(lambda x: self.controller.set_mask_annotation_threshold(x))
+            mask_annotation_Layout.addWidget(self.mask_annotation_thresh,subrow, 1)
+            mask_annotation_thresh_label = QLabel("Treshold for adding regions")
+            mask_annotation_Layout.addWidget(mask_annotation_thresh_label,subrow, 2)
+            subrow += 1
+            box_mode_checkbox = QCheckBox("boxing mode")
+            box_mode_checkbox.toggled.connect(self.controller.toggle_box_mode)
+            mask_annotation_Layout.addWidget(box_mode_checkbox,subrow, 0)
+            self.box_dimensions = QLineEdit("1,1,1-0")
+            self.box_dimensions.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            self.box_dimensions.textChanged.connect(lambda x: self.controller.set_box_dimensions(x))
+            mask_annotation_Layout.addWidget(self.box_dimensions,subrow, 1)
+            boxing_dim_label = QLabel("Box details (W,H,D-box_id)")
+            mask_annotation_Layout.addWidget(boxing_dim_label,subrow, 2)
 
-        main_layout.addLayout(mask_annotation_Layout, row, 0)
-        row += 1
+            main_layout.addLayout(mask_annotation_Layout, row, 0)
+            row += 1
 
 
+            mask_buttons = QGridLayout()
+            subrow=0
+            self.change_within_checkbox = QCheckBox("Change within")
+            mask_buttons.addWidget(self.change_within_checkbox, subrow, 0)
+            self.mask_change_from = QLineEdit("0")
+            self.mask_change_from .setValidator(QtGui.QIntValidator(0, frame_num -1))
+            mask_buttons.addWidget(self.mask_change_from , subrow, 1)
+            mask_buttons.addWidget(QLabel("to:"), subrow, 2)
+            self.mask_change_to = QLineEdit(str(frame_num))
+            self.mask_change_to.setValidator(QtGui.QIntValidator(0, frame_num))
+            mask_buttons.addWidget(self.mask_change_to, subrow, 3)
 
-        mask_buttons = QGridLayout()
-        subrow=0
-        self.change_within_checkbox = QCheckBox("Change within")
-        mask_buttons.addWidget(self.change_within_checkbox, subrow, 0)
-        self.mask_change_from = QLineEdit("0")
-        self.mask_change_from .setValidator(QtGui.QIntValidator(0, frame_num -1))
-        mask_buttons.addWidget(self.mask_change_from , subrow, 1)
-        mask_buttons.addWidget(QLabel("to:"), subrow, 2)
-        self.mask_change_to = QLineEdit(str(frame_num))
-        self.mask_change_to.setValidator(QtGui.QIntValidator(0, frame_num))
-        mask_buttons.addWidget(self.mask_change_to, subrow, 3)
+            subrow += 1
 
-        subrow += 1
+            self.renumber_mask_obj = QPushButton("Renumber")
+            self.renumber_mask_obj.setStyleSheet("background-color: green")
+            self.renumber_mask_obj.clicked.connect(self._selective_renumber)
+            self.renumber_mask_obj.setEnabled(False)
+            mask_buttons.addWidget(self.renumber_mask_obj, subrow, 0)
+            self.delete_mask_obj = QPushButton("Delete")
+            self.delete_mask_obj.setStyleSheet("background-color: red")
+            self.delete_mask_obj.clicked.connect(self.controller.delete_mask_obj)
+            self.delete_mask_obj.setEnabled(False)
+            mask_buttons.addWidget(self.delete_mask_obj, subrow, 1)
+            main_layout.addLayout(mask_buttons, row, 0)
+            row += 1
 
-        self.renumber_mask_obj = QPushButton("Renumber")
-        self.renumber_mask_obj.setStyleSheet("background-color: green")
-        self.renumber_mask_obj.clicked.connect(self._selective_renumber)
-        self.renumber_mask_obj.setEnabled(False)
-        mask_buttons.addWidget(self.renumber_mask_obj, subrow, 0)
-        self.delete_mask_obj = QPushButton("Delete")
-        self.delete_mask_obj.setStyleSheet("background-color: red")
-        self.delete_mask_obj.clicked.connect(self.controller.delete_mask_obj)
-        self.delete_mask_obj.setEnabled(False)
-        mask_buttons.addWidget(self.delete_mask_obj, subrow, 1)
-        main_layout.addLayout(mask_buttons, row, 0)
-        row += 1
+            Permute_buttons = QGridLayout()
+            self.cell_permutation_entry = QLineEdit("0")
+            self.cell_permutation_entry.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            Permute_buttons.addWidget(QLabel("Enter cell numbers separated with ,"), 0, 0)
+            Permute_buttons.addWidget(self.cell_permutation_entry, 0, 1)
+            Permute_btn = QPushButton("Permute")
+            Permute_btn.setStyleSheet("background-color: yellow")
+            Permute_btn.clicked.connect(self._Permutation_fun)
+            Permute_buttons.addWidget(Permute_btn, 0, 2)
 
-        Permute_buttons = QGridLayout()
-        self.cell_permutation_entry = QLineEdit("0")
-        self.cell_permutation_entry.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-        Permute_buttons.addWidget(QLabel("Enter cell numbers separated with ,"), 0, 0)
-        Permute_buttons.addWidget(self.cell_permutation_entry, 0, 1)
-        Permute_btn = QPushButton("Permute")
-        Permute_btn.setStyleSheet("background-color: yellow")
-        Permute_btn.clicked.connect(self._Permutation_fun)
-        Permute_buttons.addWidget(Permute_btn, 0, 2)
-
-        main_layout.addLayout(Permute_buttons, row, 0)
+            main_layout.addLayout(Permute_buttons, row, 0)
 
         self.setLayout(main_layout)
 
@@ -777,51 +781,53 @@ class NNControlTab(QWidget):
         self.controller.NN_instances_registered_clients.append(self)
         self.controller.validation_set_registered_clients.append(self)
         self.data_name = data_name
+        as_points = self.controller.point_data
 
         main_layout = QGridLayout()
 
         row = 0
 
-        # This is to select NN from which to load points
-        lab = QLabel("Select NN points")
-        main_layout.addWidget(lab, row, 0, 1, 2)
-        row += 1
+        if as_points:
+            # This is to select NN from which to load points
+            lab = QLabel("Select NN points")
+            main_layout.addWidget(lab, row, 0, 1, 2)
+            row += 1
 
-        self.NN_pt_select = QComboBox()
-        self.NN_pt_select.addItem("None")
-        self.NN_pt_select.currentTextChanged.connect(self._select_pt_instance)
-        main_layout.addWidget(self.NN_pt_select, row, 0, 1, 2)
-        row += 1
+            self.NN_pt_select = QComboBox()
+            self.NN_pt_select.addItem("None")
+            self.NN_pt_select.currentTextChanged.connect(self._select_pt_instance)
+            main_layout.addWidget(self.NN_pt_select, row, 0, 1, 2)
+            row += 1
 
-        # and this is to select NN from which to load masks
-        lab = QLabel("Select NN masks")
-        main_layout.addWidget(lab, row, 0, 1, 2)
-        row += 1
+        else:
+            # and this is to select NN from which to load masks
+            lab = QLabel("Select NN masks")
+            main_layout.addWidget(lab, row, 0, 1, 2)
+            row += 1
 
-        self.NN_mask_select = QComboBox()
-        self.NN_mask_select.currentTextChanged.connect(self._select_mask_instance)
-        main_layout.addWidget(self.NN_mask_select, row, 0, 1, 2)
-        row += 1
+            self.NN_mask_select = QComboBox()
+            self.NN_mask_select.currentTextChanged.connect(self._select_mask_instance)
+            main_layout.addWidget(self.NN_mask_select, row, 0, 1, 2)
+            row += 1
 
 
-        self.Exempt_Neurons = QLineEdit("0")
-        self.Exempt_Neurons.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-        #self.PostProc_Mode = QLineEdit("1")
-        #self.PostProc_Mode.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-        main_layout.addWidget(QLabel("Neurons exempt from postprocessing:"),row,0,1, 1)
-        main_layout.addWidget(self.Exempt_Neurons,row,1, 1, 1)
+            self.Exempt_Neurons = QLineEdit("0")
+            self.Exempt_Neurons.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            #self.PostProc_Mode = QLineEdit("1")
+            #self.PostProc_Mode.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            main_layout.addWidget(QLabel("Neurons exempt from postprocessing:"),row,0,1, 1)
+            main_layout.addWidget(self.Exempt_Neurons,row,1, 1, 1)
+            row += 1
 
-        row += 1
-
-        #tab for determining different post processing modes
-        PostProcess_mask = QPushButton("Post-process masks")
-        PostProcess_mask.setStyleSheet("background-color: yellow")
-        PostProcess_mask.clicked.connect(self._Postprocess_NN_masks)
-        main_layout.addWidget(PostProcess_mask,row, 1,1,1)
-        self.PostProc_Mode = QLineEdit("1")
-        self.PostProc_Mode.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
-        main_layout.addWidget(self.PostProc_Mode,row,0, 1, 1)
-        row += 1
+            #tab for determining different post processing modes
+            PostProcess_mask = QPushButton("Post-process masks")
+            PostProcess_mask.setStyleSheet("background-color: yellow")
+            PostProcess_mask.clicked.connect(self._Postprocess_NN_masks)
+            main_layout.addWidget(PostProcess_mask,row, 1,1,1)
+            self.PostProc_Mode = QLineEdit("1")
+            self.PostProc_Mode.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            main_layout.addWidget(self.PostProc_Mode,row,0, 1, 1)
+            row += 1
 
         #MB added to save the selected predicted masks as the GT masks
 
@@ -888,26 +894,28 @@ class NNControlTab(QWidget):
         row += 1
 
 
-        NN_train = QPushButton("Train Mask Prediction Neural Network")
-        NN_train.clicked.connect(lambda: self._run_NN(mask=True))
-        NN_train_fol = QPushButton("Output Train NNmasks folder")
-        NN_train_fol.clicked.connect(lambda: self._run_NN(mask=True, fol=True))
-        main_layout.addWidget(NN_train, row, 0, 1, 2)
-        row += 1
-        main_layout.addWidget(NN_train_fol, row, 0, 1, 2)
-        row += 1
+        if not as_points:
+            NN_train = QPushButton("Train Mask Prediction Neural Network")
+            NN_train.clicked.connect(lambda: self._run_NN(mask=True))
+            NN_train_fol = QPushButton("Output Train NNmasks folder")
+            NN_train_fol.clicked.connect(lambda: self._run_NN(mask=True, fol=True))
+            main_layout.addWidget(NN_train, row, 0, 1, 2)
+            row += 1
+            main_layout.addWidget(NN_train_fol, row, 0, 1, 2)
+            row += 1
 
-        main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
-        row += 1
+        # main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
+        # row += 1
 
-        NN_train = QPushButton("Train Point Detection Neural Network")
-        NN_train.clicked.connect(lambda: self._run_NN(mask=False))
-        NN_train_fol = QPushButton("Output Train NNpts folder")
-        NN_train_fol.clicked.connect(lambda: self._run_NN(mask=False, fol=True))
-        main_layout.addWidget(NN_train, row, 0, 1, 2)
-        row += 1
-        main_layout.addWidget(NN_train_fol, row, 0, 1, 2)
-        row += 1
+        else:
+            NN_train = QPushButton("Train Point Detection Neural Network")
+            NN_train.clicked.connect(lambda: self._run_NN(mask=False))
+            NN_train_fol = QPushButton("Output Train NNpts folder")
+            NN_train_fol.clicked.connect(lambda: self._run_NN(mask=False, fol=True))
+            main_layout.addWidget(NN_train, row, 0, 1, 2)
+            row += 1
+            main_layout.addWidget(NN_train_fol, row, 0, 1, 2)
+            row += 1
 
         main_layout.addWidget(QLabel("Settings"), row, 0, 1, 2)
         row += 1

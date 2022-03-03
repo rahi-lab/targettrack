@@ -105,7 +105,7 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         self.zmax= self.shape[2] - 1
         self.z=(self.zmax+1)//2
 
-        self.autolevels = False   # Todo: set good default? (or set with settings)
+        self.autolevels = bool(int(self.settings["autolevels"]))
 
         self.min_s_size=int(self.settings["min_s_size"])
         self.max_s_size=int(self.settings["max_s_size"])
