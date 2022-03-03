@@ -66,7 +66,7 @@ class gui(QMainWindow):
         tracking_panel = QTabWidget()#this is self.plotstab in Core's code
         # this takes care of the image rendering
         view_tab = controls.ViewTab(self.controller, self.rendering, self.settings)
-        tracking_panel.setFixedSize(view_tab.sizeHint().width(),self.gui.settings["screen_h"]//3)
+
         tracking_panel.addTab(view_tab, "View")
         tracking_panel.tabBar().setTabTextColor(0,QtGui.QColor(0,0,0))
         if True:
@@ -80,6 +80,7 @@ class gui(QMainWindow):
 
             # this manages the NNs
             NN_control_tab = controls.NNControlTab(self.controller, self.controller.data_name)
+            tracking_panel.setFixedSize(NN_control_tab.sizeHint().width(),self.gui.settings["screen_h"]//3)
             tracking_panel.addTab(NN_control_tab, "NN")
             tracking_panel.tabBar().setTabTextColor(2,QtGui.QColor(0,0,0))
 
