@@ -42,7 +42,7 @@ class NeuronBar(QScrollArea):
         self.neurons = {}
         self.keyed_neurons_from1 = set()   # set of neurons that have a key displayed
         self.removed_holder = QWidget()   # a holder, not displayed, to keep alive the widgets removed from other layouts
-        self.verticalScrollBar().setEnabled(False)   # this is to disable scrolling verticallyin the neuronbar. It should not be needed if all elements are the right size
+        #self.verticalScrollBar().setEnabled(False)   # this is to disable scrolling verticallyin the neuronbar. It should not be needed if all elements are the right size
         self.setContentsMargins(0, 0, 0, 0)
         self.neuron_bar_holderLayout.setSpacing(0)
 
