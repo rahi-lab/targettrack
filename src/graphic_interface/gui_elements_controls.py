@@ -1510,66 +1510,7 @@ class PreProcessTab(QWidget):
         def import_file_green(self):
             FileAddress = self.import_address.text()
             self.controller.import_mask_from_external_file(FileAddress,green=True)
-'''
-class TimeSlider(QVBoxLayout):
-    """
-    This is the time slider that allowas to navigate through time.
-    Has potential bugs
-    """
 
-    def __init__(self, controller, nb_frames, nb_time_labels=20):
-        """
-        :param controller: main controller to report to
-        :param nb_frames: total number of frames
-        :param nb_time_labels: number of time labels to display above the slider
-        """
-        super().__init__()
-        self.controller = controller
-        self.controller.frame_registered_clients.append(self)
-
-        self.timeslider = QSlider(Qt.Horizontal)
-        self.timeslider.setRange(0, nb_frames - 1)
-        self.timeslider.setTickPosition(1)
-        self.timeslider.valueChanged.connect(lambda t: self.controller.go_to_frame(t))
-
-        dummylay = QHBoxLayout()
-        self.time_labels = QGridLayout()
-
-
-        if nb_frames<101:
-            self.time_labels.setContentsMargins(5, 0, 20, 0)
-            labelDist = np.max([int(nb_frames / nb_time_labels),1])
-            nb_time_labels = nb_frames-1
-            for i in range(nb_time_labels):
-                lab = QLabel()
-                self.time_labels.addWidget(lab, 0, i)
-
-                if i%labelDist==0:
-                    self.time_labels.itemAt(i).widget().setText(str(i))
-                else:
-                    self.time_labels.itemAt(i).widget().setText('')
-
-        else:
-            dummylay.setContentsMargins(5, 5, 5, 5)
-            self.time_labels.setContentsMargins(5, 5, 5, 5)
-            for i in range(nb_time_labels):
-                lab = QLabel()
-                lab.setAlignment(Qt.AlignHCenter)
-                self.time_labels.addWidget(lab, 0, i)
-                self.time_labels.itemAt(i).widget().setText(str(int((i+0.5) * nb_frames / nb_time_labels)))
-        dummylay.addLayout(self.time_labels)
-        self.addLayout(dummylay)
-
-        self.addWidget(self.timeslider)
-
-    def change_t(self, t):
-        """Callback when the controller changes the time, this adjusts the slider display."""
-        # blocking the signal is very important because otherwise setValue will emit valueChanged, which will trigger
-        # controller.go_to_frame (which calls change_t) and cause an infinite loop
-        self.timeslider.blockSignals(True)
-        self.timeslider.setValue(t)
-        self.timeslider.blockSignals(False)
-'''
 class LabeledSlider(QWidget):
     def __init__(self, minimum, maximum, interval=1, orientation=Qt.Horizontal,
             labels=None, parent=None):
