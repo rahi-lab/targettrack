@@ -144,7 +144,7 @@ class Controller():
 
         self.tr_fut=5
         self.tr_pst=-5
-        self.options["autocenter"]=True
+        self.options["autocenter"] = False
         self.autocenter_peakmode=True
         self.autocenterxy=3
         self.autocenterz=2
@@ -692,6 +692,7 @@ class Controller():
             yright = int(np.ceil(yright))
             self.data.save_ROI_params(xleft, xright, yleft, yright)
             del self.crop_points
+
     def toggle_old_trainset(self):
         self.options["use_old_trainset"] = not self.options["use_old_trainset"]
         self.update()

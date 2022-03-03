@@ -6,6 +6,7 @@ import os
 import warnings
 from collections import defaultdict
 
+
 class h5Data(DataSet):
     def __init__(self, dataset_path=None):
         self.dataset = h5py.File(dataset_path, "r+")
@@ -25,6 +26,8 @@ class h5Data(DataSet):
                 self.dataset["cluster_params"].attrs[k] = v
         if "pointdat" in self.dataset:
             self.point_data = True
+        if "C" not in self.dataset.attrs:   # or self.dataset.attrs["C"] is None
+            self.dataset.attrs["C"] = self.dataset["0/frame"].shape[0]   # number of channels
 
     def __getitem__(self,key):
         return self.dataset[key]
