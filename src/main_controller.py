@@ -1077,6 +1077,9 @@ class Controller():
             self.highlighted = 0
             for client in self.highlighted_neuron_registered_clients:
                 client.change_highlighted_neuron(unhigh=neuron_id_from1)
+            if self.options["overlay_tracks"]:
+                for client in self.highlighted_track_registered_clients:
+                    client.change_track([[], []])
         else:
             hprev = self.highlighted
             self.highlighted = neuron_id_from1
@@ -1163,8 +1166,12 @@ class Controller():
 
     def toggle_track_overlay(self):
         self.options["overlay_tracks"] = not self.options["overlay_tracks"]
-        self.signal_pts_changed(t_change=False)
-        self.update()
+        if self.options["overlay_tracks"] and self.highlighted != 0:
+            for client in self.highlighted_track_registered_clients:
+                client.change_track(self.highlighted_track_data(self.highlighted))
+        else:
+            for client in self.highlighted_track_registered_clients:
+                client.change_track([[], []])
 
     def toggle_adjacent_overlay(self):
         self.options["overlay_adj"] = not self.options["overlay_adj"]
@@ -2238,7 +2245,7 @@ class Controller():
     def highlighted_track_data(self,highlighted_i_from1):
         # Todo: available for mask data??
         if not self.point_data:
-            return np.array([0, 0])   # Todo: good value to return??
+            return [[], []]
         trax=[]
         tray=[]
         for i in range(max(0,self.i+self.tr_pst),min(self.frame_num,self.i+self.tr_fut+1)):
