@@ -468,6 +468,7 @@ class AnnotationTab(QWidget):
         self.controller.mask_thres_registered_clients.append(self)
         self.controller.autocenter_registered_clients.append(self)
         as_points = self.controller.point_data
+        self.as_points = as_points
 
         main_layout = QGridLayout()
 
@@ -743,24 +744,30 @@ class AnnotationTab(QWidget):
         :param high_key: key assigned to highlighted neuron (for display on the "approve" label)
         """
         if high is None and unhigh is not None:   # just unghlight
-            self.approve_lab.setText("Approve")
-            self.delete_select.setEnabled(False)
-            self.approve_select.setEnabled(False)
-            self.renumber_mask_obj.setEnabled(False)
-            self.delete_mask_obj.setEnabled(False)
+            if self.as_points:
+                self.approve_lab.setText("Approve")
+                self.delete_select.setEnabled(False)
+                self.approve_select.setEnabled(False)
+            else:
+                self.renumber_mask_obj.setEnabled(False)
+                self.delete_mask_obj.setEnabled(False)
 
         elif high is not None:
             if high_key is None:
                 key_name = " "
             else:
                 key_name = " [" + high_key + "]"
-            self.approve_lab.setText("Approve: " + str(high) + key_name)
-            self.delete_select.setEnabled(True)
-            self.approve_select.setEnabled(True)
-            self.renumber_mask_obj.setEnabled(True)
-            self.delete_mask_obj.setEnabled(True)
+            if self.as_points:
+                self.approve_lab.setText("Approve: " + str(high) + key_name)
+                self.delete_select.setEnabled(True)
+                self.approve_select.setEnabled(True)
+            else:
+                self.renumber_mask_obj.setEnabled(True)
+                self.delete_mask_obj.setEnabled(True)
 
     def change_autocenter_mode(self, on:bool):
+        if not self.as_points:
+            return
         if on:
             self.auto_en_lab.setStyleSheet("background-color: green; height: 15px; width: 15px;min-width: 15px;")
         else:
