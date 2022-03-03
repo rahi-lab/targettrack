@@ -782,6 +782,7 @@ class NNControlTab(QWidget):
         self.controller.validation_set_registered_clients.append(self)
         self.data_name = data_name
         as_points = self.controller.point_data
+        self.as_points = as_points
 
         main_layout = QGridLayout()
 
@@ -829,13 +830,13 @@ class NNControlTab(QWidget):
             main_layout.addWidget(self.PostProc_Mode,row,0, 1, 1)
             row += 1
 
-        #MB added to save the selected predicted masks as the GT masks
+            #MB added to save the selected predicted masks as the GT masks
 
-        approve_mask = QPushButton("Approve masks")
-        approve_mask.setStyleSheet("background-color: green")
-        approve_mask.clicked.connect(self.controller.approve_NN_masks)
-        main_layout.addWidget(approve_mask,row, 0,1, 2)
-        row += 1
+            approve_mask = QPushButton("Approve masks")
+            approve_mask.setStyleSheet("background-color: green")
+            approve_mask.clicked.connect(self.controller.approve_NN_masks)
+            main_layout.addWidget(approve_mask,row, 0,1, 2)
+            row += 1
 
         # MB added: to get the validation frames ids:
         val_frame_box = QtHelpers.CollapsibleBox("Validation frames id:")  # MB added
@@ -1011,14 +1012,17 @@ class NNControlTab(QWidget):
         """
         self.populate_NNinstances()
 
-        self.NN_mask_select.clear()
-        self.NN_mask_select.addItem("")
-        self.NN_pt_select.clear()
-        self.NN_pt_select.addItem("")
+        if not self.as_points:
+            self.NN_mask_select.clear()
+            self.NN_mask_select.addItem("")
+        else:
+            self.NN_pt_select.clear()
+            self.NN_pt_select.addItem("")
         for net,insts in self.NNinstances.items():
             for inst in insts:
-                self.NN_mask_select.addItem(net+" "+inst)
-                if self.controller.NN_inst_has_pointdat(net, inst):
+                if not self.as_points:
+                    self.NN_mask_select.addItem(net+" "+inst)
+                elif self.controller.NN_inst_has_pointdat(net, inst):
                     self.NN_pt_select.addItem(net+" "+inst)
 
     def change_validation_set(self, validation_set):
