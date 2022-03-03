@@ -42,7 +42,7 @@ class NeuronBar(QScrollArea):
         self.neurons = {}
         self.keyed_neurons_from1 = set()   # set of neurons that have a key displayed
         self.removed_holder = QWidget()   # a holder, not displayed, to keep alive the widgets removed from other layouts
-        # self.verticalScrollBar().setEnabled(False)   # this is to disable scrolling verticallyin the neuronbar. It should not be needed if all elements are the right size
+        self.verticalScrollBar().setEnabled(False)   # this is to disable scrolling verticallyin the neuronbar. It should not be needed if all elements are the right size
         self.setContentsMargins(0, 0, 0, 0)
         self.neuron_bar_holderLayout.setSpacing(0)
 
@@ -358,11 +358,11 @@ class ViewTab(QScrollArea):
             overlay_tracks_CheckBox.toggled.connect(self.controller.toggle_track_overlay)
             overlay_tracks_lay.addWidget(overlay_tracks_CheckBox, 0, 0, 1, 2)
             ov_tr_past = QLineEdit("-5")
-            ov_tr_past.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            ov_tr_past.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             ov_tr_past.setValidator(QtGui.QIntValidator(-15, 0))
             ov_tr_past.textChanged.connect(lambda x: self.controller.change_track_past(x))
             ov_tr_future = QLineEdit("5")
-            ov_tr_future.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            ov_tr_future.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             ov_tr_future.setValidator(QtGui.QIntValidator(0, 15))
             ov_tr_future.textChanged.connect(lambda x: self.controller.change_track_future(x))
             overlay_tracks_lay.addWidget(QLabel("Past"), 1, 0)
@@ -535,11 +535,11 @@ class AnnotationTab(QWidget):
                 AutoCenterWidget1 = QHBoxLayout()
                 en_AutoCenter = QLabel("Auto Center Size:")
                 getSize_AutoCenter = QLineEdit("3")
-                getSize_AutoCenter.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+                getSize_AutoCenter.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
                 getSize_AutoCenter.setValidator(QtGui.QIntValidator(0, 10))
                 getSize_AutoCenter.textChanged.connect(self._set_xy_autocenter)
                 getSize_AutoCenterz = QLineEdit("2")
-                getSize_AutoCenterz.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+                getSize_AutoCenterz.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
                 getSize_AutoCenterz.setValidator(QtGui.QIntValidator(0, 5))
                 getSize_AutoCenterz.textChanged.connect(self._set_z_autocenter)
                 self.autocenterlabxy = QLabel("3")
@@ -558,13 +558,13 @@ class AnnotationTab(QWidget):
                 AutoCenterWidget2 = QHBoxLayout()
                 getthres_peaks = QLineEdit("4")
                 getthres_peaks.setValidator(QtGui.QIntValidator(0, 255))
-                getthres_peaks.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+                getthres_peaks.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
                 getthres_peaks.textChanged.connect(self._set_peak_thresh)
                 self.peak_thres_lab = QLabel("4")
                 getsep_peaks = QLineEdit("2")
                 getsep_peaks.setValidator(QtGui.QIntValidator(0, 10))
                 getsep_peaks.textChanged.connect(self._set_peak_sep)
-                getsep_peaks.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+                getsep_peaks.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
                 self.peak_sep_lab = QLabel("2")
 
                 AutoCenterWidget2.addWidget(QLabel("Intensity Threshold:"))
@@ -624,7 +624,7 @@ class AnnotationTab(QWidget):
             box_mode_checkbox.toggled.connect(self.controller.toggle_box_mode)
             mask_annotation_Layout.addWidget(box_mode_checkbox,subrow, 0)
             self.box_dimensions = QLineEdit("1,1,1-0")
-            self.box_dimensions.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            self.box_dimensions.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             self.box_dimensions.textChanged.connect(lambda x: self.controller.set_box_dimensions(x))
             mask_annotation_Layout.addWidget(self.box_dimensions,subrow, 1)
             boxing_dim_label = QLabel("Box details (W,H,D-box_id)")
@@ -663,7 +663,7 @@ class AnnotationTab(QWidget):
 
             Permute_buttons = QGridLayout()
             self.cell_permutation_entry = QLineEdit("0")
-            self.cell_permutation_entry.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            self.cell_permutation_entry.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             Permute_buttons.addWidget(QLabel("Enter cell numbers separated with ,"), 0, 0)
             Permute_buttons.addWidget(self.cell_permutation_entry, 0, 1)
             Permute_btn = QPushButton("Permute")
@@ -769,9 +769,9 @@ class AnnotationTab(QWidget):
         if not self.as_points:
             return
         if on:
-            self.auto_en_lab.setStyleSheet("background-color: green; height: 15px; width: 15px;min-width: 15px;")
+            self.auto_en_lab.setStyleSheet("background-color: green; height: 15px; width: 5px;min-width: 5px;")
         else:
-            self.auto_en_lab.setStyleSheet("background-color: red; height: 15px; width: 15px;min-width: 15px;")
+            self.auto_en_lab.setStyleSheet("background-color: red; height: 15px; width: 5px;min-width: 5px;")
 
 
 class NNControlTab(QWidget):
@@ -820,9 +820,9 @@ class NNControlTab(QWidget):
 
 
             self.Exempt_Neurons = QLineEdit("0")
-            self.Exempt_Neurons.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            self.Exempt_Neurons.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             #self.PostProc_Mode = QLineEdit("1")
-            #self.PostProc_Mode.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            #self.PostProc_Mode.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             main_layout.addWidget(QLabel("Neurons exempt from postprocessing:"),row,0,1, 1)
             main_layout.addWidget(self.Exempt_Neurons,row,1, 1, 1)
             row += 1
@@ -833,7 +833,7 @@ class NNControlTab(QWidget):
             PostProcess_mask.clicked.connect(self._Postprocess_NN_masks)
             main_layout.addWidget(PostProcess_mask,row, 1,1,1)
             self.PostProc_Mode = QLineEdit("1")
-            self.PostProc_Mode.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            self.PostProc_Mode.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             main_layout.addWidget(self.PostProc_Mode,row,0, 1, 1)
             row += 1
 
@@ -865,25 +865,23 @@ class NNControlTab(QWidget):
 
         main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
         row += 1
-
-
+        old_train_checkbox = QCheckBox("Use old train set")
+        old_train_checkbox.toggled.connect(self.controller.toggle_old_trainset)
+        main_layout.addWidget(old_train_checkbox, row, 0)
+        deform_checkbox = QCheckBox("Add deformation")
+        deform_checkbox.toggled.connect(self.controller.toggle_add_deformation)
+        main_layout.addWidget(deform_checkbox,row , 1)
+        row += 1
+        main_layout.addWidget(QLabel("Number of target frames:"), row, 0)
+        self.targset = QLineEdit("5")
+        self.targset.setValidator(QtGui.QIntValidator(0, 200))
+        main_layout.addWidget(self.targset, row, 1)
+        row += 1
 
         subrow = 0
         options_checkboxes_lay = QGridLayout()
-        old_train_checkbox = QCheckBox("Use old train set")
-        old_train_checkbox.toggled.connect(self.controller.toggle_old_trainset)
-        options_checkboxes_lay.addWidget(old_train_checkbox, subrow, 0)
-        deform_checkbox = QCheckBox("Add deformation")
-        deform_checkbox.toggled.connect(self.controller.toggle_add_deformation)
-        options_checkboxes_lay.addWidget(deform_checkbox,subrow , 1)
-        options_checkboxes_lay.addWidget(QLabel("target frames:"), subrow, 2)
-        self.targset = QLineEdit("5")
-        self.targset.setValidator(QtGui.QIntValidator(0, 200))
-        options_checkboxes_lay.addWidget(self.targset, subrow, 3)
 
-        subrow += 1
-
-        options_checkboxes_lay.addWidget(QLabel("validation:"), subrow, 0)
+        options_checkboxes_lay.addWidget(QLabel("val:"), subrow, 0)
         self.valset = QLineEdit("1")
         self.valset.setValidator(QtGui.QIntValidator(0, 150))
         options_checkboxes_lay.addWidget(self.valset, subrow, 1)
@@ -897,7 +895,7 @@ class NNControlTab(QWidget):
         self.epochs.setValidator(QtGui.QIntValidator(0, 1000))
         options_checkboxes_lay.addWidget(self.epochs, subrow, 5)
 
-        subrow += 1
+        subrow += 2
         main_layout.addLayout(options_checkboxes_lay, row, 0)
         row += 1
 
@@ -1078,7 +1076,7 @@ class SelectionTab(QWidget):
         selection_lay = QGridLayout()
         # select proportion of frames
         self.frac_entry = QLineEdit("100")
-        self.frac_entry.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+        self.frac_entry.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
         self.frac_entry.setValidator(QtGui.QIntValidator(0, 100))
 
         selection_lay.addWidget(self.frac_entry, 0, 0)
@@ -1086,7 +1084,7 @@ class SelectionTab(QWidget):
 
         #MB added to selet individual frames manually
         self.fr_num_entry = QLineEdit("0")
-        self.fr_num_entry.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+        self.fr_num_entry.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
         selection_lay.addWidget(QLabel("Enter frame numbers separated with ,"), 1, 0)
         selection_lay.addWidget(self.fr_num_entry, 1, 1)
 
@@ -1322,7 +1320,7 @@ class PreProcessTab(QWidget):
             subrow = 0
             load_mask_lay = QGridLayout()
             self.import_address = QLineEdit("0")
-            self.import_address.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            self.import_address.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             load_mask_lay.addWidget(QLabel("Address of the imported masks:"), subrow, 0)
             load_mask_lay.addWidget(self.import_address, subrow, 1)
             subrow += 1
@@ -1351,21 +1349,24 @@ class PreProcessTab(QWidget):
             save_rotation_crop_checkbox.toggled.connect(self.controller.toggle_save_crop_rotate)
             save_checkboxes_lay.addWidget(save_rotation_crop_checkbox, subrow, 0)
 
+            auto_delete_checkbox = QCheckBox("auto delete")
+            auto_delete_checkbox.toggled.connect(self.controller.toggle_auto_delete)
+            save_checkboxes_lay.addWidget(auto_delete_checkbox,subrow , 1)
+            subrow += 2
+
             save_1channel_checkbox = QCheckBox("save red channel")
             #bg_subtraction_checkbox.setChecked(int(default_values["just_show_first_channel"]))#MB changed bool to int
             save_1channel_checkbox.toggled.connect(self.controller.toggle_save_1st_channel)
-            save_checkboxes_lay.addWidget(save_1channel_checkbox,subrow , 1)
+            save_checkboxes_lay.addWidget(save_1channel_checkbox,subrow , 0)
 
             save_green_checkbox = QCheckBox("save green channel")
             save_green_checkbox.toggled.connect(self.controller.toggle_save_green_channel)
-            save_checkboxes_lay.addWidget(save_green_checkbox,subrow , 2)
+            save_checkboxes_lay.addWidget(save_green_checkbox,subrow , 1)
 
-            auto_delete_checkbox = QCheckBox("auto delete")
-            auto_delete_checkbox.toggled.connect(self.controller.toggle_auto_delete)
-            save_checkboxes_lay.addWidget(auto_delete_checkbox,subrow , 3)
+
             subrow += 2
 
-            Blur_checkbox = QCheckBox("Apply blurring")
+            Blur_checkbox = QCheckBox("Blur")
             Blur_checkbox.toggled.connect(self.controller.toggle_save_blurred)
             save_checkboxes_lay.addWidget(Blur_checkbox, subrow, 0)
 
@@ -1379,10 +1380,10 @@ class PreProcessTab(QWidget):
             save_checkboxes_lay.addWidget(self.sd_blur, subrow, 4)
             subrow += 1
 
-            bg_subtraction_checkbox = QCheckBox("Subtract background")
+            bg_subtraction_checkbox = QCheckBox("Subtract bg")
             bg_subtraction_checkbox.toggled.connect(self.controller.toggle_save_subtracted_bg)
             save_checkboxes_lay.addWidget(bg_subtraction_checkbox, subrow, 0)
-            save_checkboxes_lay.addWidget(QLabel("bg:"), subrow, 1)
+            save_checkboxes_lay.addWidget(QLabel("background:"), subrow, 1)
             self.bg_subt = QLineEdit("1")
             self.bg_subt.setValidator(QtGui.QIntValidator(0, 10))
             save_checkboxes_lay.addWidget(self.bg_subt, subrow, 2)
@@ -1423,11 +1424,11 @@ class PreProcessTab(QWidget):
             approve_lay.addWidget(QLabel("Delete frames:"), subrow, 0)
 
             self.delete_fr = QLineEdit(str(frame_num)+","+str(frame_num+1))
-            self.delete_fr.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            self.delete_fr.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             approve_lay.addWidget(self.delete_fr, subrow, 1)
             approve_lay.addWidget(QLabel("and intervals:"), subrow, 2)
             self.delete_inter = QLineEdit(str(frame_num)+"-"+str(frame_num+1))
-            self.delete_inter.setStyleSheet("height: 15px; width: 15px;min-width: 15px;")
+            self.delete_inter.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
 
             approve_lay.addWidget(self.delete_inter, subrow, 3)
             subrow += 1
@@ -1701,7 +1702,7 @@ class TimeSlider(LabeledSlider):
             self.sl.setValue(t)
             self.sl.blockSignals(False)
 
-class GoTo(QGridLayout):
+class GoTo(QWidget):
     """
     This is the field and button to manually enter the frame number and move to it.
     """
@@ -1713,17 +1714,19 @@ class GoTo(QGridLayout):
         """
         super().__init__()
         self.controller = controller
+        self.grid=QGridLayout()
 
-        self.addWidget(QLabel("Go To Frame: "), 0, 0)
+        self.grid.addWidget(QLabel("Go To Frame: "), 0, 0)
 
         self.text_field = QLineEdit("0")
         self.text_field.setValidator(QtGui.QIntValidator(0, nb_frames - 1))
-        self.addWidget(self.text_field, 0, 1)
+        self.grid.addWidget(self.text_field, 0, 1)
 
         gobut = QPushButton("Go")
-        gobut.setStyleSheet("background-color: green")
+        gobut.setStyleSheet("background-color : rgb(93,177,130); border-radius: 4px; min-height: 20px; min-width: 50px")
         gobut.clicked.connect(self.signal_goto)
-        self.addWidget(gobut, 0, 2)
+        self.grid.addWidget(gobut, 0, 2)
+        self.setLayout(self.grid)
 
     def signal_goto(self):
         self.controller.go_to_frame(int(self.text_field.text()))

@@ -236,8 +236,9 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         self.update_image_display()
         self.update_mask_display()
         self.label.setText(self.labeltext.format(self.z))
-        for key, plot in self.pointsetplots.items():
-            plot.setSize(self.size_func(self.pointsetsdata[key][:, 2]))
+        if self.controller.point_data:
+            for key, plot in self.pointsetplots.items():
+                plot.setSize(self.size_func(self.pointsetsdata[key][:, 2]))
 
     def set_data(self, img=None, mask=None, label=None):
         """
