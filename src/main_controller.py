@@ -67,6 +67,8 @@ class Controller():
 
         self.ready = False
 
+        self.timer = QtHelpers.UpdateTimer(1. / int(self.settings["fps"]), self.update)
+
         # whether data is going to be as points or as masks:
         self.point_data = self.data.point_data
 
@@ -234,6 +236,11 @@ class Controller():
         if not self.ready:   # this is jsut to avoid gui elements from calling callbacks resulting in update during their init   # Todo AD: find more elegant way
             return
         # TODO AD: maybe split into smaller methods, and replace calls to update by methods updating only some parts
+
+        if not self.timer.update_allowed(t_change):
+            return
+
+        # print("updating")
 
         # save at update if autosave
         if self.options["autosave"]:
