@@ -250,6 +250,38 @@ class NeuronBarItem(QWidget):
         self.neuron_key_button.setText(text)
 
 
+class DashboardItem(QPushButton):
+    qss = """
+                 QPushButton{
+                    border-radius: 4px;
+                    min-width: 25px;
+                    max-width: 25px;
+                 }
+                 QPushButton[color = "a"]{
+                     background-color: red;
+                 }
+                 QPushButton[color = "p"]{
+                     background-color: blue;
+                 }
+              """
+
+    def __init__(self, i_from1, callback):
+        super().__init__()
+        self.i_from1 = i_from1
+        self.clicked.connect(callback)
+        self.present = False  # Todo: set at init??
+
+    def set_present(self):
+        self.present = True
+        self.setProperty("color", "p")
+        self.setStyle(self.style())   # for some reason this is needed to actually change the color
+
+    def set_absent(self):
+        self.present = False
+        self.setProperty("color", "a")
+        self.setStyle(self.style())   # for some reason this is needed to actually change the color
+
+
 class ViewTab(QScrollArea):
     """
     This is the tab that controls viewing parameters
@@ -1511,6 +1543,7 @@ class PreProcessTab(QWidget):
             FileAddress = self.import_address.text()
             self.controller.import_mask_from_external_file(FileAddress,green=True)
 
+
 class LabeledSlider(QWidget):
     def __init__(self, minimum, maximum, interval=1, orientation=Qt.Horizontal,
             labels=None, parent=None):
@@ -1624,6 +1657,7 @@ class LabeledSlider(QWidget):
 
         return
 
+
 class TimeSlider(LabeledSlider):
     def __init__(self,controller,T,n_labels):
         self.controller=controller
@@ -1642,6 +1676,7 @@ class TimeSlider(LabeledSlider):
             self.sl.blockSignals(True)
             self.sl.setValue(t)
             self.sl.blockSignals(False)
+
 
 class GoTo(QWidget):
     """
@@ -1671,3 +1706,170 @@ class GoTo(QWidget):
 
     def signal_goto(self):
         self.controller.go_to_frame(int(self.text_field.text()))
+
+
+class DashboardTab(QWidget):
+    def __init__(self, controller, dashboard_chunk_size):
+        super().__init__()
+        self.controller = controller
+        self.T = self.controller.frame_num
+        self.controller.frame_registered_clients.append(self)
+        self.controller.neuron_keys_registered_clients.append(self)
+        self.controller.present_neurons_registered_clients.append(self)
+        self.controller.present_neurons_all_times_registered_clients.append(self)
+
+        self.scrollarea = QScrollArea()
+        self.scrollwidget = QWidget()
+        self.chunksize = dashboard_chunk_size
+        self.n_cols = 0
+        self.chunknumber = 0
+        self.current_i = 0   # the line number of the current time t, i.e. t%self.chunksize
+        self.grid = QGridLayout()
+        self.time_label_buttons = []
+        self.button_columns = {}
+        for i in range(self.chunksize):
+            label_button = QPushButton(str(i) if i < self.T else "")
+            label_button.clicked.connect(self._make_button_press_function_t(i))
+            label_button.setStyleSheet("background-color : rgb(255,255,255); border-radius: 4px;")
+            label_button.setFixedWidth(30)
+            self.time_label_buttons.append(label_button)
+            self.grid.addWidget(label_button, i, 0)
+
+        current_btn = self.current_label_button
+        current_btn.setStyleSheet("background-color : rgb(42,99,246); border-radius: 4px;")
+        self.scrollwidget.setLayout(self.grid)
+
+        self.scrollarea.setWidget(self.scrollwidget)
+        self.scrollarea.setMinimumWidth(
+            self.scrollarea.sizeHint().width() + self.scrollarea.verticalScrollBar().sizeHint().width())
+        self.scrollarea.horizontalScrollBar().setEnabled(False)
+        self.scrollarea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+
+        maingrid = QVBoxLayout()
+        topscrollarea = QScrollArea()
+        topscrollarea.setFixedHeight(40)
+        topscrollwidget = QWidget()
+        self.topgrid = QGridLayout()
+        button = QPushButton("")
+        button.setFixedWidth(30)
+        button.setStyleSheet("background-color : rgb(255,255,255); border-radius: 4px;")
+        self.topgrid.addWidget(button, 0, 0)
+        self.keys = {}
+        self.assigned_colors = np.array([])   # TODO: consistent with highlighting etc
+        self.assigned_colors = np.array(
+            [[int(val) for val in col.split(",")] for col in ("41,98,24;235,85,40;249,216,73;117,251,76;117,251,253;0,0,245").split(";")])
+
+        topscrollwidget.setLayout(self.topgrid)
+        topscrollarea.setWidget(topscrollwidget)
+        topscrollarea.setMinimumWidth(
+            topscrollarea.sizeHint().width() + topscrollarea.verticalScrollBar().sizeHint().width())
+        topscrollarea.horizontalScrollBar().setEnabled(False)
+        topscrollarea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        maingrid.addWidget(topscrollarea)
+        maingrid.addWidget(self.scrollarea)
+        self.setLayout(maingrid)
+
+    @property
+    def current_label_button(self):
+        return self.time_label_buttons[self.current_i]
+
+    def _make_button_press_function_t(self, i):
+        def button_press_function():
+            self.controller.go_to_frame(np.clip(self.chunksize * self.chunknumber + i, 0, self.T-1))
+
+        return button_press_function
+
+    def _make_button_press_function_h(self, idx_from1):
+        def button_press_function():
+            self.controller.highlight_neuron(idx_from1)
+
+        return button_press_function
+
+    def _make_button_press_function_th(self, i, idx_from1):
+        def button_press_function():
+            self.controller.go_to_frame(np.clip(self.chunksize * self.chunknumber + i, 0, self.T-1))
+            self.controller.highlight_neuron(idx_from1)
+
+        return button_press_function
+
+    def change_t(self, t):
+        # unselect previous current button
+        current_btn = self.current_label_button
+        current_btn.setStyleSheet("background-color : rgb(255,255,255); border-radius: 4px;")
+        current_btn.setStyle(current_btn.style())   # for some reason this is needed to actually change the color
+
+        # change time
+        chunknumber = t // self.chunksize
+        if self.chunknumber != chunknumber:
+            for i in range(self.chunksize):
+                t = self.chunksize * chunknumber + i
+                self.time_label_buttons[i].setText(str(t) if t < self.T else "")
+            self.chunknumber = chunknumber
+        self.current_i = t % self.chunksize
+
+        # select new current button
+        current_btn = self.current_label_button
+        self.scrollarea.ensureWidgetVisible(current_btn)
+        current_btn.setStyleSheet("background-color : rgb(42,99,246); border-radius: 4px;")
+        current_btn.setStyle(current_btn.style())   # for some reason this is needed to actually change the color
+
+    def change_neuron_keys(self, key_changes):
+        """
+        :param key_changes: list of (neuron_idx_from1, key), with key=None for unassigning
+        """
+        for idx_from1, key in key_changes:
+            if key is None:   # remove the button column
+                for btn in self.button_columns[idx_from1]:
+                    # btn.widget().setParent(None)
+                    btn.setParent(None)
+                self.n_cols -= 1
+            else:   # add a column of buttons
+                j = self.n_cols
+                col = []
+                button = QPushButton(key)
+                button.clicked.connect(self._make_button_press_function_h(idx_from1))
+                button.setFixedWidth(25)
+                button.setStyleSheet("background-color : rgb(" + str(self.assigned_colors[j, 0]) + "," + str(
+                    self.assigned_colors[j, 1]) + "," + str(self.assigned_colors[j, 2]) + "); border-radius: 4px;")
+                col.append(button)
+                self.topgrid.addWidget(button, 0, j + 1)
+
+                # find at which times the neuron is present
+                times_present = set(self.controller.times_of_presence(idx_from1))
+                for i in range(self.chunksize):
+                    callback = self._make_button_press_function_th(i, idx_from1)
+                    button = DashboardItem(idx_from1, callback)
+
+                    t = self.chunknumber * self.chunksize + i
+                    if t in times_present:
+                        button.set_present()
+                    else:
+                        button.set_absent()
+
+                    col.append(button)
+                    self.grid.addWidget(button, i, j + 1)
+                self.button_columns[idx_from1] = col
+                self.n_cols += 1
+
+    def change_present_neurons(self, present=None, added=None, removed=None):
+        """
+        Changes which of the neurons are present in current frame, as their corresponding buttons should be colored
+        in blue instead of red.
+        :param present: which neuron indices (from 1) are present, if given
+        :param added: single neuron index (from 1) that was added, if given
+        :param removed: single neuron index (from 1) that was removed, if given
+        """
+        if present is not None:
+            for i_from1, col in self.button_columns.items():
+                if i_from1 in present:
+                    col[self.current_i+1].set_present()
+                else:
+                    col[self.current_i+1].set_absent()
+            return
+        if added is not None and added in self.button_columns:
+            self.button_columns[added][self.current_i+1].set_present()
+        if removed is not None and removed in self.button_columns:
+            self.button_columns[removed][self.current_i+1].set_absent()
+
+    def change_present_neurons_all_times(self):
+        pass   # TODO

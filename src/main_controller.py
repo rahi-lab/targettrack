@@ -183,6 +183,8 @@ class Controller():
         self.nb_neuron_registered_clients = []
         # here when the neurons present in a frame change
         self.present_neurons_registered_clients = []
+        # here when the neurons present in any frame change
+        self.present_neurons_all_times_registered_clients = []
         # here when the highlighted neuron changes
         self.highlighted_neuron_registered_clients = []
         # here when the frame content changes
@@ -478,6 +480,10 @@ class Controller():
             link_data = None
         for client in self.pointlinks_registered_clients:
             client.change_links(link_data)
+
+    def signal_present_all_times_changed(self):
+        for client in self.present_neurons_all_times_registered_clients:
+            client.change_present_neurons_all_times()
 
     def signal_nb_neurons_changed(self):
         """
@@ -1028,7 +1034,6 @@ class Controller():
 
         hNew.close()
 
-
     def Blur(self,frame,blur_b=40,blur_s=6, Subt_bg=False,subtVal = 1):
         """this blures the images and subtracts background if asked"""
         dimensions=(.1625, .1625, 1.5)
@@ -1067,13 +1072,18 @@ class Controller():
                 frameResize[:,:,j] = cv2.resize(frame[:,:,j], dsize=(height, width), interpolation=cv2.INTER_CUBIC)
         return frameResize
 
-    def highlight_neuron(self, neuron_id_from1):
+    def highlight_neuron(self, neuron_id_from1, block_unhighlight=False):
         """
         Changes the highlighted neuron. If neuron_id_from1 was already highlighted, unhiglight it.
         Otherwise, unhighlight the highlighted neuron (if any) and highlight neuron_id_from1.
+        :param neuron_id_from1:
+        :param block_unhighlight: blocks unhighlighting in case neuron_id_from1 is already highlighted (i.e.
+            neuron_id_from1 will always be highlighted after calling highlight_neuron(neuron_id_from1, True))
         """
 
         if neuron_id_from1 == self.highlighted:
+            if block_unhighlight:
+                return
             self.highlighted = 0
             for client in self.highlighted_neuron_registered_clients:
                 client.change_highlighted_neuron(unhigh=neuron_id_from1)
@@ -2232,7 +2242,12 @@ class Controller():
         return self.hlab.ci_int[neuron_id_from1-1][:, :2]
 
     def present_neurons_at_t(self, t):
+        # TODO can be deprecated (I think)
         existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[t][:, 0]))  # TODO AD what about masks??
+        return np.nonzero(existing_annotations)[0]
+
+    def times_of_presence(self, neuron_idx_from1):
+        existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[:, neuron_idx_from1, 0]))  # TODO AD what about masks??
         return np.nonzero(existing_annotations)[0]
 
     def get_seg_params(self):

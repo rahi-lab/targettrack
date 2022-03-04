@@ -16,6 +16,7 @@ time_label_num=20
 tracks_num_row=60
 max_sim_tracks=10
 tracks_cell_height=25
+dashboard_chunk_size=100
 
 calcium_intensity_kernel_xy=3
 calcium_intensity_kernel_z=0

@@ -573,7 +573,7 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
 
     @property
     def times(self):
-        return self.parent.times
+        return self.parent.times   # TODO
 
     @property
     def neuron_plotidx(self):
@@ -651,11 +651,6 @@ class TimeDisplay(QTabWidget):
         self.times = list(range(self.nb_times))   # list of times in x-axis (for labels)   # TODO AD good init
         self.neuron_plotidx = {}   # dict neuron_idx_from1 -> idx such that self.calacts.plots[idx] and
         # self.tracksgrid.itemAtPosition(t+1,idx+1) correspond to neuron neuron_idx_from1 at time t
-
-        self.trackstable = TracksTable(self, self.controller, tracks_cell_height)
-        self.calacts = ActivityPlotWidget(self, self.controller, max_sim_tracks)
-        self.addTab(self.trackstable, "Tracks")
-        self.addTab(self.calacts, "Activity")
 
 
 
