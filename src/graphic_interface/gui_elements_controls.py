@@ -32,34 +32,31 @@ class NeuronBar(QScrollArea):
             reserved_keys = []
         self.reserved_keys = reserved_keys
 
+        self.removed_holder = QWidget()   # a holder, not displayed, to keep alive the widgets removed from other layouts
+
         self.setWidgetResizable(True)
         dummy = QWidget()
         self.neuron_bar_holderLayout = QHBoxLayout()
+        self.separator = QLabel("|")
         self._create_contents()
         dummy.setLayout(self.neuron_bar_holderLayout)
         self.setWidget(dummy)
 
         self.neurons = {}
         self.keyed_neurons_from1 = set()   # set of neurons that have a key displayed
-        self.removed_holder = QWidget()   # a holder, not displayed, to keep alive the widgets removed from other layouts
-        #self.verticalScrollBar().setEnabled(False)   # this is to disable scrolling verticallyin the neuronbar. It should not be needed if all elements are the right size
         self.setContentsMargins(0, 0, 0, 0)
         self.neuron_bar_holderLayout.setSpacing(0)
 
     def _create_contents(self):
         for i in range(self.neuron_bar_holderLayout.count() - 1, -1, -1):
-            self.neuron_bar_holderLayout.itemAt(i).widget().setParent(self.removed_holder)
-        self.activated_contents = QWidget()
-        self.unactivated_contents = QWidget()
-        activated_layout = QHBoxLayout()
-        unactivated_layout = QHBoxLayout()
-        self.activated_contents.setLayout(activated_layout)
-        self.unactivated_contents.setLayout(unactivated_layout)
-        self.neuron_bar_holderLayout.addWidget(self.activated_contents)
-        self.neuron_bar_holderLayout.addWidget(QLabel("|"))
-        self.neuron_bar_holderLayout.addWidget(self.unactivated_contents)
-
-        return activated_layout, unactivated_layout
+            wid = self.neuron_bar_holderLayout.itemAt(i).widget()
+            if wid is not None:
+                wid.setParent(self.removed_holder)   # This is necessary to make separator go away
+        self.unactivated_contents = QGridLayout()
+        self.activated_contents = QGridLayout()
+        self.neuron_bar_holderLayout.addLayout(self.activated_contents)
+        self.neuron_bar_holderLayout.addWidget(self.separator)
+        self.neuron_bar_holderLayout.addLayout(self.unactivated_contents)
 
     def change_neuron_keys(self, changes:list):
         """
@@ -82,14 +79,13 @@ class NeuronBar(QScrollArea):
         """
         del self.activated_contents
         del self.unactivated_contents
-        activated_layout, unactivated_layout = self._create_contents()
+        # del self.separator
+        self._create_contents()
         for i_from1 in sorted(self.neurons.keys()):
             if i_from1 in self.keyed_neurons_from1:
-                self.neurons[i_from1].setParent(self.activated_contents)
-                activated_layout.addWidget(self.neurons[i_from1])
+                self.neurons[i_from1].install_in(self.activated_contents)
             else:
-                self.neurons[i_from1].setParent(self.unactivated_contents)
-                unactivated_layout.addWidget(self.neurons[i_from1])
+                self.neurons[i_from1].install_in(self.unactivated_contents)
 
     def change_nb_neurons(self, nb_neurons):
         """
@@ -168,7 +164,7 @@ class NeuronBar(QScrollArea):
             self.neurons[unhigh].unhighlight()
 
 
-class NeuronBarItem(QWidget):
+class NeuronBarItem:
     """
     This is one neuron in the neuron bar. It contains the colored button with the neuron id (from1), and the key button.
     """
@@ -200,18 +196,18 @@ class NeuronBarItem(QWidget):
         super().__init__()
         self.i_from1 = i_from1
         self.parent = parent
-        layout = QVBoxLayout()
         self.neuron_key_button = QPushButton(" ")
         self.neuron_key_button.setStyleSheet(self.qss)
         self.neuron_key_button.clicked.connect(self.parent._make_user_neuron_key(self.i_from1))
         self.neuron_button = QPushButton(str(self.i_from1))
         self.neuron_button.setStyleSheet(self.qss)  # TODO set correct color NOW??
         self.neuron_button.clicked.connect(self.parent._make_neuron_highlight(self.i_from1))
-        layout.addWidget(self.neuron_key_button)
-        layout.addWidget(self.neuron_button)
-        self.setLayout(layout)
         self.present = False   # Todo: set at init??
         self.highlighted = False   # Todo: set at init??
+
+    def install_in(self, holder_layout):
+        holder_layout.addWidget(self.neuron_key_button, 0, self.i_from1 - 1)
+        holder_layout.addWidget(self.neuron_button, 1, self.i_from1 - 1)
 
     def set_present(self):
         self.present = True
