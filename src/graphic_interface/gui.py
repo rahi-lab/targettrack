@@ -56,15 +56,13 @@ class gui(QMainWindow):
         tracking_grid_left.setRowStretch(2,0)
 
         # This is the tab of Tracks and Activities
-        # self.timedisplaytabs = plots.TimeDisplay(self.controller, int(self.settings["max_sim_tracks"]),
-        #                                          int(self.settings["tracks_num_row"]),
-        #                                          self.controller.frame_num, int(self.settings["tracks_cell_height"]))
         self.timedisplaytabs = QTabWidget()
         if True:
             self.trackstable = controls.DashboardTab(self.controller,
                                                      dashboard_chunk_size=int(self.settings["dashboard_chunk_size"]))
-            self.calacts = plots.ActivityPlotWidget(self, self.controller,
-                                                    int(self.settings["max_sim_tracks"]))  # TODO parent
+            self.calacts = plots.ActivityPlotWidget(self.controller,
+                                                    int(self.settings["max_sim_tracks"]),
+                                                    int(self.settings["tracks_num_row"]))
             self.timedisplaytabs.addTab(self.trackstable, "Tracks")
             self.timedisplaytabs.addTab(self.calacts, "Activity")
 
