@@ -67,6 +67,8 @@ class Controller():
 
         self.ready = False
 
+        self.timer = QtHelpers.UpdateTimer(1. / int(self.settings["fps"]), self.update)
+
         # whether data is going to be as points or as masks:
         self.point_data = self.data.point_data
 
@@ -144,7 +146,7 @@ class Controller():
 
         self.tr_fut=5
         self.tr_pst=-5
-        self.options["autocenter"]=True
+        self.options["autocenter"] = False
         self.autocenter_peakmode=True
         self.autocenterxy=3
         self.autocenterz=2
@@ -183,6 +185,8 @@ class Controller():
         self.nb_neuron_registered_clients = []
         # here when the neurons present in a frame change
         self.present_neurons_registered_clients = []
+        # here when the neurons present in any frame change
+        self.present_neurons_all_times_registered_clients = []
         # here when the highlighted neuron changes
         self.highlighted_neuron_registered_clients = []
         # here when the frame content changes
@@ -232,6 +236,11 @@ class Controller():
         if not self.ready:   # this is jsut to avoid gui elements from calling callbacks resulting in update during their init   # Todo AD: find more elegant way
             return
         # TODO AD: maybe split into smaller methods, and replace calls to update by methods updating only some parts
+
+        if not self.timer.update_allowed(t_change):
+            return
+
+        # print("updating")
 
         # save at update if autosave
         if self.options["autosave"]:
@@ -462,8 +471,7 @@ class Controller():
             pts_dict["pts_act"] = np.zeros((0, 3))
 
         # highlighted point
-        #pts_dict["pts_high"] = np.array(self.NN_or_GT[self.i][self.highlighted])[None, :]#MB removed
-        pts_dict["pts_high"] = self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i][self.highlighted])[None, :])#MB added
+        pts_dict["pts_high"] = self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i][self.highlighted])[None, :])
         # TODO AD: set to np.array([[], [], []]).transpose() if not self.point_data, or not define?
 
         for client in self.points_registered_clients:
@@ -479,6 +487,10 @@ class Controller():
             link_data = None
         for client in self.pointlinks_registered_clients:
             client.change_links(link_data)
+
+    def signal_present_all_times_changed(self):
+        for client in self.present_neurons_all_times_registered_clients:
+            client.change_present_neurons_all_times()
 
     def signal_nb_neurons_changed(self):
         """
@@ -693,6 +705,7 @@ class Controller():
             yright = int(np.ceil(yright))
             self.data.save_ROI_params(xleft, xright, yleft, yright)
             del self.crop_points
+
     def toggle_old_trainset(self):
         self.options["use_old_trainset"] = not self.options["use_old_trainset"]
         self.update()
@@ -1028,7 +1041,6 @@ class Controller():
 
         hNew.close()
 
-
     def Blur(self,frame,blur_b=40,blur_s=6, Subt_bg=False,subtVal = 1):
         """this blures the images and subtracts background if asked"""
         dimensions=(.1625, .1625, 1.5)
@@ -1067,16 +1079,24 @@ class Controller():
                 frameResize[:,:,j] = cv2.resize(frame[:,:,j], dsize=(height, width), interpolation=cv2.INTER_CUBIC)
         return frameResize
 
-    def highlight_neuron(self, neuron_id_from1):
+    def highlight_neuron(self, neuron_id_from1, block_unhighlight=False):
         """
         Changes the highlighted neuron. If neuron_id_from1 was already highlighted, unhiglight it.
         Otherwise, unhighlight the highlighted neuron (if any) and highlight neuron_id_from1.
+        :param neuron_id_from1:
+        :param block_unhighlight: blocks unhighlighting in case neuron_id_from1 is already highlighted (i.e.
+            neuron_id_from1 will always be highlighted after calling highlight_neuron(neuron_id_from1, True))
         """
 
         if neuron_id_from1 == self.highlighted:
+            if block_unhighlight:
+                return
             self.highlighted = 0
             for client in self.highlighted_neuron_registered_clients:
                 client.change_highlighted_neuron(unhigh=neuron_id_from1)
+            if self.options["overlay_tracks"]:
+                for client in self.highlighted_track_registered_clients:
+                    client.change_track([[], []])
         else:
             hprev = self.highlighted
             self.highlighted = neuron_id_from1
@@ -1085,9 +1105,14 @@ class Controller():
                                                  unhigh=(hprev if hprev else None),
                                                  # high_present=bool(not self.point_data or self.existing_annotations[self.highlighted]),
                                                  # unhigh_present=bool(not self.point_data or self.existing_annotations[hprev] if hprev else False),
-                                                 high_key=self._get_neuron_key(self.highlighted))
-        self.update()#MB added for solving points highlightimg issue. maybe instead, one could add Mainfigwidget to .highlighted_neuron_registered_clients
-        # TODO MB is right
+                                                 high_key=self._get_neuron_key(self.highlighted),
+                                                 high_pointdat=self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i, [self.highlighted]])))
+            if self.options["follow_high"]:
+                self.center_on_highlighted()
+
+            if self.options["overlay_tracks"]:
+                for client in self.highlighted_track_registered_clients:
+                    client.change_track(self.highlighted_track_data(self.highlighted))
 
     # this assigns the neuron keys without overlap
     def assign_neuron_key(self, i_from1, key):
@@ -1136,7 +1161,8 @@ class Controller():
         if self.existing_annotations[self.highlighted]:
         # set z to the highlighted neuron
             for client in self.zslice_registered_clients:
-                client.change_z(int(self.NN_or_GT[self.i][self.highlighted, 2] + 0.5))
+                new_z = int(self.NN_or_GT[self.i][self.highlighted, 2] + 0.5)
+                client.change_z(new_z)
 
     def toggle_first_channel_only(self):
         self.options["first_channel_only"] = not self.options["first_channel_only"]
@@ -1157,8 +1183,12 @@ class Controller():
 
     def toggle_track_overlay(self):
         self.options["overlay_tracks"] = not self.options["overlay_tracks"]
-        self.signal_pts_changed(t_change=False)
-        self.update()
+        if self.options["overlay_tracks"] and self.highlighted != 0:
+            for client in self.highlighted_track_registered_clients:
+                client.change_track(self.highlighted_track_data(self.highlighted))
+        else:
+            for client in self.highlighted_track_registered_clients:
+                client.change_track([[], []])
 
     def toggle_adjacent_overlay(self):
         self.options["overlay_adj"] = not self.options["overlay_adj"]
@@ -1210,6 +1240,7 @@ class Controller():
 
     def toggle_display_cropped(self):
         self.data.crop = not self.data.crop
+        self.options["ShowDim"] = True
         self.update(t_change=True)  # todo: could be just update()?
 
     def toggle_z_follow_highlighted(self):
@@ -1614,7 +1645,6 @@ class Controller():
         """Loads neural network point predictions"""
         self.save_status()
         if not self.point_data:
-            print("No points")
             return
         if NetName == "":
             self.NNpts_key = ""
@@ -2219,7 +2249,12 @@ class Controller():
         return self.hlab.ci_int[neuron_id_from1-1][:, :2]
 
     def present_neurons_at_t(self, t):
+        # TODO can be deprecated (I think)
         existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[t][:, 0]))  # TODO AD what about masks??
+        return np.nonzero(existing_annotations)[0]
+
+    def times_of_presence(self, neuron_idx_from1):
+        existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[:, neuron_idx_from1, 0]))  # TODO AD what about masks??
         return np.nonzero(existing_annotations)[0]
 
     def get_seg_params(self):
@@ -2232,7 +2267,7 @@ class Controller():
     def highlighted_track_data(self,highlighted_i_from1):
         # Todo: available for mask data??
         if not self.point_data:
-            return np.array([0, 0])   # Todo: good value to return??
+            return [[], []]
         trax=[]
         tray=[]
         for i in range(max(0,self.i+self.tr_pst),min(self.frame_num,self.i+self.tr_fut+1)):

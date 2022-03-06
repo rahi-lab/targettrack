@@ -16,6 +16,7 @@ time_label_num=20
 tracks_num_row=60
 max_sim_tracks=10
 tracks_cell_height=25
+dashboard_chunk_size=100
 
 calcium_intensity_kernel_xy=3
 calcium_intensity_kernel_z=0
@@ -27,4 +28,22 @@ lab="HarvardLab"
 mask_threshold_for_new_region=7
 just_show_first_channel=0
 overlay_mask_by_default=0
-autolevels=1
+autolevels=0
+
+
+fps=20
+keys=q,w,e,r,t,y
+keys_colors=41,98,24;235,85,40;249,216,73;117,251,76;117,251,253;0,0,245
+tkeys=n,m
+tdeltas=-1,1
+channel_colors=255,0,255;0,255,0
+scroll_per_z=120
+max_gamma=1.3
+dashboard_chunk_size=100
+max_pointsize=20
+min_pointsize=2
+z_size_scale=3
+pen_width=2
+gt_color=255,255,255
+helper_color=235,171,83
+click_distance=4
