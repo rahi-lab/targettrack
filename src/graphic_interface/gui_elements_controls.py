@@ -1734,7 +1734,7 @@ class DashboardTab(QWidget):
         self.grid = QGridLayout()
         self.time_label_buttons = []
         self.button_columns = {}
-        for i in range(self.chunksize):
+        for i in range(self.chunksize):   # TODO AD align left rather than centering (when no neuron is assigned)
             label_button = QPushButton(str(i) if i < self.T else "")
             label_button.clicked.connect(self._make_button_press_function_t(i))
             label_button.setStyleSheet("background-color : rgb(255,255,255); border-radius: 4px;")
@@ -1751,10 +1751,14 @@ class DashboardTab(QWidget):
             self.scrollarea.sizeHint().width() + self.scrollarea.verticalScrollBar().sizeHint().width())
         self.scrollarea.horizontalScrollBar().setEnabled(False)
         self.scrollarea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.scrollarea.setWidgetResizable(True)
+        self.scrollarea.setContentsMargins(5, 5, 5, 5)
 
         maingrid = QVBoxLayout()
         topscrollarea = QScrollArea()
         topscrollarea.setFixedHeight(40)
+        topscrollarea.setWidgetResizable(True)
+        topscrollarea.setContentsMargins(5, 5, 5, 5)
         topscrollwidget = QWidget()
         self.topgrid = QGridLayout()
         button = QPushButton("")
@@ -1835,7 +1839,7 @@ class DashboardTab(QWidget):
                 col = []
                 button = QPushButton(key)
                 button.clicked.connect(self._make_button_press_function_h(idx_from1))
-                button.setFixedWidth(25)
+                # button.setFixedWidth(25)
                 button.setStyleSheet("background-color : rgb(" + str(self.assigned_colors[j, 0]) + "," + str(
                     self.assigned_colors[j, 1]) + "," + str(self.assigned_colors[j, 2]) + "); border-radius: 4px;")
                 col.append(button)
