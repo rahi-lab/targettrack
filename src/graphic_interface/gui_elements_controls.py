@@ -84,7 +84,17 @@ class NeuronBar(QScrollArea):
         del self.activated_contents
         del self.unactivated_contents
         # del self.separator
+
+        #MB: initialize neuron_bar_holderLayout here so the neuron bar updates properly
+        #without repeating sequences of neurons
+        dummy = QWidget()
+        self.neuron_bar_holderLayout = QHBoxLayout()
+        self.separator = QLabel("|")
+        dummy.setLayout(self.neuron_bar_holderLayout)
+        self.setWidget(dummy)
+
         self._create_contents()
+
         for i_from1 in sorted(self.neurons.keys()):
             if i_from1 in self.keyed_neurons_from1:
                 self.neurons[i_from1].install_in(self.activated_contents)

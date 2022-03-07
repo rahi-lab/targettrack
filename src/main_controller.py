@@ -1476,7 +1476,7 @@ class Controller():
         #MB added: to get the connected components of the mask
         labelArray,numFtr = sim.label(self.mask==self.highlighted)
         if numFtr>1:
-            dlg2 = ecv.CustomDialogSubCell()#ask if you want all components change or ony one
+            dlg2 = ecv.CustomDialogSubCell()#ask if you want all components change or only one of them
         #ind=regs[0][coord[0],coord[1],coord[2]]
 
         dlg = ecv.CustomDialog()#which number to change to
