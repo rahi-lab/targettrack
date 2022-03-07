@@ -175,8 +175,9 @@ class NeuronBarItem:
     qss = """
              QPushButton{
              height: 10px;
-             width: 20px;
-             min-width: 50px;
+             min-height: 10px;
+             width: 10px;
+             min-width: 10px;
              }
              QPushButton[color = "a"]{
                  background-color: red;
@@ -191,10 +192,7 @@ class NeuronBarItem:
                  background-color: orange;
              }
           """
-          # also had this inside the brackets of the first QPushButton:
-          # height: 10px;
-          # width: 20px;
-          # min-width: 20px;
+          # Could also have: border-radius: 4px;
 
     def __init__(self, i_from1, parent):
         super().__init__()
