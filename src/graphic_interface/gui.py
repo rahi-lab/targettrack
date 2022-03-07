@@ -14,15 +14,14 @@ class gui(QMainWindow):
 
     reserved_keys = ["z", "c", "a", "d", "v", "b", "n", "m", ",", ".", "\n", "", " "]
 
-    def __init__(self, gui, controller, windowsize):
-        #we initialize this as a Widget
+    def __init__(self, controller, settings):
         super().__init__()
-        self.gui= gui   # Todo AD not sure this is meant to stay, but for now I need to have a controller available right from the beginning
         self.controller = controller
-        self.settings = gui.settings
+        self.controller.freeze_registered_clients.append(self)
+        self.settings = settings
 
         self.setWindowTitle("Tracking")
-        self.resize(self.gui.settings["screen_w"]*4//5, self.gui.settings["screen_h"]*4//5)
+        self.resize(self.settings["screen_w"]*4//5, self.settings["screen_h"]*4//5)
         self.centralWidget = QWidget()
         self.setCentralWidget(self.centralWidget)
 
@@ -73,7 +72,7 @@ class gui(QMainWindow):
         # this takes care of the image rendering
         view_tab = controls.ViewTab(self.controller, self.rendering, self.settings)
 
-        #tracking_panel.setFixedSize(view_tab.sizeHint().width(),self.gui.settings["screen_h"]//3)
+        #tracking_panel.setFixedSize(view_tab.sizeHint().width(),self.settings["screen_h"]//3)
 
         tracking_panel.addTab(view_tab, "View")
         tracking_panel.tabBar().setTabTextColor(0,QtGui.QColor(0,0,0))
@@ -101,7 +100,7 @@ class gui(QMainWindow):
             preprocessing_tab = controls.PreProcessTab(self.controller,self.controller.frame_num,
                                                     self.settings["mask_threshold_for_new_region"])
 
-            tracking_panel.setFixedSize(view_tab.sizeHint().width(),self.gui.settings["screen_h"]//3)
+            tracking_panel.setFixedSize(view_tab.sizeHint().width(),self.settings["screen_h"]//3)
 
             tracking_panel.addTab(preprocessing_tab, "Export/Import")
             tracking_panel.tabBar().setTabTextColor(4,QtGui.QColor(0,0,0))
@@ -185,6 +184,11 @@ class gui(QMainWindow):
             self.fig.rot_zero_ang()
             self.fig.rotator.hide()
 
+    def freeze(self):
+        self.setEnabled(False)
+
+    def unfreeze(self):
+        self.setEnabled(True)
 
     def close(self,arg,msg):
         ####Dependency

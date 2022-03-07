@@ -169,6 +169,7 @@ class UpdateTimer:
         self.last_update_time = time.time() - 1  # last update time to prevent excessively frequent updating; -1 is only here to allow for initial update.
         self.update_interval = interval
         self.t_change = False
+        self.frozen = False
 
     def run(self):
         if not self.running:
@@ -176,6 +177,8 @@ class UpdateTimer:
             self.timer.start()
 
     def update_allowed(self, t_change):
+        if self.frozen:
+            return False
         t = time.time()
         if self.running or t - self.last_update_time < self.update_interval:
             self.t_change = self.t_change or t_change
@@ -183,3 +186,9 @@ class UpdateTimer:
             return False
         self.last_update_time = t
         return True
+
+    def freeze(self):
+        self.frozen = True
+
+    def unfreeze(self):
+        self.frozen = False

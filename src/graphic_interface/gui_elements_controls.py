@@ -175,8 +175,9 @@ class NeuronBarItem:
     qss = """
              QPushButton{
              height: 10px;
-             width: 20px;
-             min-width: 50px;
+             min-height: 10px;
+             width: 10px;
+             min-width: 10px;
              }
              QPushButton[color = "a"]{
                  background-color: red;
@@ -191,10 +192,7 @@ class NeuronBarItem:
                  background-color: orange;
              }
           """
-          # also had this inside the brackets of the first QPushButton:
-          # height: 10px;
-          # width: 20px;
-          # min-width: 20px;
+          # Could also have: border-radius: 4px;
 
     def __init__(self, i_from1, parent):
         super().__init__()
@@ -828,13 +826,16 @@ class NNControlTab(QWidget):
         row = 0
 
         if as_points:
-            #CFP-HELP:in the link below I think I should give the controller to the TrackTab object, basically some communication channel from this widget to everything else.
-            self.widget=TrackTab(None)
+            # CFP-HELP:in the link below I think I should give the controller to the TrackTab object, basically some communication channel from this widget to everything else.
+            # AD Done. You are right, the controller is the communication channel. If the TrackTab wants to do anything to the data (or gui),
+            # it must be done by calling a method of the controller, then the controller will do what must be done.
+            self.widget=TrackTab(self.controller)
             dummylayout=QGridLayout()
             dummylayout.addWidget(self.widget)
             self.setLayout(dummylayout)
             
             #CFP-HELP:Here I need a QCombobox to select a helper(NN result or output of other algorithms) then give it to NN_pointdat.
+            # AD not sure what do you want help with? adding the QCombobox? or calling the right methods (please explain)?
             """
             lab = QLabel("Select NN points")
             main_layout.addWidget(lab, row, 0, 1, 2)
@@ -1883,10 +1884,10 @@ class DashboardTab(QWidget):
 
 
 class TrackTab(QWidget):
-    def __init__(self,gui):
+    def __init__(self, controller):
         super().__init__()
-        #CFP-HELP: Probably, this should be the controller? 
-        self.gui=gui
+        #CFP-HELP: Probably, this should be the controller? # AD yes!
+        self.controller = controller
 
         self.methods=tracking_methods.methods
         self.grid=QGridLayout()
@@ -1934,10 +1935,9 @@ class TrackTab(QWidget):
             return
             
         #CFP-HELP: I want to save all changes and close the dataset completely, as well as freeze the gui until the script runs, can you do this?
-        #self.gui.respond("save")
-        #self.gui.respond("timer_stop")
-        #self.gui.dataset.close()
-        #
+        # AD done
+        self.controller.save_status()
+        dataset_path = self.controller.pause_for_NN()
         print("CFP:save")
         print("CFP:timer_stop")
         print("CFP:close")
@@ -1952,7 +1952,7 @@ class TrackTab(QWidget):
         QApplication.processEvents()
 
         command_pipe_main,command_pipe_sub=Pipe()
-        process = Process(target=self.methods[method_name], args=(command_pipe_sub,self.gui.dataset.file_path,params))
+        process = Process(target=self.methods[method_name], args=(command_pipe_sub, dataset_path, params))
         process.start()
         command_pipe_main.send("run")
         while True:
@@ -1975,14 +1975,10 @@ class TrackTab(QWidget):
         progress.setValue(101)
         
         #CFP-HELP: Now that the script ended, I want to reopen the dataset and link it to the GUI, is this possible?
+        # AD done
+        self.controller.unpause_for_NN(dataset_path)
         print("CFP:open")
         #CFP-HELP:Finally, the GUI should be alerted that the NN points have changed(have new results)
+        # AD NOT FINISHED
         print("CFP:renew_helpers")
         print("CFP:timer_start")
-        #self.gui.dataset.open()
-        #self.gui.respond("renew_helpers")
-        #self.gui.respond("timer_start")
-        
-        
-        
-        

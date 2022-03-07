@@ -58,7 +58,7 @@ class gui_single():
         self.settings["screen_h"]=size.height()
         self.fps=float(self.settings["fps"])
 
-        self.gui = gui.gui(self, self.controller, size)   # create the tracking utility
+        self.gui = gui.gui(self.controller, self.settings)   # create the tracking utility
         self.gui.show()
 
     def centerandresize(self,ratio=[0.7,0.8]):
