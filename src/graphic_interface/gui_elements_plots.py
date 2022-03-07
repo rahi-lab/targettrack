@@ -72,8 +72,6 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         #self.pens["pts_bayes"]=pg.mkPen(width=self.s_thick, color=pg.mkColor(255,100,100,128))
         self.pens["pts_adj"]=pg.mkPen(width=self.s_thick, color=pg.mkColor(0,255,25,128))
         self.pens["pts_high"]=pg.mkPen(width=self.s_thick+1, color=pg.mkColor(255,255,255,255))
-        actcolors=[(31, 119, 180),(255, 127, 14),(44, 160, 44),(214, 39, 40),(148, 103, 189),(140, 86, 75),(227, 119, 194),(127, 127, 127),(188, 189, 34),(23, 190, 207)]
-        self.actpens=[pg.mkPen(width=self.s_thick, color=color) for color in actcolors]
         self.pointsetplots = {}
         for key in pointsetnames:
             self.pointsetplots[key]=pg.ScatterPlotItem(pen=(self.pens[key] if key!="pts_act" else None),brush=(0,0,0,0))
@@ -131,7 +129,8 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         """
         for key, val in pts_dict.items():
             if key == "pts_act":
-                pens = [self.actpens[i] for i in range(len(val))]
+                colors = self.controller.neuron_color()
+                pens = [pg.mkPen(width=self.s_thick, color=color) for color in colors]   # Todo no need to create new pens every time
                 self.pointsetplots[key].setData(pen=pens, pos=val[:, :2])
             else:
                 self.pointsetplots[key].setData(pos=val[:, :2])
@@ -260,16 +259,12 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
         self.nb_frames = self.controller.frame_num
         self.times = list(range(self.nb_times))  # list of times in x-axis (for labels)   # TODO AD good init
         self.neuron_plotidx = {}  # dict neuron_idx_from1 -> idx such that self.plots[idx] corresponds to neuron neuron_idx_from1 at time t
-        # Todo I think self.neuron_plotidx could also be useful for the dashboard and maybe others??
+        # Todo I think self.neuron_plotidx could be deleted
 
         self.setBackground('w')
 
         self.setLabel('left', "Intensity")
         self.setLabel('bottom', "Time[frames]")
-
-        #Same as MainFigWidget
-        actcolors=[(31, 119, 180),(255, 127, 14),(44, 160, 44),(214, 39, 40),(148, 103, 189),(140, 86, 75),(227, 119, 194),(127, 127, 127),(188, 189, 34),(23, 190, 207)]
-        self.actpens=[pg.mkPen(width=2, color=color) for color in actcolors]
 
         self.plots = []
         self.ebars = []
@@ -277,8 +272,8 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
         # activity value and error bars of neuron neuron_id_from1 at time t
 
         for i in range(max_sim_tracks):
-            self.plots.append(self.plot(pen=self.actpens[i],antialias=True))
-            self.ebars.append(pg.ErrorBarItem(pen=self.actpens[i],antialias=True))#symbol="o"
+            self.plots.append(self.plot(antialias=True))
+            self.ebars.append(pg.ErrorBarItem(antialias=True))#symbol="o"
             self.addItem(self.ebars[-1])
         self.timeline=pg.InfiniteLine(0,pen="r")
         self.addItem(self.timeline)
@@ -313,8 +308,20 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
             scale = np.nanmax(activity[:, 0])
             yvals = (activity[:, 0] / scale + ind)
             yerrs = activity[:, 1] / scale
+            color = self.controller.neuron_color(neuron_id_from1)
+            pen = pg.mkPen(width=2, color=color)   # Todo: no need to create new pens all the time (esp when color has not changed)
             self.plots[ind].setData(x=self.times, y=yvals)
-            self.ebars[ind].setData(x=self.times, y=yvals, height=yerrs)
+            self.plots[ind].setPen(pen)
+            self.ebars[ind].setData(x=self.times, y=yvals, height=yerrs, pen=pen)
+
+    def _remove_old_plots(self):
+        """
+        erases the plots of neurons that have been de-assigned, if there are fewer neurons than before
+        """
+        n_plots = len(self.neuron_plotidx)
+        for ind in range(n_plots, len(self.plots)):
+            self.plots[ind].setData()
+            self.ebars[ind].setData()
 
     def change_t(self, t):
         """
@@ -351,6 +358,7 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
             if rm:
                 for neuron_idx_from1 in rm:
                     del self.neuron_activities[neuron_idx_from1]
+                self._remove_old_plots()
             if add:
                 for neuron_idx_from1 in add:
                     self.neuron_activities[neuron_idx_from1] = self.controller.neuron_ca_activity(neuron_idx_from1)

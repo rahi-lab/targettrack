@@ -1766,9 +1766,6 @@ class DashboardTab(QWidget):
         button.setStyleSheet("background-color : rgb(255,255,255); border-radius: 4px;")
         self.topgrid.addWidget(button, 0, 0)
         self.keys = {}
-        self.assigned_colors = np.array([])   # TODO: consistent with highlighting etc
-        self.assigned_colors = np.array(
-            [[int(val) for val in col.split(",")] for col in ("41,98,24;235,85,40;249,216,73;117,251,76;117,251,253;0,0,245").split(";")])
 
         topscrollwidget.setLayout(self.topgrid)
         topscrollarea.setWidget(topscrollwidget)
@@ -1840,8 +1837,9 @@ class DashboardTab(QWidget):
                 button = QPushButton(key)
                 button.clicked.connect(self._make_button_press_function_h(idx_from1))
                 # button.setFixedWidth(25)
-                button.setStyleSheet("background-color : rgb(" + str(self.assigned_colors[j, 0]) + "," + str(
-                    self.assigned_colors[j, 1]) + "," + str(self.assigned_colors[j, 2]) + "); border-radius: 4px;")
+                color = self.controller.neuron_color(idx_from1)
+                button.setStyleSheet("background-color : rgb(" + str(color[0]) + "," + str(
+                    color[1]) + "," + str(color[2]) + "); border-radius: 4px;")
                 col.append(button)
                 self.topgrid.addWidget(button, 0, j + 1)
 

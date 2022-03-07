@@ -19,7 +19,7 @@ import h5py
 from PyQt5.QtWidgets import QErrorMessage
 
 #Internal classes
-from .helpers import SubProcManager, QtHelpers
+from .helpers import SubProcManager, QtHelpers, misc
 from . import h5utils
 from .datasets_code.DataSet import DataSet
 import shutil
@@ -221,6 +221,7 @@ class Controller():
         self.segmenter = None
         self.ref_frames = set()   # the set of frames that the user wants to use for the next registration
         GlobalParameters.set_params()
+        self.color_manager = misc.ColorAssignment(self)
 
     def set_point_data(self, value:bool):
         self.data.point_data = value
@@ -2303,3 +2304,13 @@ class Controller():
                 trax.append(pt[0])
                 tray.append(pt[1])
         return np.array([trax,tray])
+
+    def neuron_color(self, idx_from1=None):
+        """
+        :param idx_from1: if None,
+        :return: single list/tuple [r, g, b] the 0-255 RGB values for the color of the neuron if idx_from1 is given,
+            otherwise list of such RGB values for each neuron of self.assigned_sorted_list
+        """
+        if idx_from1 is None:
+            return [self.color_manager.color_for_neuron(idx) for idx in self.assigned_sorted_list]
+        return self.color_manager.color_for_neuron(idx_from1)
