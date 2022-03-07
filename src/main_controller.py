@@ -39,7 +39,6 @@ from .mask_processing.image_register import Register_Rotate
 from .msgboxes import EnterCellValue as ecv
 
 
-
 class Controller():
     """
     This is the core of the data-to-GUI link.
@@ -212,6 +211,8 @@ class Controller():
         self.autocenter_registered_clients = []
         # here when some calcium intensity changes
         self.calcium_registered_clients = []
+        # here when the gui is disabled during NN run
+        self.freeze_registered_clients = [self.timer]
 
         # list of things that change when the time frame changes:
         # time_frame, frame_img, present_neurons, mask, all kinds of pointdats,
@@ -1608,7 +1609,7 @@ class Controller():
         if self.point_data:
             self.pointdat[fro:to + 1, self.highlighted, :] = np.nan
             self.NN_pointdat[fro:to + 1, self.highlighted, :] = np.nan
-        if not self.point_data:#MB added this to use this feature for epfl data
+        else:#MB added this to use this feature for epfl data
             temp_n_neurons = self.n_neurons
             for k in range(fro,to):
                 key=str(k)+"/mask"
@@ -1674,6 +1675,7 @@ class Controller():
         for client in self.validation_set_registered_clients:
             client.change_validation_set(validationSet)
         self.update()
+
     def approve_NN_masks(self):
         """MB added: to set the predicttions of NN for the selected frames as the ground truth"""
         if self.NNmask_key == "":
@@ -1797,7 +1799,6 @@ class Controller():
                                     #    mask[Comp_c_i] = 0
                     self.data[knn][...] = mask
 
-
     def post_process_NN_masks3(self,ProcessedNeurons):
         """MB added: to post process the predicttions of NN for the selected frames as the ground truth
         ProcessedNeurons: neurons that you want to postprocess. If two or three neurons touch each other
@@ -1830,7 +1831,6 @@ class Controller():
                     else:
                         print("There are no predictions for this frame")
         self.update()
-
 
     def post_process_NN_masks4(self,ProcessedNeurons):
         """MB added: to post process the predicttions of NN for the selected frames as the ground truth
@@ -1867,6 +1867,7 @@ class Controller():
                     else:
                         print("There are no predictions for this frame")
         self.update()
+
     def post_process_NN_masks5(self,ProcessedNeurons):
         """MB added: to post process the predicttions of NN for the selected frames as the ground truth
         ProcessedNeurons: neurons that you want to postprocess. If two or three neurons touch each other
@@ -2204,13 +2205,38 @@ class Controller():
             self.data[self.NNpts_key][...]=self.NN_pointdat.astype(np.float32)
 
     def save_and_repack(self):
-        self.save_status()
         print("Repacking")
-        dset_path = self.data.path_from_GUI
-        self.data.close()  # close
+        dset_path = self._close_data()
         h5utils.repack(dset_path)
-        self.data = DataSet.load_dataset(dset_path)   # Todo AD: some closing and re-opening could be factorized into a method?
         print("Repacked Dataset")
+        self._open_data(dset_path)
+
+    def pause_for_NN(self):
+        dset_path = self._close_data()
+        for client in self.freeze_registered_clients:
+            client.freeze()
+        return dset_path
+
+    def unpause_for_NN(self, dset_path):
+        for client in self.freeze_registered_clients:
+            client.unfreeze()
+        self._open_data(dset_path)
+
+    def _close_data(self):
+        self.save_status()
+        dset_path = self.data.path_from_GUI
+        self.data.close()
+        return dset_path
+
+    def _open_data(self, dset_path):
+        self.data = DataSet.load_dataset(dset_path)
+        if self.point_data:
+            self.pointdat = self.data.pointdat
+            # TODO: get the NN pointdat from the dataset
+            print("Not Implemented yet")
+            # self.NNpts_key = knn
+            # self.NN_pointdat = np.array(self.data[self.NNpts_key])
+            # self.NN_pointdat[:, 0, :] = np.nan
         self.update()
 
     #when a key for a neuron is clicked the point is now annotated. rm is the remove option
