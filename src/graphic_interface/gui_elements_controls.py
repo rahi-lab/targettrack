@@ -229,7 +229,6 @@ class NeuronBarItem:
 
     def highlight(self):
         self.highlighted = True
-        self.neuron_button.setStyleSheet(self.qss)
         if self.present:
             self.neuron_button.setProperty("color", "hp")
         else:
@@ -251,9 +250,6 @@ class NeuronBarItem:
 class DashboardItem(QPushButton):
     qss = """
                  QPushButton{
-                    border-radius: 4px;
-                    min-width: 25px;
-                    max-width: 25px;
                  }
                  QPushButton[color = "a"]{
                      background-color: red;
@@ -268,6 +264,7 @@ class DashboardItem(QPushButton):
         self.i_from1 = i_from1
         self.clicked.connect(callback)
         self.present = False  # Todo: set at init??
+        self.setStyleSheet(self.qss)
 
     def set_present(self):
         self.present = True
