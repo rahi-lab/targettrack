@@ -260,6 +260,7 @@ class NeuronBarItem:
 class DashboardItem(QPushButton):
     qss = """
                  QPushButton{
+                    border-radius: 4px;
                  }
                  QPushButton[color = "a"]{
                      background-color: red;
