@@ -66,7 +66,7 @@ class Controller():
 
         self.ready = False
 
-        self.timer = QtHelpers.UpdateTimer(1. / int(self.settings["fps"]), self.update)
+        self.timer = misc.UpdateTimer(1. / int(self.settings["fps"]), self.update)
 
         # whether data is going to be as points or as masks:
         self.point_data = self.data.point_data
@@ -1141,7 +1141,7 @@ class Controller():
         print("Assigning key:", key, "for neuron", i_from1)
 
         self.assigned_sorted_list = sorted(list(self.button_keys.values()))
-
+        self.signal_pts_changed(t_change=False)   # just needed to display the activated neurons
         # self.set_activated_tracks()   # TODO if necessary
 
     def _get_neuron_key(self, neuron_id_from1:int):
@@ -2309,8 +2309,10 @@ class Controller():
         """
         :param idx_from1: if None,
         :return: single list/tuple [r, g, b] the 0-255 RGB values for the color of the neuron if idx_from1 is given,
-            otherwise list of such RGB values for each neuron of self.assigned_sorted_list
+            otherwise list of such RGB values for each neuron of self.assigned_sorted_list that is currently present
         """
         if idx_from1 is None:
-            return [self.color_manager.color_for_neuron(idx) for idx in self.assigned_sorted_list]
+            present = np.argwhere(~np.isnan(self.NN_or_GT[self.i][self.assigned_sorted_list, 0])).flatten()
+            col_lst = [self.color_manager.color_for_neuron(self.assigned_sorted_list[pres_idx]) for pres_idx in present]
+            return col_lst
         return self.color_manager.color_for_neuron(idx_from1)

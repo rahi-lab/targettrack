@@ -1,4 +1,6 @@
+import time
 import numpy as np
+from PyQt5 import QtCore
 
 
 class ColorAssignment:
@@ -36,3 +38,46 @@ class ColorAssignment:
                 self.color_count[col_idx] += 1
         # todo: could also check if max(self.color_count) - min(self.color_count) >= 2 then reassign colors to not have
         #  duplicate colors when other colors are unused
+
+
+class UpdateTimer:
+    def __init__(self, interval, update_fun):
+        """
+        :param interval: s
+        """
+        self.timer = QtCore.QTimer()
+        self.running = False
+        self.timer.setSingleShot(True)
+        self.timer.setInterval(interval*1000)   # setInterval takes ms
+        def new_func():
+            self.running = False
+            print("sending with t_change", self.t_change)
+            update_fun(self.t_change)   # TODO make sure t_change is updated properly
+            self.t_change = False
+        self.timer.timeout.connect(new_func)
+        self.last_update_time = time.time() - 1  # last update time to prevent excessively frequent updating; -1 is only here to allow for initial update.
+        self.update_interval = interval
+        self.t_change = False
+        self.frozen = False
+
+    def run(self):
+        if not self.running:
+            self.running = True
+            self.timer.start()
+
+    def update_allowed(self, t_change):
+        if self.frozen:
+            return False
+        t = time.time()
+        if self.running or t - self.last_update_time < self.update_interval:
+            self.t_change = self.t_change or t_change
+            self.run()
+            return False
+        self.last_update_time = t
+        return True
+
+    def freeze(self):
+        self.frozen = True
+
+    def unfreeze(self):
+        self.frozen = False
