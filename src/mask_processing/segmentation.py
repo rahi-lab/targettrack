@@ -20,6 +20,7 @@ class Segmenter:
         :param data: instance of Dataset
         :param segmentation_parameters: instance of Parameters with kind "segmentation"
         """
+        # Todo: maybe the segmenter should not have access to the data object, onlu the function to get frames
         self.data = data
         self.parameters = segmentation_parameters
         self.logger = logging.getLogger('Segmenter')
@@ -52,12 +53,12 @@ class Segmenter:
         # Todo: if loading images is very long, could be combined with feature extraction for instance by taking an argument images
         frames_to_segment = sorted(frames_to_segment)  # sorting is for fun
         self.logger.debug("Segmenting frames {} with parameters {}".format(frames_to_segment, self.parameters))
+        params = {"dimensions": GlobalParameters.dimensions, **self.parameters}
         for frames in h.batch(frames_to_segment):
             images = [self.data.get_frame(t, force_original=True) for t in frames]
-            params = {"dimensions": GlobalParameters.dimensions, **self.parameters}
             segments = h.parallel_process(images, neuron_segmentation2, params)
             for t, segmented in zip(frames, segments):
-                self.data.save_mask(t, segmented, force_original=True, update_nb_neurons=True)   # Todo: this will interfere with any pre-existing neurons
+                self.data.save_mask(t, segmented, force_original=True)   # Todo: this will interfere with any pre-existing neurons
                 # save_mask; creates  datasets of seg amd mask for the frame ans saves the segmentation in both of them
         # todo: if loading video is long, could also be parallelized?
 

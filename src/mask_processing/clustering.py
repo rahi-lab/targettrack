@@ -66,7 +66,7 @@ class Clustering(AssignmentFinderInterface):
         :param clusters_assignments: output of self.algo.cluster(). A dict (t, s) -> cluster.
         """
         if is_first:
-            self.annotations.assign(clusters_assignments, update_nb_neurons=True)#MB: I think self.annotations is just the dataset
+            self.annotations.assign(clusters_assignments)#MB: I think self.annotations is just the dataset
         else:
             # Todo
             raise NotImplementedError("Sorry, I didn't think you would need this feature. Feel free to implement, it shouldn't be too hard.")

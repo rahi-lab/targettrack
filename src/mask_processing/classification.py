@@ -46,7 +46,7 @@ class Classification(AssignmentFinderInterface):
         :param frames: which frames to find assignments for   # todo: could be string, like 'all'
         """
         assignments = self.algo.classify(frames)
-        self.annotations.assign(assignments,update_nb_neurons=True)
+        self.annotations.assign(assignments)
 
 class ClfAlgoInterface:
     """

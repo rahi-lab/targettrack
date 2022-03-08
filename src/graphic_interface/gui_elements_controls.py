@@ -947,9 +947,9 @@ class NNControlTab(QWidget):
             row += 1
 
             NN_train = QPushButton("Train Mask Prediction Neural Network")
-            NN_train.clicked.connect(lambda: self._run_mask_NN(mask=True))
+            NN_train.clicked.connect(lambda: self._run_mask_NN())
             NN_train_fol = QPushButton("Output Train NNmasks folder")
-            NN_train_fol.clicked.connect(lambda: self._run_mask_NN(mask=True, fol=True))
+            NN_train_fol.clicked.connect(lambda: self._run_mask_NN(fol=True))
             main_layout.addWidget(NN_train, row, 0, 1, 2)
             row += 1
             main_layout.addWidget(NN_train_fol, row, 0, 1, 2)
@@ -995,7 +995,7 @@ class NNControlTab(QWidget):
     def _run_script(self):
         pass
 
-    def _run_mask_NN(self, mask=False, fol=False):
+    def _run_mask_NN(self, fol=False):
         modelname = self.NN_model_select.currentText()
         instancename = self.NN_instance_select.currentText()
         if instancename == "new":
@@ -1013,10 +1013,9 @@ class NNControlTab(QWidget):
         msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         confirmation = msgBox.exec()
         if confirmation == QMessageBox.Ok:
-            if mask:
-                runres, msg = self.controller.run_NN_masks(modelname,instancename,fol,int(self.epochs.text()),int(self.trainset.text()),int(self.valset.text()),int(self.targset.text()))
-            else:
-                runres, msg = self.controller.run_NN_points(modelname,instancename,fol)
+            runres, msg = self.controller.run_NN_masks(modelname, instancename, fol, int(self.epochs.text()),
+                                                       int(self.trainset.text()), int(self.valset.text()),
+                                                       int(self.targset.text()))
             if not runres:
                 errdial=QErrorMessage()
                 errdial.showMessage('Run Failed:\n'+msg)
@@ -1884,9 +1883,14 @@ class DashboardTab(QWidget):
         if removed is not None and removed in self.button_columns:
             self.button_columns[removed][self.current_i+1].set_absent()
 
-    def change_present_neurons_all_times(self):
-        pass   # TODO
-
+    def change_present_neurons_all_times(self, neuron_presence):
+        for idx_from1, column in self.button_columns.items():
+            for i in range(self.chunksize):
+                t = self.chunknumber * self.chunksize + i
+                if neuron_presence[t, idx_from1]:
+                    column[i+1].set_present()
+                else:
+                    column[i+1].set_absent()
 
 
 class TrackTab(QWidget):   # Todo rename

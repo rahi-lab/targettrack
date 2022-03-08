@@ -29,9 +29,6 @@ class h5Data(DataSet):
         if "C" not in self.dataset.attrs:   # or self.dataset.attrs["C"] is None
             self.dataset.attrs["C"] = self.dataset["0/frame"].shape[0]   # number of channels
 
-    def __getitem__(self,key):
-        return self.dataset[key]
-
     @property
     def point_data(self):
         if "pointdat" in self.dataset.attrs:
@@ -49,6 +46,11 @@ class h5Data(DataSet):
                 shape = (len(self.frames), self.nb_neurons+1, 3)
                 self.dataset.create_dataset("pointdat", shape, dtype="f4")
                 self.dataset["pointdat"][...] = np.full(shape, np.nan, dtype=np.float32)
+        else:
+            if "neuron_presence" not in self.dataset:
+                shape = (len(self.frames), self.nb_neurons + 1)
+                self.dataset.create_dataset("neuron_presence", shape, dtype="f4")
+                self.dataset["neuron_presence"][...] = np.full(shape, False, dtype=bool)
 
     @property
     def seg_params(self):
@@ -127,6 +129,26 @@ class h5Data(DataSet):
         return np.array(self.dataset["pointdat"])
 
     @property
+    def neuron_presence(self):
+        """
+        self.frame_num * (self.nb_neurons+1) array of booleans indicating presence of each neuron at each time frame
+        Returns None if it is not defined (then it should be defined soon!)
+        """
+        if "neuron_presence" not in self.dataset:
+            return None
+        return np.array(self.dataset["neuron_presence"])
+
+    @neuron_presence.setter
+    def neuron_presence(self, value):
+        key = "neuron_presence"
+        if key not in self.dataset:
+            self.dataset.create_dataset(key, (self.frame_num, self.nb_neurons + 1), dtype=bool,
+                                        maxshape=(self.frame_num, None))
+        elif self.dataset[key].shape != value.shape:
+            self.dataset[key].resize(value.shape)
+        self.dataset[key][...] = value
+
+    @property
     def frame_num(self):
         return self.dataset.attrs["T"]
 
@@ -167,12 +189,6 @@ class h5Data(DataSet):
     ####################################################################################
     # reading the data
 
-    def __getitem__(self,key):
-        return self.dataset[key]
-
-    def check_key(self, key):
-        return key in self.dataset
-
     def _get_frame(self, t, col="red"):
         '''
         The frame
@@ -182,14 +198,24 @@ class h5Data(DataSet):
 
     def _get_mask(self, t):
         '''
-        Get the mask of neurons in frame t.
+        Get the mask of neurons in frame t. Returns False if expected mask not present.
         :param t: Integer, the time
         '''
         if self.coarse_seg_mode:
             mask_key = "coarse_mask"
         else:
             mask_key = "mask"
-        return np.array(self.dataset[str(t) + "/{}".format((mask_key))])
+        key = str(t) + "/{}".format((mask_key))
+        if key not in self.dataset:
+            return False
+        return np.array(self.dataset[key])
+
+    def get_NN_mask(self, t, NN_key):
+        # No transform is applied because the mask is saved with the transforation already applied.
+        knn = f"net/{NN_key}/{t}/predmask"
+        if knn not in self.dataset:
+            return False
+        return np.array(self.dataset[knn])
 
     def get_validation_set(self,NNnames):
         """
@@ -329,12 +355,16 @@ class h5Data(DataSet):
         return self.dataset["rotation_score"].attrs[str(t)]
 
     def get_ROI_params(self):
+        if "ROI" not in self.dataset.attrs:
+            return None
         return self.dataset.attrs["ROI"]
 
-    def available_NNpointdats(self):
-        if "net" not in self.dataset:
-            return []
-        return self.dataset["net"].keys()
+    def get_frame_match(self, t):
+        group_key = "frame_match"
+        if group_key not in self.dataset or str(t) not in self.dataset[group_key].attrs:
+            return False
+        orig = self.dataset[group_key].attrs[str(t)]
+        return orig
 
     def ci_int(self):
         return self.dataset["ci_int"][:,:,:]
@@ -386,7 +416,6 @@ class h5Data(DataSet):
         self.dataset.attrs["W"] = SizeR[0]
         self.dataset.attrs["H"] = SizeR[1]
         self.dataset.attrs["D"] = SizeR[2]
-
 
         if np.any(mask):
             if self.coarse_seg_mode:
@@ -457,6 +486,12 @@ class h5Data(DataSet):
                 maskRed[maskRed==0] = mask[maskRed==0]
                 self.dataset[key][...] = maskRed.astype(np.int16)
 
+    def save_NN_mask(self, t, NN_key, mask):
+        # The mask is saved with the transforation already applied.
+        knn = f"net/{NN_key}/{t}/predmask"
+        if knn not in self.dataset:
+            self.dataset.create_dataset(knn, mask.shape, dtype="i2", compression="gzip")
+        self.dataset[knn][...] = mask.astype(np.int16)
 
     def flag_as_gt(self, frames):
         if "ground_truth" not in self.dataset.attrs:
@@ -482,10 +517,7 @@ class h5Data(DataSet):
                ]
         return lst
 
-    def assign(self, assignment_dict, update_nb_neurons=False):
-        if update_nb_neurons:
-            nb_neurons = max(assignment_dict.values())
-            self.nb_neurons = nb_neurons
+    def assign(self, assignment_dict):
         time_dict = defaultdict(dict)
         for (t,s), n in assignment_dict.items():
             time_dict[t][s] = n
@@ -537,6 +569,15 @@ class h5Data(DataSet):
 
     def save_ROI_params(self, xleft, xright, yleft, yright):
         self.dataset.attrs["ROI"] = [xleft, xright, yleft, yright]
+
+    def save_frame_match(self, orig, new):
+        # TODO abstract+doc in DataSet
+        group_key = "frame_match"
+        if group_key not in self.dataset:
+            group = self.dataset.create_group(group_key)
+        else:
+            group = self.dataset[group_key]
+        group.attrs[str(new)] = orig
 
     def set_poindat(self, pointdat):
         '''

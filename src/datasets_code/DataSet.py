@@ -37,6 +37,8 @@ class DataSet:
         # self.pointdat[t][n] = [x,y,z] where x,y,z are the coordinates of neuron n in time frame t (neurons start
         # at n>=1, 0 is for background and contains np.nans)
         # self.NN_pointdat = None
+        # self.neuron_presence = None a self.frame_num * (self.nb_neurons+1) array of booleans indicating presence of
+        # each neuron at each time frame
 
     @classmethod
     def load_dataset(cls, dataset_path):
@@ -102,11 +104,6 @@ class DataSet:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def check_key(self, key):
-        """checks if key exists"""
-        raise NotImplementedError
-
-    @abc.abstractmethod
     def _get_frame(self, t, col="red"):
         """Gets the original frame"""
         raise NotImplementedError
@@ -125,18 +122,27 @@ class DataSet:
         """
         raise NotImplementedError
 
-
     def get_mask(self, t, force_original=False):
         """
-        Gets the segmented frame.
+        Gets the segmented frame. Returns False if mask not present.
         :param t: time frame
         :param force_original: forces to return mask corresponding to original image, without transformation, and from non-coarse segmentation (if applicable)
         :return segmented: 3D numpy array with segmented[x,y,z] = segment_id, or 0 for background
+        Returns False if mask not present.
         """
         orig_segmented = self._get_mask(t)
-        if force_original:
+        if force_original or orig_segmented is False:
             return orig_segmented
         return self._transform(t, orig_segmented, True)
+
+    def get_NN_mask(self, t: int, NN_key: str):
+        """
+        Gets the mask predicted by the network designated by NN_key for time t.
+        :return mask: 3D numpy array with mask[x,y,z] = segment_id, or 0 for background
+        Returns False if mask not present.
+        """
+        # No transform is applied because the mask is saved with the transforation already applied.
+        raise NotImplementedError
 
     @abc.abstractmethod
     def segmented_frame(self, t, coarse=None):
@@ -218,8 +224,13 @@ class DataSet:
         """
 
     @abc.abstractmethod
-    def available_NNpointdats(self):
-        """Gets iterable of NN ids for which pointdat is available"""
+    def get_frame_match(self, t):
+        """
+        For a dataset A that was built from dataset B. Matches frame t of A to corresponding time frame in the original
+        dataset B.
+        :param t: time frame (in self)
+        :return: orig: time frame
+        """
         raise NotImplementedError
 
     def get_existing_neurons(self, t):
@@ -260,8 +271,9 @@ class DataSet:
         :param img_green: new frame (3D numpy array) for red channel
         """
         raise NotImplementedError
+
     @abc.abstractmethod
-    def _save_frame(self, t, frame):#MB added
+    def _save_frame(self, t, frameR, frameG=0, mask=0):#MB added
         raise NotImplementedError
 
     def save_frame(self, t, frameR, frameG = 0, mask = 0, force_original=False):#MB added
@@ -270,9 +282,6 @@ class DataSet:
         :param t: time frame
         :param mask: segmented frame (3D numpy array with segmented[x,y,z] = segment (0 if background)
         :param force_original: if True, does not apply inverse transform (otherwise, respects self.crop and self.align)
-        :param update_nb_neurons: whether to update self.nb_neurons to match nb of neurons in mask.
-            More precisely, self.nb_neurons can only be increased to nb of neurons in mask.
-            Supposes that the max neuron id in the mask is the nb of neurons.
         """
         if not force_original:
             frameR = self._reverse_transform(t, frameR)
@@ -284,24 +293,18 @@ class DataSet:
             self._save_frame(t,frameR,frameG,mask)
         else:
             self._save_frame(t,frameR,frameG, 0)
+
     @abc.abstractmethod
     def _save_mask(self, t, mask):
         raise NotImplementedError
 
-    def save_mask(self, t, mask, force_original=False, update_nb_neurons=False):
+    def save_mask(self, t, mask, force_original=False):
         """
         Stores (or replaces if existing?) the segmentation for time t.
         :param t: time frame
         :param mask: segmented frame (3D numpy array with segmented[x,y,z] = segment (0 if background)
         :param force_original: if True, does not apply inverse transform (otherwise, respects self.crop and self.align)
-        :param update_nb_neurons: whether to update self.nb_neurons to match nb of neurons in mask.
-            More precisely, self.nb_neurons can only be increased to nb of neurons in mask.
-            Supposes that the max neuron id in the mask is the nb of neurons.
         """
-        if update_nb_neurons:
-            nb_neurons = int(mask.max()) # SJR: For some reason was getting back a float, at least if max was zero
-            #if nb_neurons > self.nb_neurons: # SJR: I am not sure why this was in here, why can the number of neurons only increase? commented out
-            self.nb_neurons = nb_neurons
         if not force_original:
             mask = self._reverse_transform(t, mask)
         self._save_mask(t, mask)
@@ -309,23 +312,27 @@ class DataSet:
     def _save_green_mask(self, t, mask):
         raise NotImplementedError
 
-    def save_green_mask(self, t, mask, force_original=False, update_nb_neurons=False):
+    def save_green_mask(self, t, mask, force_original=False):
         """
         Stores (or replaces if existing?) the segmentation for time t.
         :param t: time frame
         :param mask: segmented frame (3D numpy array with segmented[x,y,z] = segment (0 if background)
         :param force_original: if True, does not apply inverse transform (otherwise, respects self.crop and self.align)
-        :param update_nb_neurons: whether to update self.nb_neurons to match nb of neurons in mask.
-            More precisely, self.nb_neurons can only be increased to nb of neurons in mask.
-            Supposes that the max neuron id in the mask is the nb of neurons.
         """
-        if update_nb_neurons:
-            nb_neurons = int(mask.max()) # SJR: For some reason was getting back a float, at least if max was zero
-            #if nb_neurons > self.nb_neurons: # SJR: I am not sure why this was in here, why can the number of neurons only increase? commented out
-            self.nb_neurons = nb_neurons
         if not force_original:
             mask = self._reverse_transform(t, mask)
         self._save_green_mask(t, mask)
+
+    @abc.abstractmethod
+    def save_NN_mask(self, t, NN_key, mask):
+        """
+        Stores (or replaces if existing) the mask predicted by the NN.
+        The NN-predicted mask is usually for the transformed movie (i.e. the mask is transformed).
+        :param t: time frame
+        :param NN_key: str, an identifier for the NN
+        :param mask: 3D numpy array with segmented[x,y,z] = segment (0 if background)
+        """
+        raise NotImplementedError
 
     @abc.abstractmethod
     def flag_as_gt(self, frames):
@@ -338,13 +345,10 @@ class DataSet:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def assign(self, assignment_dict, update_nb_neurons=False):
+    def assign(self, assignment_dict):
         """
         Assigns segments to neurites according to given dictionary.
         :param assignment_dict: dictionary (t, s) -> neurite
-        :param update_nb_neurons: whether to update self.nb_neurons to match nb of neurons in mask.
-            More precisely, self.nb_neurons can be increased or decreased to match exaclty nb of neurons in mask.
-            Supposes that the max neuron id in the mask is the nb of neurons.
         """
         raise NotImplementedError
 
@@ -367,6 +371,15 @@ class DataSet:
     def save_ROI_params(self, xleft, xright, yleft, yright):
         """
         Saves given parameters as the boundaries of the Region Of Interest (minimum region to include when cropping)
+        """
+        raise NotImplementedError
+
+    def save_frame_match(self, orig, new):
+        """
+        For a dataset A that was built from dataset B. Matches frame t of A to corresponding time frame orig in the
+        original dataset B.
+        :param orig: time frame
+        :param new: time frame (in self)
         """
         raise NotImplementedError
 

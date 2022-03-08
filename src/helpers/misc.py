@@ -51,7 +51,6 @@ class UpdateTimer:
         self.timer.setInterval(interval*1000)   # setInterval takes ms
         def new_func():
             self.running = False
-            print("sending with t_change", self.t_change)
             update_fun(self.t_change)   # TODO make sure t_change is updated properly
             self.t_change = False
         self.timer.timeout.connect(new_func)
