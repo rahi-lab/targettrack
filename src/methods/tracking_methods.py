@@ -447,7 +447,7 @@ class InvDistInterpClass():
         t_ref=self.params["t_ref"]
 
         self.state=["Preparing",0]
-        self.dataset=Dataset(file_path)
+        self.dataset=DatasetForMethod(file_path)
         self.dataset.open()
         self.data_info=self.dataset.get_data_info()
         T=self.data_info["T"]

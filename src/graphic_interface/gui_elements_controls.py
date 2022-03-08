@@ -87,11 +87,11 @@ class NeuronBar(QScrollArea):
 
         #MB: initialize neuron_bar_holderLayout here so the neuron bar updates properly
         #without repeating sequences of neurons
-        dummy = QWidget()
-        self.neuron_bar_holderLayout = QHBoxLayout()
-        self.separator = QLabel("|")
-        dummy.setLayout(self.neuron_bar_holderLayout)
-        self.setWidget(dummy)
+        #dummy = QWidget()
+        #self.neuron_bar_holderLayout = QHBoxLayout()
+        #self.separator = QLabel("|")
+        #dummy.setLayout(self.neuron_bar_holderLayout)
+        #self.setWidget(dummy)
 
         self._create_contents()
 
