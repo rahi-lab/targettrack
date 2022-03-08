@@ -187,7 +187,7 @@ class NeuronBarItem:
              height: 10px;
              min-height: 10px;
              width: 10px;
-             min-width: 10px;
+             min-width: 40px;
              }
              QPushButton[color = "a"]{
                  background-color: red;
