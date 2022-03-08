@@ -301,10 +301,10 @@ class BayesianNPSClass():
 
     def quit(self):
         pass
-        
+
 class KernelCorrelation2DClass():
     help=str({"forward":True,"kernel_size":51,"search_size":101,"refine_size":3})
-    
+
     def __init__(self,params):
         self.state=""
         self.cancel=False
@@ -327,7 +327,7 @@ class KernelCorrelation2DClass():
         search_size=self.params["search_size"]
         refine_size=self.params["refine_size"]
         corr_size=search_size-kernel_size+1
-        
+
         self.state=["Preparing",0]
         self.dataset=DatasetForMethod(file_path)
         self.dataset.open()
@@ -335,7 +335,7 @@ class KernelCorrelation2DClass():
         C=self.data_info["C"]
         T=self.data_info["T"]
         assert self.data_info["D"]==1,"Data must be 2d"
-        
+
         grid=np.arange(kernel_size)-kernel_size//2
         gridc,gridx,gridy=np.meshgrid(np.arange(C),grid,grid,indexing="ij")
         grid=np.arange(search_size)-search_size//2
@@ -345,8 +345,8 @@ class KernelCorrelation2DClass():
         grid=np.arange(refine_size)-refine_size//2
         rgridx,rgridy=np.meshgrid(grid,grid,indexing="ij")
         rgrid=np.stack([rgridx,rgridy],axis=0)
-        
-        
+
+
         ptss=self.dataset.get_points()
         self.state=["Running",0]
         for i in range(T-1):
@@ -360,7 +360,7 @@ class KernelCorrelation2DClass():
             else:
                 im_now=im_next
             im_next=self.dataset.get_frame(t_next)
-            
+
             valid=~np.isnan(ptss[t_now,:,0])
             labels=[]
             kernels=[]
@@ -378,10 +378,10 @@ class KernelCorrelation2DClass():
             images=np.stack(images,0)
             images-=images.mean(axis=(2,3))[:,:,None,None]
             images/=(images.std(axis=(2,3))[:,:,None,None]+1e-10)
-        
+
             corrs=self.get_corrs(images,kernels,device="cpu")
             disps=self.get_disps(corrs,rgrid)
-            
+
             for label,disp in zip(labels,disps):
                 if np.isnan(ptss[t_next,label,0]):
                     print(label,ptss[t_now,label,:2],disp)
@@ -404,7 +404,7 @@ class KernelCorrelation2DClass():
         ten_im=torch.tensor(images,dtype=torch.float32,device=device).reshape(1,B*C,W,H)
         corrs=torch.nn.functional.conv2d(ten_im,ten_ker,groups=B)
         return corrs.reshape(B,C,corrs.shape[2],corrs.shape[3])
-        
+
     def get_disps(self,corrs,rgrid):
         corrs=corrs.sum(1)
         B,W,H=corrs.shape
@@ -423,8 +423,72 @@ class KernelCorrelation2DClass():
 
     def quit(self):
         self.dataset.close()
-    
-    
+
+class InvDistInterpClass():
+    help="yup"
+    def __init__(self,params):
+        self.state=""
+        self.cancel=False
+
+        params_dict={}
+        try:
+            for txt in params.strip().split(";"):
+                if txt=="":
+                    continue
+                key,val=txt.split("=")
+                params_dict[key]=eval(val)
+        except:
+            assert False, "Parameter Parse Failure"
+        self.params={"t_ref":0,"epslion":1e-10}
+        self.params.update(params_dict)
+
+    def run(self,file_path):
+        epsilon=self.params["epslion"]
+        t_ref=self.params["t_ref"]
+
+        self.state=["Preparing",0]
+        self.dataset=Dataset(file_path)
+        self.dataset.open()
+        self.data_info=self.dataset.get_data_info()
+        T=self.data_info["T"]
+        N_points=self.data_info["N_points"]
+        points=self.dataset.get_points()
+        dists=np.zeros((N_points,N_points))
+        counts=np.zeros((N_points,N_points))
+        self.state=["Calculating distance matrix",0]
+        points_ref=points[t_ref,1:,:2]
+        existing_ref=~np.isnan(points_ref[:,0])
+        distmat=sspat.distance.squareform(sspat.distance.pdist(points_ref))
+        np.fill_diagonal(distmat,np.nan)
+
+        self.state=["Locating Points",0]
+        ptss=np.full_like(points,np.nan)
+        for t in range(T):
+            if self.cancel:
+                self.quit()
+                return
+            existing=~np.isnan(points[t,1:,0])
+            if existing.sum()==0:
+                pass
+            todo=np.nonzero(~(existing*existing_ref))[0]
+            for i in todo:
+                validrefs=np.nonzero((~np.isnan(distmat[i]))*existing*existing_ref)[0]
+                if len(validrefs)==0:
+                    continue
+                weights=(1/(distmat[i,validrefs]+epsilon))**2
+                vecs=points[t,validrefs+1,:2]-points_ref[validrefs,:2]
+                vec=(weights[:,None]*vecs).sum(0)/weights.sum()
+                ptss[t,1+i,:2]=points_ref[i]+vec
+                ptss[t,1+i,2]=0
+            self.state[1]=int(100*((t+1)/T))
+        self.dataset.set_data("helper_InvDistInterp",ptss,overwrite=True)
+        self.dataset.close()
+        self.state="Done"
+
+    def quit(self):
+        self.dataset.close()
+        pass
+
 def NN(command_pipe_sub,file_path,params):
     method=NNClass(params)
     thread=threading.Thread(target=method.run,args=(file_path,))
@@ -476,13 +540,25 @@ def KernelCorrelation2D(command_pipe_sub,file_path,params):
             thread.join()
             break
 
-methods={"NN":NN,"BayesianNPS":BayesianNPS,"KernelCorrelation2D":KernelCorrelation2D}
-methodhelp={}
-for name,method in methods.items():
-    try:
-        methodhelp[name]=method.help
-    except:
-        methodhelp[name]="No Help Message"
+def InvDistInterp(command_pipe_sub,file_path,params):
+    method=InvDistInterpClass(params)
+    thread=threading.Thread(target=method.run,args=(file_path,))
+    while True:
+        command=command_pipe_sub.recv()
+        if command=="run":
+            thread.start()
+        elif command=="report":
+            command_pipe_sub.send(method.state)
+        elif command=="cancel":
+            method.cancel=True
+            thread.join()
+            break
+        elif command=="close":
+            thread.join()
+            break
+
+methods={"NN":NN,"InvDistInterp":InvDistInterp}
+methodhelps={"NN":NNClass.help,"InvDistInterp":InvDistInterpClass.help}
 
 
 if __name__=="__main__":
