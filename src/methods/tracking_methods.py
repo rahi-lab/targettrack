@@ -1,7 +1,7 @@
 import os
 import sys
 sys.path.append(os.getcwd())
-from src.Dataset import *
+from src.methods.DatasetForMethod import *
 
 import os
 import shutil
@@ -53,7 +53,7 @@ class NNClass():
             import umap
         self.device= torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.state=["Preparing",0]
-        self.dataset=Dataset(file_path)
+        self.dataset=DatasetForMethod(file_path)
         _,file=os.path.split(file_path)
         folname=file.split(".")[0]
         self.folpath=os.path.join("data","data_temp",folname)
@@ -283,7 +283,7 @@ class BayesianNPSClass():
 
     def run(self,file_path):
         self.state=["Preparing",0]
-        self.dataset=Dataset(file_path)
+        self.dataset=DatasetForMethod(file_path)
         self.dataset.open()
         self.data_info=self.dataset.get_data_info()
         anchor_labels=self.params["anchor_labels"]
@@ -329,7 +329,7 @@ class KernelCorrelation2DClass():
         corr_size=search_size-kernel_size+1
         
         self.state=["Preparing",0]
-        self.dataset=Dataset(file_path)
+        self.dataset=DatasetForMethod(file_path)
         self.dataset.open()
         self.data_info=self.dataset.get_data_info()
         C=self.data_info["C"]
