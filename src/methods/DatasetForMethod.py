@@ -3,7 +3,7 @@ import numpy as np
 import os
 supported_suffixes=["h5"]
 
-class Dataset:
+class DatasetForMethod:
     def __init__(self,file_path):
         self.file_path=file_path
         self.suffix=self.file_path.split(".")[-1]

@@ -83,7 +83,6 @@ class Controller():
         self.frame_shape = self.data.frame_shape      # Todo: make sure that changes in shae due to cropping do not matter
 
         self.NNmask_key=""
-        self.NNpts_key=""
 
         # all points are loaded in memory
         if self.point_data:
@@ -164,11 +163,11 @@ class Controller():
         self.assigned_sorted_list = []  # AD sorted list of neurons (from1) that have a key assigned
         self.mask_temp=None
 
-        # get all existing NNs
-        self.NNmodels = []
-        self.NNinstances = {}
-        self._scan_NN_models()
-        self._scan_NN_instances()
+        if not self.point_data:
+            # get all existing NNs
+            self.NNmodels = []
+            self.NNinstances = {}
+            self._scan_NN_models()
 
         self.subprocmanager=SubProcManager.SubProcManager()
 
@@ -1643,24 +1642,21 @@ class Controller():
             self.pointdat[fro:to + 1, self.highlighted, :])
         self.update()
 
-    def select_NN_instance_points(self, NetName:str, instance:str):
+    def select_NN_instance_points(self, helper_name:str):
         """Loads neural network point predictions"""
         self.save_status()
         if not self.point_data:
             return
-        if NetName == "":
-            self.NNpts_key = ""
+        if helper_name is None:
             self.NN_pointdat = np.full_like(self.pointdat, np.nan)
             self.update()
             return
-        key = NetName + "_" + instance
-        knn = "net/" + key + "/NN_pointdat"
-        if self.data.check_key(knn):
-            self.NNpts_key = knn
-            self.NN_pointdat = np.array(self.data[self.NNpts_key])
-            self.NN_pointdat[:, 0, :] = np.nan
-        else:
+        out = self.data.get_method_results(helper_name)
+        if out is False:
             self.NN_pointdat = np.full_like(self.pointdat, np.nan)
+        else:
+            self.NN_pointdat = out
+            self.NN_pointdat[:, 0, :] = np.nan
         self.update()
 
     def select_NN_instance_masks(self, NetName:str, instance:str):
@@ -2043,17 +2039,8 @@ class Controller():
 
         self.NNmodels = sorted(sorted(self.NNmodels), key=our_preference)
 
-    def _scan_NN_instances(self):
-        """
-        Looks for existing NN instances in self.data, and populates the dict self.NNinstances with them.
-        Only used for initialization.
-        """
-        for key in self.data.available_NNpointdats():   # Todo AD why for pointdat only? is it just the name?
-            NetName, instance = key.split("_")
-            if NetName not in self.NNinstances:
-                self.NNinstances[NetName] = []
-            if instance not in self.NNinstances[NetName]:
-                self.NNinstances[NetName].append(instance)
+    def available_method_results(self):
+        return self.data.get_available_methods()
 
     def pull_NN_res(self, key: str, success: bool):
         """
@@ -2075,15 +2062,8 @@ class Controller():
                 self.NNinstances[NetName] = []
             self.NNinstances[NetName].append(runname)
 
-            if self.point_data:
-                def pointdat_filter_fun(NNmodel, instance):
-                    return "NN_pointdat" in self.data["net"][NNmodel + "_" + instance]   # TODO AD self.data["net"]
-            else:
-                def pointdat_filter_fun(NNmodel, instance):
-                    return False
-
             for client in self.NN_instances_registered_clients:
-                client.change_NN_instances(pointdat_filter_fun)
+                client.change_NN_instances()
         else:
             print("Deleting ", key)
             val, msg = True, "Deleted"
@@ -2188,7 +2168,6 @@ class Controller():
     def save_status(self):
         if self.point_data:
             self.save_pointdat()
-            self.save_NNpointdat()
             self.hlab.save_ci_int(self.data)#MB just added a tab to avoid an error with mask data
         self.data.save()
         # Todo AD: if th ci_int changes, we might want to update the ci display (which used to be done by calling
@@ -2199,11 +2178,6 @@ class Controller():
     def save_pointdat(self):
         # TODO: check for point_data use and consistency
         self.data.set_poindat(self.pointdat)
-
-    #we save the point data
-    def save_NNpointdat(self):
-        if self.data.check_key(self.NNpts_key):
-            self.data[self.NNpts_key][...]=self.NN_pointdat.astype(np.float32)
 
     def save_and_repack(self):
         print("Repacking")
@@ -2233,11 +2207,8 @@ class Controller():
         self.data = DataSet.load_dataset(dset_path)
         if self.point_data:
             self.pointdat = self.data.pointdat
-            # TODO: get the NN pointdat from the dataset
-            print("Not Implemented yet")
-            # self.NNpts_key = knn
-            # self.NN_pointdat = np.array(self.data[self.NNpts_key])
-            # self.NN_pointdat[:, 0, :] = np.nan
+            for client in self.NN_instances_registered_clients:
+                client.change_NN_instances()   # Todo Mahsa do we also want this for masks?
         self.update()
 
     #when a key for a neuron is clicked the point is now annotated. rm is the remove option

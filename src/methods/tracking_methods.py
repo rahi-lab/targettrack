@@ -1,7 +1,7 @@
 import os
 import sys
 sys.path.append(os.getcwd())
-from src.Dataset import *
+from src.methods.DatasetForMethod import *
 
 import os
 import shutil
@@ -53,7 +53,7 @@ class NNClass():
             import umap
         self.device= torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         self.state=["Preparing",0]
-        self.dataset=Dataset(file_path)
+        self.dataset=DatasetForMethod(file_path)
         _,file=os.path.split(file_path)
         folname=file.split(".")[0]
         self.folpath=os.path.join("data","data_temp",folname)
@@ -283,7 +283,7 @@ class BayesianNPSClass():
 
     def run(self,file_path):
         self.state=["Preparing",0]
-        self.dataset=Dataset(file_path)
+        self.dataset=DatasetForMethod(file_path)
         self.dataset.open()
         self.data_info=self.dataset.get_data_info()
         anchor_labels=self.params["anchor_labels"]
@@ -329,7 +329,7 @@ class KernelCorrelation2DClass():
         corr_size=search_size-kernel_size+1
         
         self.state=["Preparing",0]
-        self.dataset=Dataset(file_path)
+        self.dataset=DatasetForMethod(file_path)
         self.dataset.open()
         self.data_info=self.dataset.get_data_info()
         C=self.data_info["C"]
@@ -424,6 +424,70 @@ class KernelCorrelation2DClass():
     def quit(self):
         self.dataset.close()
     
+class InvDistInterpClass():
+    help="yup"
+    def __init__(self,params):
+        self.state=""
+        self.cancel=False
+
+        params_dict={}
+        try:
+            for txt in params.strip().split(";"):
+                if txt=="":
+                    continue
+                key,val=txt.split("=")
+                params_dict[key]=eval(val)
+        except:
+            assert False, "Parameter Parse Failure"
+        self.params={"t_ref":0,"epslion":1e-10}
+        self.params.update(params_dict)
+
+    def run(self,file_path):
+        epsilon=self.params["epslion"]
+        t_ref=self.params["t_ref"]
+
+        self.state=["Preparing",0]
+        self.dataset=DatasetForMethod(file_path)
+        self.dataset.open()
+        self.data_info=self.dataset.get_data_info()
+        T=self.data_info["T"]
+        N_points=self.data_info["N_points"]
+        points=self.dataset.get_points()
+        dists=np.zeros((N_points,N_points))
+        counts=np.zeros((N_points,N_points))
+        self.state=["Calculating distance matrix",0]
+        points_ref=points[t_ref,1:,:2]
+        existing_ref=~np.isnan(points_ref[:,0])
+        distmat=sspat.distance.squareform(sspat.distance.pdist(points_ref))
+        np.fill_diagonal(distmat,np.nan)
+
+        self.state=["Locating Points",0]
+        ptss=np.full_like(points,np.nan)
+        for t in range(T):
+            if self.cancel:
+                self.quit()
+                return
+            existing=~np.isnan(points[t,1:,0])
+            if existing.sum()==0:
+                pass
+            todo=np.nonzero(~(existing*existing_ref))[0]
+            for i in todo:
+                validrefs=np.nonzero((~np.isnan(distmat[i]))*existing*existing_ref)[0]
+                if len(validrefs)==0:
+                    continue
+                weights=(1/(distmat[i,validrefs]+epsilon))**2
+                vecs=points[t,validrefs+1,:2]-points_ref[validrefs,:2]
+                vec=(weights[:,None]*vecs).sum(0)/weights.sum()
+                ptss[t,1+i,:2]=points_ref[i]+vec
+                ptss[t,1+i,2]=0
+            self.state[1]=int(100*((t+1)/T))
+        self.dataset.set_data("helper_InvDistInterp",ptss,overwrite=True)
+        self.dataset.close()
+        self.state="Done"
+
+    def quit(self):
+        self.dataset.close()
+        pass
     
 def NN(command_pipe_sub,file_path,params):
     method=NNClass(params)
@@ -476,13 +540,25 @@ def KernelCorrelation2D(command_pipe_sub,file_path,params):
             thread.join()
             break
 
-methods={"NN":NN,"BayesianNPS":BayesianNPS,"KernelCorrelation2D":KernelCorrelation2D}
-methodhelp={}
-for name,method in methods.items():
-    try:
-        methodhelp[name]=method.help
-    except:
-        methodhelp[name]="No Help Message"
+def InvDistInterp(command_pipe_sub,file_path,params):
+    method=InvDistInterpClass(params)
+    thread=threading.Thread(target=method.run,args=(file_path,))
+    while True:
+        command=command_pipe_sub.recv()
+        if command=="run":
+            thread.start()
+        elif command=="report":
+            command_pipe_sub.send(method.state)
+        elif command=="cancel":
+            method.cancel=True
+            thread.join()
+            break
+        elif command=="close":
+            thread.join()
+            break
+
+methods={"NN":NN,"InvDistInterp":InvDistInterp}
+methodhelps={"NN":NNClass.help,"InvDistInterp":InvDistInterpClass.help}
 
 
 if __name__=="__main__":
