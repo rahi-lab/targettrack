@@ -84,7 +84,17 @@ class NeuronBar(QScrollArea):
         del self.activated_contents
         del self.unactivated_contents
         # del self.separator
+
+        #MB: initialize neuron_bar_holderLayout here so the neuron bar updates properly
+        #without repeating sequences of neurons
+        dummy = QWidget()
+        self.neuron_bar_holderLayout = QHBoxLayout()
+        self.separator = QLabel("|")
+        dummy.setLayout(self.neuron_bar_holderLayout)
+        self.setWidget(dummy)
+
         self._create_contents()
+
         for i_from1 in sorted(self.neurons.keys()):
             if i_from1 in self.keyed_neurons_from1:
                 self.neurons[i_from1].install_in(self.activated_contents)
@@ -229,7 +239,6 @@ class NeuronBarItem:
 
     def highlight(self):
         self.highlighted = True
-        self.neuron_button.setStyleSheet(self.qss)
         if self.present:
             self.neuron_button.setProperty("color", "hp")
         else:
@@ -252,8 +261,6 @@ class DashboardItem(QPushButton):
     qss = """
                  QPushButton{
                     border-radius: 4px;
-                    min-width: 25px;
-                    max-width: 25px;
                  }
                  QPushButton[color = "a"]{
                      background-color: red;
@@ -268,6 +275,7 @@ class DashboardItem(QPushButton):
         self.i_from1 = i_from1
         self.clicked.connect(callback)
         self.present = False  # Todo: set at init??
+        self.setStyleSheet(self.qss)
 
     def set_present(self):
         self.present = True
@@ -830,32 +838,20 @@ class NNControlTab(QWidget):
             # AD Done. You are right, the controller is the communication channel. If the TrackTab wants to do anything to the data (or gui),
             # it must be done by calling a method of the controller, then the controller will do what must be done.
             self.widget=TrackTab(self.controller)
-            dummylayout=QGridLayout()
-            dummylayout.addWidget(self.widget)
-            self.setLayout(dummylayout)
-            
+            main_layout.addWidget(self.widget)
+
+
+
             #CFP-HELP:Here I need a QCombobox to select a helper(NN result or output of other algorithms) then give it to NN_pointdat.
             # AD not sure what do you want help with? adding the QCombobox? or calling the right methods (please explain)?
-            """
-            lab = QLabel("Select NN points")
-            main_layout.addWidget(lab, row, 0, 1, 2)
-            row += 1
-
+            # Todo move into TrackTab
+            lab = QLabel("Select helper data")
+            main_layout.addWidget(lab)
             self.NN_pt_select = QComboBox()
-            self.NN_pt_select.addItem("None")
             self.NN_pt_select.currentTextChanged.connect(self._select_pt_instance)
-            main_layout.addWidget(self.NN_pt_select, row, 0, 1, 2)
-            row += 1
+            self.populate_point_NNinstances()
+            main_layout.addWidget(self.NN_pt_select)
 
-            NN_train = QPushButton("Train Point Detection Neural Network")
-            NN_train.clicked.connect(lambda: self._run_script(mask=False))
-            NN_train_fol = QPushButton("Output Train NNpts folder")
-            NN_train_fol.clicked.connect(lambda: self._run_NN(mask=False, fol=True))
-            main_layout.addWidget(NN_train, row, 0, 1, 2)
-            row += 1
-            main_layout.addWidget(NN_train_fol, row, 0, 1, 2)
-            row += 1
-            """
         else:
             # and this is to select NN from which to load masks
             lab = QLabel("Select NN masks")
@@ -951,9 +947,9 @@ class NNControlTab(QWidget):
             row += 1
 
             NN_train = QPushButton("Train Mask Prediction Neural Network")
-            NN_train.clicked.connect(lambda: self._run_NN(mask=True))
+            NN_train.clicked.connect(lambda: self._run_mask_NN(mask=True))
             NN_train_fol = QPushButton("Output Train NNmasks folder")
-            NN_train_fol.clicked.connect(lambda: self._run_NN(mask=True, fol=True))
+            NN_train_fol.clicked.connect(lambda: self._run_mask_NN(mask=True, fol=True))
             main_layout.addWidget(NN_train, row, 0, 1, 2)
             row += 1
             main_layout.addWidget(NN_train_fol, row, 0, 1, 2)
@@ -965,9 +961,9 @@ class NNControlTab(QWidget):
             self.NN_model_select = QComboBox()
             self.NN_instance_select = QComboBox()
             self.change_NN_instances()
-            self.setup_NNmodels()   # populate the self.NN_model_select with the existing models
-            self.populate_NNinstances()
-            self.NN_model_select.currentTextChanged.connect(self.populate_NNinstances)
+            self.setup_mask_NNmodels()   # populate the self.NN_model_select with the existing models
+            self.populate_mask_NNinstances()
+            self.NN_model_select.currentTextChanged.connect(self.populate_mask_NNinstances)
             main_layout.addWidget(self.NN_model_select, row, 0)
             main_layout.addWidget(self.NN_instance_select, row, 1)
             row += 1
@@ -983,11 +979,11 @@ class NNControlTab(QWidget):
         return self.controller.NNinstances
 
     def _select_pt_instance(self, txt):
-        if txt == "":
-            net, instance = "", None
+        if txt == "" or txt == "None":
+            helper_name = None
         else:
-            net, instance = txt.split(" ")
-        self.controller.select_NN_instance_points(net, instance)
+            helper_name = txt
+        self.controller.select_NN_instance_points(helper_name)
 
     def _select_mask_instance(self, txt):
         if txt == "":
@@ -999,7 +995,7 @@ class NNControlTab(QWidget):
     def _run_script(self):
         pass
 
-    def _run_NN(self, mask=False, fol=False):
+    def _run_mask_NN(self, mask=False, fol=False):
         modelname = self.NN_model_select.currentText()
         instancename = self.NN_instance_select.currentText()
         if instancename == "new":
@@ -1030,7 +1026,7 @@ class NNControlTab(QWidget):
                 dial.setText('Run Success\n'+msg)
                 dial.exec_()
 
-    def setup_NNmodels(self):
+    def setup_mask_NNmodels(self):
         """
         Populates the list of NN models with models existing in self.controller.
         Only for initialization (list of NN models is fixed).
@@ -1039,7 +1035,7 @@ class NNControlTab(QWidget):
         for modelname in self.controller.NNmodels:
             self.NN_model_select.addItem(modelname)
 
-    def populate_NNinstances(self):
+    def populate_mask_NNinstances(self):
         """
         Populates the list of selectable NN instances with existing instances for current model and new.
         """
@@ -1050,24 +1046,32 @@ class NNControlTab(QWidget):
             for instance in self.NNinstances[currname]:
                 self.NN_instance_select.addItem(instance)
 
+    def populate_point_NNinstances(self):
+        self.NN_pt_select.clear()
+        currname = self.NN_pt_select.currentText()
+        helper_names = self.controller.available_method_results()
+        if len(helper_names) == 0:
+            self.NN_pt_select.addItem("None")
+            return
+        for name in helper_names:
+            self.NN_pt_select.addItem(name)
+        if currname in helper_names:
+            self.NN_pt_select.setCurrentText(currname)
+
+
     def change_NN_instances(self):
         """
         Callback when new instances of NNs are created (or deleted?).
         """
-        self.populate_NNinstances()
-
         if not self.as_points:
+            self.populate_mask_NNinstances()
             self.NN_mask_select.clear()
             self.NN_mask_select.addItem("")
+            for net, insts in self.NNinstances.items():
+                for inst in insts:
+                    self.NN_mask_select.addItem(net + " " + inst)
         else:
-            self.NN_pt_select.clear()
-            self.NN_pt_select.addItem("")
-        for net,insts in self.NNinstances.items():
-            for inst in insts:
-                if not self.as_points:
-                    self.NN_mask_select.addItem(net+" "+inst)
-                elif self.controller.NN_inst_has_pointdat(net, inst):
-                    self.NN_pt_select.addItem(net+" "+inst)
+            self.populate_point_NNinstances()
 
     def change_validation_set(self, validation_set):
         self.val_set_display.setText(str(validation_set))
@@ -1766,9 +1770,6 @@ class DashboardTab(QWidget):
         button.setStyleSheet("background-color : rgb(255,255,255); border-radius: 4px;")
         self.topgrid.addWidget(button, 0, 0)
         self.keys = {}
-        self.assigned_colors = np.array([])   # TODO: consistent with highlighting etc
-        self.assigned_colors = np.array(
-            [[int(val) for val in col.split(",")] for col in ("41,98,24;235,85,40;249,216,73;117,251,76;117,251,253;0,0,245").split(";")])
 
         topscrollwidget.setLayout(self.topgrid)
         topscrollarea.setWidget(topscrollwidget)
@@ -1840,8 +1841,9 @@ class DashboardTab(QWidget):
                 button = QPushButton(key)
                 button.clicked.connect(self._make_button_press_function_h(idx_from1))
                 # button.setFixedWidth(25)
-                button.setStyleSheet("background-color : rgb(" + str(self.assigned_colors[j, 0]) + "," + str(
-                    self.assigned_colors[j, 1]) + "," + str(self.assigned_colors[j, 2]) + "); border-radius: 4px;")
+                color = self.controller.neuron_color(idx_from1)
+                button.setStyleSheet("background-color : rgb(" + str(color[0]) + "," + str(
+                    color[1]) + "," + str(color[2]) + "); border-radius: 4px;")
                 col.append(button)
                 self.topgrid.addWidget(button, 0, j + 1)
 
@@ -1887,7 +1889,7 @@ class DashboardTab(QWidget):
 
 
 
-class TrackTab(QWidget):
+class TrackTab(QWidget):   # Todo rename
     def __init__(self, controller):
         super().__init__()
         #CFP-HELP: Probably, this should be the controller? # AD yes!

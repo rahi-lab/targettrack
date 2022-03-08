@@ -392,6 +392,19 @@ class DataSet:
         """
         raise NotImplementedError
 
+    def get_method_results(self, method_name:str):
+        """
+        :param method_name: str, the name of the method instance (such as NN)
+        :return: method_pointdat, the assignments made by the method, in the same format as pointdat
+        """
+        raise NotImplementedError
+
+    def get_available_methods(self):
+        """
+        :return: list of method instances available in the dataset
+        """
+        raise NotImplementedError
+
     @abc.abstractmethod
     def set_calcium(self, ci_int):
         raise NotImplementedError

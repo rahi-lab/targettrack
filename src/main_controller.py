@@ -19,7 +19,7 @@ import h5py
 from PyQt5.QtWidgets import QErrorMessage
 
 #Internal classes
-from .helpers import SubProcManager, QtHelpers
+from .helpers import SubProcManager, QtHelpers, misc
 from . import h5utils
 from .datasets_code.DataSet import DataSet
 import shutil
@@ -66,7 +66,7 @@ class Controller():
 
         self.ready = False
 
-        self.timer = QtHelpers.UpdateTimer(1. / int(self.settings["fps"]), self.update)
+        self.timer = misc.UpdateTimer(1. / int(self.settings["fps"]), self.update)
 
         # whether data is going to be as points or as masks:
         self.point_data = self.data.point_data
@@ -83,7 +83,6 @@ class Controller():
         self.frame_shape = self.data.frame_shape      # Todo: make sure that changes in shae due to cropping do not matter
 
         self.NNmask_key=""
-        self.NNpts_key=""
 
         # all points are loaded in memory
         if self.point_data:
@@ -164,11 +163,11 @@ class Controller():
         self.assigned_sorted_list = []  # AD sorted list of neurons (from1) that have a key assigned
         self.mask_temp=None
 
-        # get all existing NNs
-        self.NNmodels = []
-        self.NNinstances = {}
-        self._scan_NN_models()
-        self._scan_NN_instances()
+        if not self.point_data:
+            # get all existing NNs
+            self.NNmodels = []
+            self.NNinstances = {}
+            self._scan_NN_models()
 
         self.subprocmanager=SubProcManager.SubProcManager()
 
@@ -221,6 +220,7 @@ class Controller():
         self.segmenter = None
         self.ref_frames = set()   # the set of frames that the user wants to use for the next registration
         GlobalParameters.set_params()
+        self.color_manager = misc.ColorAssignment(self)
 
     def set_point_data(self, value:bool):
         self.data.point_data = value
@@ -1140,7 +1140,7 @@ class Controller():
         print("Assigning key:", key, "for neuron", i_from1)
 
         self.assigned_sorted_list = sorted(list(self.button_keys.values()))
-
+        self.signal_pts_changed(t_change=False)   # just needed to display the activated neurons
         # self.set_activated_tracks()   # TODO if necessary
 
     def _get_neuron_key(self, neuron_id_from1:int):
@@ -1475,7 +1475,7 @@ class Controller():
         #MB added: to get the connected components of the mask
         labelArray,numFtr = sim.label(self.mask==self.highlighted)
         if numFtr>1:
-            dlg2 = ecv.CustomDialogSubCell()#ask if you want all components change or ony one
+            dlg2 = ecv.CustomDialogSubCell()#ask if you want all components change or only one of them
         #ind=regs[0][coord[0],coord[1],coord[2]]
 
         dlg = ecv.CustomDialog()#which number to change to
@@ -1642,24 +1642,21 @@ class Controller():
             self.pointdat[fro:to + 1, self.highlighted, :])
         self.update()
 
-    def select_NN_instance_points(self, NetName:str, instance:str):
+    def select_NN_instance_points(self, helper_name:str):
         """Loads neural network point predictions"""
         self.save_status()
         if not self.point_data:
             return
-        if NetName == "":
-            self.NNpts_key = ""
+        if helper_name is None:
             self.NN_pointdat = np.full_like(self.pointdat, np.nan)
             self.update()
             return
-        key = NetName + "_" + instance
-        knn = "net/" + key + "/NN_pointdat"
-        if self.data.check_key(knn):
-            self.NNpts_key = knn
-            self.NN_pointdat = np.array(self.data[self.NNpts_key])
-            self.NN_pointdat[:, 0, :] = np.nan
-        else:
+        out = self.data.get_method_results(helper_name)
+        if out is False:
             self.NN_pointdat = np.full_like(self.pointdat, np.nan)
+        else:
+            self.NN_pointdat = out
+            self.NN_pointdat[:, 0, :] = np.nan
         self.update()
 
     def select_NN_instance_masks(self, NetName:str, instance:str):
@@ -2042,17 +2039,8 @@ class Controller():
 
         self.NNmodels = sorted(sorted(self.NNmodels), key=our_preference)
 
-    def _scan_NN_instances(self):
-        """
-        Looks for existing NN instances in self.data, and populates the dict self.NNinstances with them.
-        Only used for initialization.
-        """
-        for key in self.data.available_NNpointdats():   # Todo AD why for pointdat only? is it just the name?
-            NetName, instance = key.split("_")
-            if NetName not in self.NNinstances:
-                self.NNinstances[NetName] = []
-            if instance not in self.NNinstances[NetName]:
-                self.NNinstances[NetName].append(instance)
+    def available_method_results(self):
+        return self.data.get_available_methods()
 
     def pull_NN_res(self, key: str, success: bool):
         """
@@ -2074,15 +2062,8 @@ class Controller():
                 self.NNinstances[NetName] = []
             self.NNinstances[NetName].append(runname)
 
-            if self.point_data:
-                def pointdat_filter_fun(NNmodel, instance):
-                    return "NN_pointdat" in self.data["net"][NNmodel + "_" + instance]   # TODO AD self.data["net"]
-            else:
-                def pointdat_filter_fun(NNmodel, instance):
-                    return False
-
             for client in self.NN_instances_registered_clients:
-                client.change_NN_instances(pointdat_filter_fun)
+                client.change_NN_instances()
         else:
             print("Deleting ", key)
             val, msg = True, "Deleted"
@@ -2187,7 +2168,6 @@ class Controller():
     def save_status(self):
         if self.point_data:
             self.save_pointdat()
-            self.save_NNpointdat()
             self.hlab.save_ci_int(self.data)#MB just added a tab to avoid an error with mask data
         self.data.save()
         # Todo AD: if th ci_int changes, we might want to update the ci display (which used to be done by calling
@@ -2198,11 +2178,6 @@ class Controller():
     def save_pointdat(self):
         # TODO: check for point_data use and consistency
         self.data.set_poindat(self.pointdat)
-
-    #we save the point data
-    def save_NNpointdat(self):
-        if self.data.check_key(self.NNpts_key):
-            self.data[self.NNpts_key][...]=self.NN_pointdat.astype(np.float32)
 
     def save_and_repack(self):
         print("Repacking")
@@ -2232,11 +2207,8 @@ class Controller():
         self.data = DataSet.load_dataset(dset_path)
         if self.point_data:
             self.pointdat = self.data.pointdat
-            # TODO: get the NN pointdat from the dataset
-            print("Not Implemented yet")
-            # self.NNpts_key = knn
-            # self.NN_pointdat = np.array(self.data[self.NNpts_key])
-            # self.NN_pointdat[:, 0, :] = np.nan
+            for client in self.NN_instances_registered_clients:
+                client.change_NN_instances()   # Todo Mahsa do we also want this for masks?
         self.update()
 
     #when a key for a neuron is clicked the point is now annotated. rm is the remove option
@@ -2303,3 +2275,15 @@ class Controller():
                 trax.append(pt[0])
                 tray.append(pt[1])
         return np.array([trax,tray])
+
+    def neuron_color(self, idx_from1=None):
+        """
+        :param idx_from1: if None,
+        :return: single list/tuple [r, g, b] the 0-255 RGB values for the color of the neuron if idx_from1 is given,
+            otherwise list of such RGB values for each neuron of self.assigned_sorted_list that is currently present
+        """
+        if idx_from1 is None:
+            present = np.argwhere(~np.isnan(self.NN_or_GT[self.i][self.assigned_sorted_list, 0])).flatten()
+            col_lst = [self.color_manager.color_for_neuron(self.assigned_sorted_list[pres_idx]) for pres_idx in present]
+            return col_lst
+        return self.color_manager.color_for_neuron(idx_from1)

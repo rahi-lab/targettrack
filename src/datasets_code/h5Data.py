@@ -581,6 +581,19 @@ class h5Data(DataSet):
         h5net.close()
         print("Merging Training results of ", NetName+"_"+runname, " into ", self.name)
 
+    def get_method_results(self, method_name):
+        key = "helper_" + method_name
+        if key not in self.dataset:
+            return False
+        return np.array(self.dataset[key])
+
+    def get_available_methods(self):
+        ret = []
+        for key in self.dataset.keys():
+            if key[:7] == "helper_":
+                ret.append(key[7:])
+        return ret
+
     def set_calcium(self, ci_int):
         """
         this sets the ci_int data
