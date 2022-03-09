@@ -140,13 +140,13 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
     def change_highlighted_neuron(self, high: int=None, unhigh:int=None, high_pointdat=None, **kwargs):
         """
         :param high_pointdat: 1x3 array with the x, y, z coordinates of the highlighted point.
-            Must be given if high is not None.
+            Must be given if high is not None (only in point_data mode).
         """
         high_key = "pts_high"
         if high is None:
             self.pointsetplots[high_key].setData(pos=[])
             self.pointsetsdata[high_key] = []
-        else:
+        elif high_pointdat is not None:
             self.pointsetplots[high_key].setData(pos=high_pointdat[:, :2])
             self.pointsetsdata[high_key] = high_pointdat
             self.pointsetplots[high_key].setSize(size=self.size_func(high_pointdat[:, 2]))

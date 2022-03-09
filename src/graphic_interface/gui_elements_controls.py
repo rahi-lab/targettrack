@@ -42,7 +42,11 @@ class NeuronBar(QScrollArea):
         dummy = QWidget()
         self.neuron_bar_holderLayout = QHBoxLayout()
         self.separator = QLabel("|")
-        self._create_contents()
+        self.unactivated_contents = QGridLayout()
+        self.activated_contents = QGridLayout()
+        self.neuron_bar_holderLayout.addLayout(self.activated_contents)
+        self.neuron_bar_holderLayout.addWidget(self.separator)
+        self.neuron_bar_holderLayout.addLayout(self.unactivated_contents)
         dummy.setLayout(self.neuron_bar_holderLayout)
         self.setWidget(dummy)
 
@@ -50,17 +54,6 @@ class NeuronBar(QScrollArea):
         self.keyed_neurons_from1 = set()   # set of neurons that have a key displayed
         self.setContentsMargins(0, 0, 0, 0)
         self.neuron_bar_holderLayout.setSpacing(0)
-
-    def _create_contents(self):
-        for i in range(self.neuron_bar_holderLayout.count() - 1, -1, -1):
-            wid = self.neuron_bar_holderLayout.itemAt(i).widget()
-            if wid is not None:
-                wid.setParent(self.removed_holder)   # This is necessary to make separator go away
-        self.unactivated_contents = QGridLayout()
-        self.activated_contents = QGridLayout()
-        self.neuron_bar_holderLayout.addLayout(self.activated_contents)
-        self.neuron_bar_holderLayout.addWidget(self.separator)
-        self.neuron_bar_holderLayout.addLayout(self.unactivated_contents)
 
     def change_neuron_keys(self, changes:list):
         """
@@ -81,20 +74,13 @@ class NeuronBar(QScrollArea):
         """
         Re-creates the activated_neuron_bar_contents (a bar with only the neurons that have a key assigned??)
         """
-        del self.activated_contents
-        del self.unactivated_contents
-        # del self.separator
-
-        #MB: initialize neuron_bar_holderLayout here so the neuron bar updates properly
-        #without repeating sequences of neurons
-        #dummy = QWidget()
-        #self.neuron_bar_holderLayout = QHBoxLayout()
-        #self.separator = QLabel("|")
-        #dummy.setLayout(self.neuron_bar_holderLayout)
-        #self.setWidget(dummy)
-
-        self._create_contents()
-
+        # First remove all buttons from the layouts
+        for lay in [self.activated_contents, self.unactivated_contents]:
+            for i in range(lay.count() - 1, -1, -1):
+                item = lay.itemAt(i)
+                if item.widget() is not None:
+                    item.widget().setParent(self.removed_holder)
+        # Then put every button in the right layout (activated or inactivated)
         for i_from1 in sorted(self.neurons.keys()):
             if i_from1 in self.keyed_neurons_from1:
                 self.neurons[i_from1].install_in(self.activated_contents)
@@ -106,17 +92,16 @@ class NeuronBar(QScrollArea):
         Changes the number of neurons in the neuron bar.
         :param nb_neurons: new number of neurons
         """
-        # TODO AD this removes highlighting and present/absent color...!! do we want that??
-        n_delete = len(self.neurons) - nb_neurons
+        old_n_neurons = len(self.neurons)
+        if nb_neurons > old_n_neurons:
+            for i_from1 in range(old_n_neurons+1, nb_neurons+1):
+                self.neurons[i_from1] = NeuronBarItem(i_from1, self)
+                self.neurons[i_from1].install_in(self.unactivated_contents)
+        elif nb_neurons < old_n_neurons:
+            for i_from1 in range(nb_neurons+1, old_n_neurons+1):
+                self.neurons[i_from1].delete()
+                del self.neurons[i_from1]
 
-        # SJR: if number of neurons decreased, reset neuron bar
-        #MB: set this loop to false because it gives an error for frames with no annotations
-        if False:#n_delete > 0:
-            for i in reversed(range(self.neuron_bar_contents.count())):
-                self.neuron_bar_contents.itemAt(i).widget().setParent(None)   # Todo: or use self.removed_holder if we want to keep the buttons, not sure about that (same remark as above)
-
-        for i_from1 in range(1,nb_neurons+1):
-            self.neurons[i_from1] = NeuronBarItem(i_from1, self)
         self._restore_activated_neurons()
 
     def _make_user_neuron_key(self, neuron_id_from1):
@@ -218,8 +203,10 @@ class NeuronBarItem:
         self.highlighted = False   # Todo: set at init??
 
     def install_in(self, holder_layout):
-        holder_layout.addWidget(self.neuron_key_button, 0, self.i_from1 - 1)
-        holder_layout.addWidget(self.neuron_button, 1, self.i_from1 - 1)
+        j = holder_layout.count() // 2   # this is the number of items already in the layout; there are two per neuron
+        # already installed (the button and the key button). We add self after the neurons already present.
+        holder_layout.addWidget(self.neuron_key_button, 0, j)
+        holder_layout.addWidget(self.neuron_button, 1, j)
 
     def set_present(self):
         self.present = True
@@ -255,6 +242,11 @@ class NeuronBarItem:
 
     def set_text(self, text):
         self.neuron_key_button.setText(text)
+
+    def delete(self):
+        self.neuron_key_button.setParent(None)
+        self.neuron_button.setParent(None)
+        del self
 
 
 class DashboardItem(QPushButton):
@@ -1094,6 +1086,7 @@ class NNControlTab(QWidget):
         if Mode ==5:
             self.controller.post_process_NN_masks5(ExNeu)
 
+
 class SelectionTab(QWidget):
     """
     This is the tab that allows to select subsets of data
@@ -1339,6 +1332,7 @@ class SavingTab(QWidget):
         row += 1
 
         self.setLayout(main_layout)
+
 
 class PreProcessTab(QWidget):
         """
@@ -1992,4 +1986,3 @@ class TrackTab(QWidget):   # Todo rename
         # AD NOT FINISHED
         print("CFP:renew_helpers")
         print("CFP:timer_start")
-        

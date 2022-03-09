@@ -311,7 +311,7 @@ class Controller():
 
         #load the mask, from ground truth or neural network
         #show mask if either the "overlay mask" OR the "mask annotation mode" checkboxes are checked
-        if self.options["overlay_mask"] or self.options["mask_annotation_mode"] or self.options["boxing_mode"] or self.data.only_NN_mask_mode:
+        if self._show_masks():
             mask = self.data.get_mask(self.i, force_original=False)
             if mask is False or self.data.only_NN_mask_mode:
                 mask = self.data.get_NN_mask(self.i, self.NNmask_key)
@@ -336,6 +336,14 @@ class Controller():
 
         #peak calculation is only when requested
         self.peak_calced=False
+
+    def _show_masks(self):
+        """
+        In mask mode, whether we are currently showing masks.
+        :return: bool
+        """
+        return (self.options["overlay_mask"] or self.options["mask_annotation_mode"]
+                or self.options["boxing_mode"] or self.data.only_NN_mask_mode)
 
     def valid_points_from_all_points(self, points):
         """
@@ -478,6 +486,8 @@ class Controller():
         """
         Method to signal to all registered clients that the neumber of neurons has changed.
         """
+        if self.highlighted > self.n_neurons:
+            self.highlighted = 0
         for client in self.nb_neuron_registered_clients:
             client.change_nb_neurons(self.n_neurons)
 
@@ -493,7 +503,7 @@ class Controller():
             mask = self.mask
         else:
             mask = self.data.get_mask(t)
-            if t == self.i:
+            if t == self.i and self._show_masks() and not self.data.only_NN_mask_mode:
                 self.mask = mask
 
         old_present = np.flatnonzero(self.neuron_presence[t])
@@ -516,6 +526,7 @@ class Controller():
             self.neuron_presence[t] = False
             self.neuron_presence[t, new_present] = True
             # Third, reduce number of neurons if neurons have disappeared (from all frames)
+            # Todo: that will not reduce the nb of neurons if the last n neurons are absent and already were absent. Is it ok?
             cumsum = np.cumsum(np.sum(self.neuron_presence, axis=0)[::-1])
             if cumsum[0] == 0:   # last neuron is absent at all times
                 self.n_neurons = self.n_neurons - np.flatnonzero(cumsum)[0]
@@ -1087,7 +1098,7 @@ class Controller():
         """
 
         if neuron_id_from1 == self.highlighted:
-            if block_unhighlight:
+            if self.highlighted == 0 or block_unhighlight:   # self.highlighted == 0 is edge case for instance in renumber_mask_obj if the neuron has been deleted completely
                 return
             self.highlighted = 0
             for client in self.highlighted_neuron_registered_clients:
@@ -1098,13 +1109,17 @@ class Controller():
         else:
             hprev = self.highlighted
             self.highlighted = neuron_id_from1
+            if self.point_data:
+                high_ptdat = self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i, [self.highlighted]]))
+            else:
+                high_ptdat = None
             for client in self.highlighted_neuron_registered_clients:
                 client.change_highlighted_neuron(high=self.highlighted,
                                                  unhigh=(hprev if hprev else None),
                                                  # high_present=bool(not self.point_data or self.existing_annotations[self.highlighted]),
                                                  # unhigh_present=bool(not self.point_data or self.existing_annotations[hprev] if hprev else False),
                                                  high_key=self._get_neuron_key(self.highlighted),
-                                                 high_pointdat=self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i, [self.highlighted]])))
+                                                 high_pointdat=high_ptdat)
             if self.options["follow_high"]:
                 self.center_on_highlighted()
 
@@ -1486,7 +1501,7 @@ class Controller():
             value = int(dlg.entry1.text())
 
             # SJR: save old mask to allow undo
-            self.mask_temp = self.mask.copy()
+            self.mask_temp = self.mask.copy()   # Todo this will not work (self.mask=None) if not showing the masks
             if numFtr >1:#MB added
                 if not dlg2.exec_():
                     # SJR: erase neuron
