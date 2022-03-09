@@ -79,7 +79,7 @@ class NeuronBar(QScrollArea):
             for i in range(lay.count() - 1, -1, -1):
                 item = lay.itemAt(i)
                 if item.widget() is not None:
-                    item.widget().setParent(self.removed_holder)
+                    item.widget().setParent(self.removed_holder) # or lay.removeItem(item) would be enough?
         # Then put every button in the right layout (activated or inactivated)
         for i_from1 in sorted(self.neurons.keys()):
             if i_from1 in self.keyed_neurons_from1:

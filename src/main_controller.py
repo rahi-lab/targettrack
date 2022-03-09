@@ -251,7 +251,7 @@ class Controller():
                     self.neuron_presence[t, present] = True
         self.data.neuron_presence = self.neuron_presence
 
-    def update(self,t_change=False):
+    def update(self, t_change=False):
         if not self.ready:   # this is jsut to avoid gui elements from calling callbacks resulting in update during their init   # Todo AD: find more elegant way
             return
         # TODO AD: maybe split into smaller methods, and replace calls to update by methods updating only some parts
@@ -1581,7 +1581,7 @@ class Controller():
         print("Deleting all annotations in frame", self.i)
         self.pointdat[self.i] = np.nan
         self.NN_pointdat[self.i] = np.nan
-        self.neuron_presence[self.i] = False
+        # self.neuron_presence[self.i] = False   # now useless due to update_point_presence in update()
         self.update()
 
     def clear_NN_selective(self, fro, to):
@@ -1599,7 +1599,7 @@ class Controller():
         if self.point_data:
             self.pointdat[fro:to + 1, self.highlighted, :] = np.nan
             self.NN_pointdat[fro:to + 1, self.highlighted, :] = np.nan
-            self.neuron_presence[fro:to + 1, self.highlighted] = False
+            # self.neuron_presence[fro:to + 1, self.highlighted] = False   # now useless due to update_point_presence in signal_pts_changed in update
             self.update()
         else:   # MB added this to use this feature for epfl data
             for k in range(fro,to):
@@ -2138,11 +2138,11 @@ class Controller():
             print("Removing neuron",i_from1,"at time",self.i)
             self.pointdat[self.i][i_from1,:]=np.nan
             self.hlab.update_single_ci(self.data,self.i,i_from1,None)
-            self.neuron_presence[self.i, i_from1] = False
+            # self.neuron_presence[self.i, i_from1] = False   # now useless due to update_point_presence in signal_pts_changed
         else:
             if any(np.isnan(self.pointdat[self.i][i_from1])):
                 add = True
-                self.neuron_presence[self.i, i_from1] = True
+                # self.neuron_presence[self.i, i_from1] = True   # now useless (idem)
             else:
                 add = False
             print("Setting neuron",i_from1,"at time",self.i,"to",coord)
