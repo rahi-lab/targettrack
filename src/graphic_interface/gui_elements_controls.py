@@ -1041,9 +1041,7 @@ class NNControlTab(QWidget):
         self.NN_pt_select.clear()
         currname = self.NN_pt_select.currentText()
         helper_names = self.controller.available_method_results()
-        if len(helper_names) == 0:
-            self.NN_pt_select.addItem("None")
-            return
+        self.NN_pt_select.addItem("None")
         for name in helper_names:
             self.NN_pt_select.addItem(name)
         if currname in helper_names:
