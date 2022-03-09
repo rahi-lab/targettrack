@@ -648,9 +648,11 @@ class Controller():
                 self.options["RenumberComp"] = False
 
         elif None not in coords:  # skip when the coordinate is NaN
+            if not self.point_data:
+                return
+            # assert self.point_data, "Not available with mask data."   # Todo could be implemented
             coord = np.array(coords).astype(np.int16)
             # this will click on the nearest existing annotation
-            assert self.point_data, "Not available with mask data."   # Todo could be implemented
             existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[self.i][:,0]))
             indarr = np.nonzero(existing_annotations)[0]
             if len(indarr) == 0:
@@ -1154,7 +1156,7 @@ class Controller():
         """
         Changes the z slice to the highlighted neuron (if possible)
         """
-        if self.neuron_presence[self.i, self.highlighted]:
+        if self.point_data and self.neuron_presence[self.i, self.highlighted]:
             # set z to the highlighted neuron
             for client in self.zslice_registered_clients:
                 new_z = int(self.NN_or_GT[self.i][self.highlighted, 2] + 0.5)
@@ -2149,6 +2151,8 @@ class Controller():
         :return activity: array of shape nb_frames * 2 with activity[t] is the activity value and error bars of neuron
             neuron_id_from1 at time t
         """
+        if not self.point_data:   # Todo: enable for masks
+            return np.full((self.frame_num, 2), np.nan)
         return self.hlab.ci_int[neuron_id_from1-1][:, :2]
 
     def times_of_presence(self, neuron_idx_from1):

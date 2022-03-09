@@ -1829,7 +1829,7 @@ class DashboardTab(QWidget):
         :param key_changes: list of (neuron_idx_from1, key), with key=None for unassigning
         """
         for idx_from1, key in key_changes:
-            if key is None:   # remove the button column
+            if key is None and idx_from1 in self.button_columns:   # remove the button column
                 for btn in self.button_columns[idx_from1]:
                     # btn.widget().setParent(None)
                     btn.setParent(None)

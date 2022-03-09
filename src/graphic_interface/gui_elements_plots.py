@@ -357,7 +357,8 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
             self.neuron_plotidx = dict(zip(sorted(neurons_to_display), range(len(neurons_to_display))))
             if rm:
                 for neuron_idx_from1 in rm:
-                    del self.neuron_activities[neuron_idx_from1]
+                    if neuron_idx_from1 in self.neuron_activities:
+                        del self.neuron_activities[neuron_idx_from1]
                 self._remove_old_plots()
             if add:
                 for neuron_idx_from1 in add:
