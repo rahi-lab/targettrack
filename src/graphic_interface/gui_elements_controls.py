@@ -1805,8 +1805,8 @@ class DashboardTab(QWidget):
         chunknumber = t // self.chunksize
         if self.chunknumber != chunknumber:
             for i in range(self.chunksize):
-                t = self.chunksize * chunknumber + i
-                self.time_label_buttons[i].setText(str(t) if t < self.T else "")
+                t_i = self.chunksize * chunknumber + i
+                self.time_label_buttons[i].setText(str(t_i) if t_i < self.T else "")
             self.chunknumber = chunknumber
         self.current_i = t % self.chunksize
 
