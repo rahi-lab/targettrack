@@ -398,11 +398,10 @@ class h5Data(DataSet):
             raise ValueError("which_dim must be None or one of 'x', 'y', 'z'")
 
     def get_real_time(self, t):
-        group_key = "real_time"
-        key = str(t)
-        if group_key not in self.dataset or key not in self.dataset[group_key]:
+        key = f"{t}/time"
+        if key not in self.dataset:
             return None
-        return self.dataset[f"{group_key}/{key}"]
+        return np.array(self.dataset[key])
 
     def ci_int(self):
         return self.dataset["ci_int"][:,:,:]
@@ -649,12 +648,11 @@ class h5Data(DataSet):
         group[key][...] = np.array(shape, dtype=np.int32)
 
     def save_real_time(self, t, real_time):
-        group_key = "real_time"
-        if group_key not in self.dataset:
-            group = self.dataset.create_group(group_key)
+        key = f"{t}/time"
+        if key not in self.dataset:
+            self.dataset.create_dataset(key, data=real_time)
         else:
-            group = self.dataset[group_key]
-        group.attrs[str(t)] = real_time
+            self.dataset[key][...] = real_time
 
     def set_poindat(self, pointdat):
         '''
