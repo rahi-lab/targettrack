@@ -20,7 +20,7 @@ class gui(QMainWindow):
         self.controller.freeze_registered_clients.append(self)
         self.settings = settings
 
-        self.setWindowTitle("Tracking")
+        self.setWindowTitle("Targettrack")
         self.resize(self.settings["screen_w"]*4//5, self.settings["screen_h"]*4//5)
         self.centralWidget = QWidget()
         self.setCentralWidget(self.centralWidget)

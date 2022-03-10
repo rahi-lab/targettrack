@@ -168,15 +168,14 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         self.track.setData(track[0], track[1])
 
     def wheelEvent(self,event):
-        self.change_z(max(-1, self.z + event.angleDelta().y()/8/15))
+        new_z = max(-1, self.z + event.angleDelta().y()/8/15)
+        self.controller.change_z(new_z)
 
     def change_z(self, value):
-        # TODO if any other classes need to use z, then wheelEvent should only notify controller of z change and let the
-        #  subsequent call to self.change_z do the job
         if value == -1:
             self.z = value
         else:
-            prop = int(np.clip(value, 0, self.img_data.shape[2]-1))   # Todo: could be a pb if img_data does not yet exist
+            prop = int(np.clip(value, 0, self.img_data.shape[2]-1))
             if not np.isnan(prop):
                 self.z = prop
         self.update_image_display()
@@ -198,7 +197,7 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
             self.update_image_display()
 
         if mask is not None:
-            if mask is False:   # in this case reomve the mask
+            if mask is False:   # in this case remove the mask
                 self.mask_data = None
             else:
                 self.mask_data = mask

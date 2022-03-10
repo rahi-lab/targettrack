@@ -1,3 +1,5 @@
+The tutorial of this GUI is currently being written. To be finished by 16.03.2022.
+
 # Targettrack
 Extremely simple GUI in pure python for easy use and modification
 

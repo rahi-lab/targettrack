@@ -49,6 +49,14 @@ class DataSet:
             from .h5Data import h5Data
             return h5Data(dataset_path)
 
+    @classmethod
+    def create_dataset(cls, dataset_path):
+        if dataset_path.endswith(".nd2"):
+            from .nd2Data import nd2Data
+            return nd2Data._create_dataset(dataset_path)
+        else:
+            from .h5Data import h5Data
+            return h5Data._create_dataset(dataset_path)
 
     @property
     def align(self):
@@ -81,6 +89,23 @@ class DataSet:
         """Save what??"""   # TODO
         raise NotImplementedError
 
+    @classmethod
+    @abc.abstractmethod
+    def _create_dataset(cls, dataset_path):
+        """
+        Creates new empty dataset at given path.
+        :return: new DataSet instance
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def copy_properties(self, other_ds):
+        """
+        Copies all properties (such as number of frames, number of channels...) from other_ds into self.
+        :param other_ds: DataSet (of same type as self)
+        """
+        raise NotImplementedError
+
     @abc.abstractmethod
     def segmented_times(self):
         """Gets the list of times for which a segmentation is defined"""
@@ -98,10 +123,6 @@ class DataSet:
 
     ####################################################################################
     # reading the data
-    @abc.abstractmethod   # TODO AD GET RID OF THIS!!! I think it's just a relic of when dataset was directly an h5
-    def __getitem__(self,key):
-        """returns data[key]"""
-        raise NotImplementedError
 
     @abc.abstractmethod
     def _get_frame(self, t, col="red"):
@@ -233,6 +254,28 @@ class DataSet:
         """
         raise NotImplementedError
 
+    @abc.abstractmethod
+    def original_intervals(self, which_dim=None):
+        """
+        The intervals of the original video frame that the frames of this dataset include.
+        More precisely, a frame of self will correspond to
+        orig_frame[x_interval[0]:x_interval[1], y_interval[0]:y_interval[1], z_interval[0]:z_interval[1]]
+        if orig_frame is the video frame of the original dataset.
+        :param which_dim: None or one of 'x', 'y', 'z'. Which dimension you want the interval for. If None, will return
+            all three intervals.
+        :return: interval or (x_int, y_int, z_int). Each single interval is an array of size 2.
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def get_real_time(self, t):
+        """
+        # TODO MB what is this (it was saved as "t/time")? is it the time in the video??
+        :param t: time frame in self
+        :return:
+        """
+        raise NotImplementedError
+
     def get_existing_neurons(self, t):
         """
         :param t: time
@@ -279,6 +322,8 @@ class DataSet:
     def save_frame(self, t, frameR, frameG = 0, mask = 0, force_original=False):#MB added
         """
         Stores (or replaces if existing?) the segmentation for time t.
+        Saves the dimension of the frame as the dimensions for the dataset, and saves the number of channels or checks
+        that it is consistent. Also updates self.frame_num if t >= self.frame_num.
         :param t: time frame
         :param mask: segmented frame (3D numpy array with segmented[x,y,z] = segment (0 if background)
         :param force_original: if True, does not apply inverse transform (otherwise, respects self.crop and self.align)
@@ -380,6 +425,36 @@ class DataSet:
         original dataset B.
         :param orig: time frame
         :param new: time frame (in self)
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def save_original_intervals(self, x_interval, y_interval, z_interval):
+        """
+        Stores the intervals of the original video frame that the frames of this dataset include.
+        More precisely, a frame of self will correspond to
+        orig_frame[x_interval[0]:x_interval[1], y_interval[0]:y_interval[1], z_interval[0]:z_interval[1]]
+        if orig_frame is the video frame of the original dataset.
+        :param x_interval, y_interval, z_interval: each is an iterable of size 2
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def save_original_size(self, shape):
+        """
+        Stores the shape of the original video frame (the frames of self can be subsamples of the original frames).
+        :param shape: size 3
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def save_real_time(self, t, real_time):
+        """
+        # TODO MB what is this (it was saved as "t/time")? is it the time in the video??
+        #MB: it is the time stamp of that frame from the original nd2 file.
+        :param t: time in the dataset
+        :param real_time:
+        :return:
         """
         raise NotImplementedError
 
