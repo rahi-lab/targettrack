@@ -451,6 +451,7 @@ class DataSet:
     def save_real_time(self, t, real_time):
         """
         # TODO MB what is this (it was saved as "t/time")? is it the time in the video??
+        #MB: it is the time stamp of that frame from the original nd2 file.
         :param t: time in the dataset
         :param real_time:
         :return:

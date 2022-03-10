@@ -313,7 +313,7 @@ class h5Data(DataSet):
             return features
 
     def get_segs_and_assignments(self, times):
-        '''MB's understanding: for each time frame the segmentation of that fram
+        '''MB's understanding: for each time frame the segmentation of that frame
         and the mask corresponding to it (from clustering) is recovered. non-Noise
         segments in each time frames are extracted and the pairs (t,s) Stores
         each frame and segments present in it. for each of this present segments,
