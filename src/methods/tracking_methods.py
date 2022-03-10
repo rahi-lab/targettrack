@@ -13,7 +13,7 @@ import scipy.spatial as sspat
 
 import matplotlib.pyplot as plt
 
-class NNClass():
+class NN():
     help=str({"min_points":1,"channels":None,"mask_radius":4,"2D":False,
     "lr":0.01,
     "n_steps":1000,"batch_size":3,"augment":{0:"comp_cut",500:"aff_cut",1000:"aff"},
@@ -264,7 +264,7 @@ class NNClass():
     def quit(self):
         shutil.rmtree(self.folpath)
 
-class BayesianNPSClass():
+class BayesianNPS():
     def __init__(self,params):
         self.state=""
         self.cancel=False
@@ -302,7 +302,7 @@ class BayesianNPSClass():
     def quit(self):
         pass
         
-class KernelCorrelation2DClass():
+class KernelCorrelation2D():
     help=str({"forward":True,"kernel_size":51,"search_size":101,"refine_size":3})
     
     def __init__(self,params):
@@ -424,7 +424,7 @@ class KernelCorrelation2DClass():
     def quit(self):
         self.dataset.close()
     
-class InvDistInterpClass():
+class InvDistInterp():
     help="yup"
     def __init__(self,params):
         self.state=""
@@ -489,8 +489,8 @@ class InvDistInterpClass():
         self.dataset.close()
         pass
     
-def NN(command_pipe_sub,file_path,params):
-    method=NNClass(params)
+def run(name,command_pipe_sub,file_path,params):
+    method=getattr(currmod,name)(params)
     thread=threading.Thread(target=method.run,args=(file_path,))
     while True:
         command=command_pipe_sub.recv()
@@ -506,63 +506,14 @@ def NN(command_pipe_sub,file_path,params):
             thread.join()
             break
 
-def BayesianNPS(command_pipe_sub,file_path,params):
-    method=BayesianNPSClass(params)
-    thread=threading.Thread(target=method.run,args=(file_path,))
-    while True:
-        command=command_pipe_sub.recv()
-        if command=="run":
-            thread.start()
-        elif command=="report":
-            command_pipe_sub.send(method.state)
-        elif command=="cancel":
-            method.cancel=True
-            thread.join()
-            break
-        elif command=="close":
-            thread.join()
-            break
-
-def KernelCorrelation2D(command_pipe_sub,file_path,params):
-    method=KernelCorrelation2DClass(params)
-    thread=threading.Thread(target=method.run,args=(file_path,))
-    while True:
-        command=command_pipe_sub.recv()
-        if command=="run":
-            thread.start()
-        elif command=="report":
-            command_pipe_sub.send(method.state)
-        elif command=="cancel":
-            method.cancel=True
-            thread.join()
-            break
-        elif command=="close":
-            thread.join()
-            break
-
-def InvDistInterp(command_pipe_sub,file_path,params):
-    method=InvDistInterpClass(params)
-    thread=threading.Thread(target=method.run,args=(file_path,))
-    while True:
-        command=command_pipe_sub.recv()
-        if command=="run":
-            thread.start()
-        elif command=="report":
-            command_pipe_sub.send(method.state)
-        elif command=="cancel":
-            method.cancel=True
-            thread.join()
-            break
-        elif command=="close":
-            thread.join()
-            break
-
-methods={"NN":NN,"InvDistInterp":InvDistInterp}
-methodhelps={"NN":NNClass.help,"InvDistInterp":InvDistInterpClass.help}
+methodnames=["NN","InvDistInterp"]
+methodhelps={}
+for name in methodnames:
+    methodhelps[name]=getattr(currmod,name).help
 
 
 if __name__=="__main__":
     import sys
     fp=sys.argv[1]
-    method=NNClass({"Targeted":True,"n_epoch_posture":2,"batch_size_posture":1})
+    method=NN({"Targeted":True,"n_epoch_posture":2,"batch_size_posture":1})
     method.run(fp)

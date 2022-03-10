@@ -1885,26 +1885,31 @@ class DashboardTab(QWidget):
                     column[i+1].set_absent()
 
 
-class TrackTab(QWidget):   # Todo rename
-    def __init__(self, controller):
+class TrackTab(QWidget):
+    def __init__(self,gui):
         super().__init__()
-        #CFP-HELP: Probably, this should be the controller? # AD yes!
-        self.controller = controller
+        self.gui=gui
 
-        self.methods=tracking_methods.methods
+        self.methods=tracking_methods.methodnames
+        self.methodhelps=tracking_methods.methodhelps
         self.grid=QGridLayout()
-        
+
         row=0
         self.grid.addWidget(QLabel("Select Method"),row,0)
         row+=1
 
         self.combobox=QComboBox()
         self.combobox.addItem("")
-        for key in self.methods.keys():
+        for key in self.methods:
             self.combobox.addItem(key)
         self.combobox.setCurrentIndex(0)
-        self.combobox.currentIndexChanged.connect(lambda x: self.run_button.setEnabled(False) if x==0 else self.run_button.setEnabled(True))
+        self.combobox.currentIndexChanged.connect(self.make_method_change_func())
         self.grid.addWidget(self.combobox,row,0)
+        row+=1
+
+        self.help=QLabel()
+        self.help.setWordWrap(True)
+        self.grid.addWidget(self.help,row,0)
         row+=1
 
         self.param_edit=QLineEdit()
@@ -1919,6 +1924,16 @@ class TrackTab(QWidget):   # Todo rename
         row+=1
 
         self.setLayout(self.grid)
+
+    def make_method_change_func(self):
+        def method_change_func(index):
+            if index==0:
+                self.run_button.setEnabled(False)
+                self.help.setText("")
+            else:
+                self.run_button.setEnabled(True)
+                self.help.setText(self.methodhelps[str(self.combobox.currentText())])
+        return method_change_func
 
     def make_run_function(self):
         def run_function():
@@ -1935,14 +1950,9 @@ class TrackTab(QWidget):   # Todo rename
         res=msgbox.exec()
         if res==QMessageBox.No:
             return
-            
-        #CFP-HELP: I want to save all changes and close the dataset completely, as well as freeze the gui until the script runs, can you do this?
-        # AD done
-        self.controller.save_status()
-        dataset_path = self.controller.pause_for_NN()
-        print("CFP:save")
-        print("CFP:timer_stop")
-        print("CFP:close")
+        self.gui.respond("save")
+        self.gui.respond("timer_stop")
+        self.gui.dataset.close()
 
         progress=QProgressDialog("","cancel",-1,101)
         labeltext="Running "+method_name+((" with "+params) if params!="" else "") +":\n"
@@ -1954,7 +1964,7 @@ class TrackTab(QWidget):   # Todo rename
         QApplication.processEvents()
 
         command_pipe_main,command_pipe_sub=Pipe()
-        process = Process(target=self.methods[method_name], args=(command_pipe_sub, dataset_path, params))
+        process = Process(target=tracking_methods.run, args=(method_name,command_pipe_sub,self.gui.dataset.file_path,params))
         process.start()
         command_pipe_main.send("run")
         while True:
@@ -1975,12 +1985,8 @@ class TrackTab(QWidget):   # Todo rename
         process.join()
 
         progress.setValue(101)
+        self.gui.dataset.open()
+        self.gui.respond("renew_helpers")
+        self.gui.respond("timer_start")
         
-        #CFP-HELP: Now that the script ended, I want to reopen the dataset and link it to the GUI, is this possible?
-        # AD done
-        self.controller.unpause_for_NN(dataset_path)
-        print("CFP:open")
-        #CFP-HELP:Finally, the GUI should be alerted that the NN points have changed(have new results)
-        # AD NOT FINISHED
-        print("CFP:renew_helpers")
-        print("CFP:timer_start")
+        
