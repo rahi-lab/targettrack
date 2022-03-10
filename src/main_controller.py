@@ -33,6 +33,8 @@ from .mask_processing.features import FeatureBuilder
 from .mask_processing.clustering import Clustering
 from .mask_processing.classification import Classification
 from .mask_processing.image_register import Register_Rotate
+from .mask_processing.NN_related import post_process_NN_masks, post_process_NN_masks2, post_process_NN_masks3, \
+    post_process_NN_masks4, post_process_NN_masks5
 
 # SJR: message box for indicating neuron number of new neuron and for renumbering neuron
 from .msgboxes import EnterCellValue as ecv
@@ -1672,205 +1674,35 @@ class Controller():
                     else:
                         print("There are no predictions for this frame")
 
-    def post_process_NN_masks(self,ExemptNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ExemptNeurons: neurons that you do not want to postprocess
-
+    def post_process_NN_masks(self, mode, neurons):
+        """
+        MB added: to post process the predictions of NN for the selected frames as the ground truth
+        :param mode: which post-processing to apply
+        :param neurons: for modes 1 and 2, neurons to be excluded from post-processing; for modes 3-4-5, neurons to be
+            post-processed.
+        :return:
         """
         if self.NNmask_key == "":
             print("You should first choose the NN instance")
-        else:
-            for t in self.selected_frames:
-                if True:#not mkey in self.data.dataset.keys():
-                    mask = self.data.get_NN_mask(t, self.NNmask_key)
-                    if mask is not False:
-                        if True:#for c in cell_list:
-                            labelArray, numFtr = sim.label(mask>0)#get all the disconnected components of the nonzero regions of mask
-                            for i in range(numFtr+1):
-                                IfZero = False
-                                submask =  (labelArray==i)#focus on each connected component separately
-                                list = np.unique(mask[submask])#list of all cell ids corresponded to the connected component i
-                                list = [int(k) for k in (set(list)-set(ExemptNeurons))]
-                                if np.sum(submask)<3:#if the component is only 1 or 2 pixels big:
-                                    for l in range(len(list)):
-                                        if np.sum(mask==list[l])>5:#check if this is the only place any cell is mentioned. if a cell is mentioned somewhere else set this component to zero.
-                                            if list[l] not in ExemptNeurons:
-                                                mask[submask]=0
-                                                IfZero = True #whether the component was set to zero
+            return
 
-                                elif len(list)>1 and not IfZero:
-                                    Volume = np.zeros(len(list))
-                                    for l in range(len(list)):
-                                        Volume[l] = sum(mask[submask]==list[l])
-                                    BiggestCell = list[np.argmax(Volume)]
-                                    mask[submask] = BiggestCell
-                        self.data.save_NN_mask(t, self.NNmask_key, mask)
-                    else:
-                        print("There are no predictions for this frame")
+        def load_fun(t):
+            return self.data.get_NN_mask(t, self.NNmask_key)
+
+        def save_fun(t, mask):
+            self.data.save_NN_mask(t, self.NNmask_key, mask)
+
+        if mode == 1:
+            post_process_NN_masks(self.selected_frames, neurons, load_fun, save_fun)
+        elif mode == 2:
+            post_process_NN_masks2(self.selected_frames, neurons, load_fun, save_fun)
+        elif mode == 3:
+            post_process_NN_masks3(self.selected_frames, neurons, load_fun, save_fun)
+        elif mode == 4:
+            post_process_NN_masks4(self.selected_frames, neurons, load_fun, save_fun)
+        elif mode == 5:
+            post_process_NN_masks5(self.selected_frames, neurons, load_fun, save_fun)
         self.update()
-
-    def post_process_NN_masks2(self,ExemptNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ExemptNeurons: neurons that you do not want to postprocess.
-        This mode uses different connectivity criteria
-
-        """
-
-        if self.NNmask_key == "":
-            print("You should first choose the NN instance")
-        else:
-            s = [[[False, False, False],
-                [False,  True, False],
-                [False, False, False]],
-                [[False,  True, False],
-                [ False,  True,  False],
-                [False,  True, False]],
-                [[False, False, False],
-                [False,  True, False],
-                [False, False, False]]]
-            for t in self.selected_frames:
-                mask = self.data.get_NN_mask(t, self.NNmask_key)
-                if mask is not False:
-                    maskOrig = mask
-                    labelArray, numFtr = sim.label(mask>0,structure=s)#get all the disconnected components of the nonzero regions of mask
-                    Grandlist = np.unique(mask)#list of all cell ids in the mask
-                    Grandlist = [int(k) for k in (set(Grandlist)-set(ExemptNeurons))]
-                    for c in Grandlist:
-                        print(c)
-                        #get connected component of each neuron
-                        labelArray_c, numFtr_c = sim.label(maskOrig==c,structure=s)#get all the disconnected components of a certain cell class
-                        Vol = np.zeros([1,numFtr_c])
-                        for i in range(0,numFtr_c):
-                            Vol[0,i] = np.sum(labelArray_c==i+1)#volume of each connected component of cell class c
-                        print("Vol")
-                        print(Vol)
-                        BigComp=np.argmax(Vol)+1#label of the biggest component of class
-                        print("BigComp")
-                        print(BigComp)
-                        Comp_c_BigComp = (labelArray_c==BigComp)#biggest connected component labeled as c
-                        label_c_BigComp = np.unique(labelArray[Comp_c_BigComp])
-                        for i in range(1,numFtr_c+1):
-                            print(i)
-                            if not i==BigComp:
-                                Comp_c_i = (labelArray_c==i)
-                                label_c_i = np.unique(labelArray[Comp_c_i])#label of c_i component in the first big labeling
-                                print(label_c_i)
-                                connCom_containing_c_i = (labelArray==label_c_i)
-                                print(np.sum(connCom_containing_c_i))
-                                cells_Connected_To_i =set(np.unique(maskOrig[connCom_containing_c_i]))-{c}-{0}
-                                cells_Connected_To_i = [int(k) for k in  cells_Connected_To_i]
-                                print("cells_Connected_To_i")
-                                print(cells_Connected_To_i)
-                                if not label_c_i== label_c_BigComp:
-                                    if len(cells_Connected_To_i) == 1:#if only one other cell is connected to c_i
-                                        mask[Comp_c_i] = cells_Connected_To_i[0]
-                                    elif len(cells_Connected_To_i) > 1:
-                                        Vol_c_i_conn = np.zeros([1,len(cells_Connected_To_i)])
-                                        for j in range(len(cells_Connected_To_i)):
-                                            Vol_c_i_conn[0,j] = np.sum(connCom_containing_c_i&(mask==cells_Connected_To_i[j]))
-                                            print("Vol_c_i_conn")
-                                            print(Vol_c_i_conn)
-                                        mask[Comp_c_i] = int(cells_Connected_To_i[np.argmax(Vol_c_i_conn)])
-                                    #elif:
-                                    #    mask[Comp_c_i] = 0
-                    self.data.save_NN_mask(t, self.NNmask_key, mask)
-
-    def post_process_NN_masks3(self,ProcessedNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ProcessedNeurons: neurons that you want to postprocess. If two or three neurons touch each other
-         and are in one connected component it renames the smaller ones to the largest one
-
-        """
-        Vol = np.zeros([1,len(ProcessedNeurons)])
-        if self.NNmask_key == "":
-            print("You should first choose the NN instance")
-        else:
-            for t in self.selected_frames:
-                if True:#not mkey in self.data.dataset.keys():
-                    mask = self.data.get_NN_mask(t, self.NNmask_key)
-                    if mask is not False:
-                        if True:#for c in cell_list:
-                            labelArray, numFtr = sim.label(mask>0)#get all the disconnected components of the nonzero regions of mask
-                            for i in range(1,numFtr+1):
-                                submask =  (labelArray==i)#focus on each connected component separately
-                                for k in range(len(ProcessedNeurons)):
-                                    Vol[0,k] = np.sum(mask[submask]==ProcessedNeurons[k])#volume of each of the chosen neurons in this component
-                                MaxInd = np.argmax(Vol[0,:])
-                                if not np.max(Vol[0,:])==0:
-                                    for k1 in range(len(ProcessedNeurons)):
-                                        if not k1==MaxInd:
-                                            k1_comp = (submask&(mask==ProcessedNeurons[k1]))
-                                            mask[k1_comp] = int(ProcessedNeurons[MaxInd])
-                        self.data.save_NN_mask(t, self.NNmask_key, mask)
-                    else:
-                        print("There are no predictions for this frame")
-        self.update()
-
-    def post_process_NN_masks4(self,ProcessedNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ProcessedNeurons: neurons that you want to postprocess. if a certain neuron has multiple components
-         it deletes the components that have smaller volume
-
-        """
-
-        if self.NNmask_key == "":
-            print("You should first choose the NN instance")
-        else:
-            for t in self.selected_frames:
-                if True:#not mkey in self.data.dataset.keys():
-                    mask = self.data.get_NN_mask(t, self.NNmask_key)
-                    if mask is not False:
-                        for n in ProcessedNeurons:#for c in cell_list:
-                            labelArray, numFtr = sim.label(mask==n)#get all the disconnected components of the nonzero regions of mask
-                            if numFtr>1:
-                                Vol = np.zeros([1,numFtr])
-                                for i in range(1,numFtr+1):
-                                    Vol[0,i-1] =  np.sum(labelArray==(i))#focus on each connected component separately
-                                print("Vol"+str(Vol))
-                                MaxInd = np.argmax(Vol[0,:])
-                                print("MaxInd"+str(MaxInd))
-                                print("features to delete")
-                                for k1 in range(numFtr):
-                                    if not k1==MaxInd:
-                                        print(k1+1)
-                                        k1_comp = (labelArray==(k1+1))
-                                        mask[k1_comp] = 0
-                        self.data.save_NN_mask(t, self.NNmask_key, mask)
-                    else:
-                        print("There are no predictions for this frame")
-        self.update()
-
-    def post_process_NN_masks5(self,ProcessedNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ProcessedNeurons: neurons that you want to postprocess. If two or three neurons touch each other
-         and are in one connected component it renames all to the first neuron in ProcessedNeurons vector
-
-        """
-        Vol = np.zeros([1,len(ProcessedNeurons)])
-        if self.NNmask_key == "":
-            print("You should first choose the NN instance")
-        else:
-            for t in self.selected_frames:
-                if True:#not mkey in self.data.dataset.keys():
-                    mask = self.data.get_NN_mask(t, self.NNmask_key)
-                    if mask is not False:
-                        if True:#for c in cell_list:
-                            labelArray, numFtr = sim.label(mask>0)#get all the disconnected components of the nonzero regions of mask
-                            for i in range(1,numFtr+1):
-                                submask =  (labelArray==i)#focus on each connected component separately
-                                for k in range(len(ProcessedNeurons)):
-                                    Vol[0,k] = np.sum(mask[submask]==ProcessedNeurons[k])#volume of each of the chosen neurons in this component
-                                #MaxInd = np.argmax(Vol[0,:])
-                                if not np.max(Vol[0,:])==0 and not Vol[0,0]==0:
-                                    for k1 in range(len(ProcessedNeurons)):
-                                        if not k1==0:
-                                            k1_comp = (submask&(mask==ProcessedNeurons[k1]))
-                                            mask[k1_comp] = int(ProcessedNeurons[0])
-                        self.data.save_NN_mask(t, self.NNmask_key, mask)
-                    else:
-                        print("There are no predictions for this frame")
-        self.update()
-
 
     def check_NN_run(self):
         # this is used only for masks
