@@ -13,7 +13,6 @@ import skimage.feature as skfeat
 import scipy.spatial as spat
 import scipy.ndimage as sim
 import cv2
-import h5py
 
 from PyQt5.QtWidgets import QErrorMessage
 
@@ -125,7 +124,7 @@ class Controller():
         self.options["overlay_NN"] = True   # this is for points only
         self.options["overlay_mask"]=int(self.settings["overlay_mask_by_default"])
         self.mask_thres=int(self.settings["mask_threshold_for_new_region"])
-        self.options["overlay_act"]=True# Todo: should depend on point_data?
+        self.options["overlay_act"]=True
         self.options["mask_annotation_mode"] = False
         self.options["RenumberComp"] = False#MB added to be able to renumber only one component of a cell
         self.options["defining_cropzone_mode"] = False   # AD Whether we are in the process of defining a cropping zone
@@ -163,7 +162,7 @@ class Controller():
 
         self.highlighted=0
 
-        self.button_keys = {}   # TODO AD: rename
+        self.button_keys = {}
 
         self.assigned_sorted_list = []  # AD sorted list of neurons (from1) that have a key assigned
         self.mask_temp=None
@@ -203,7 +202,7 @@ class Controller():
         # here when the highlighted track data changes
         self.highlighted_track_registered_clients = []
         # here when the z-viewing should change:
-        self.zslice_registered_clients = []   # Todo: Warning, controller will not be aware of z changes if they are done
+        self.zslice_registered_clients = []
         # by wheeling the mouse in MainFigWidget (but that's not hard to change, see methods of MainFigWidget)
         # here when the mask annotation threshold changes
         self.mask_thres_registered_clients = []
@@ -255,7 +254,7 @@ class Controller():
         self.data.neuron_presence = self.neuron_presence
 
     def update(self, t_change=False):
-        if not self.ready:   # this is jsut to avoid gui elements from calling callbacks resulting in update during their init   # Todo AD: find more elegant way
+        if not self.ready:   # this is jsut to avoid gui elements from calling callbacks resulting in update during their init   # todo: find more elegant way
             return
         # TODO AD: maybe split into smaller methods, and replace calls to update by methods updating only some parts
 
@@ -277,15 +276,6 @@ class Controller():
             # SJR: next step deletes the old mask to prevent "undo" from being based on the previous frame
             if self.options["mask_annotation_mode"]:
                 self.mask_temp = None
-
-            # SJR: read mask if time changed and not in point mode
-            if not self.point_data:
-                mask = self.data.get_mask(self.i, force_original=False)   # MB: so the mask transformation matches those
-                # of the frame which are determined by gui's checkboxes
-                if mask is False:
-                    self.mask = None
-                else:
-                    self.mask = mask
 
         #load the images from the dataset
 
@@ -314,21 +304,7 @@ class Controller():
 
         #load the mask, from ground truth or neural network
         #show mask if either the "overlay mask" OR the "mask annotation mode" checkboxes are checked
-        if self._show_masks():
-            mask = self.data.get_mask(self.i, force_original=False)
-            if mask is False or self.data.only_NN_mask_mode:
-                mask = self.data.get_NN_mask(self.i, self.NNmask_key)
-                if mask is False:
-                    self.mask = None
-                else:
-                    self.mask = mask
-            else:
-                self.mask = mask
-        else:
-            self.mask = None
-
-        for client in self.mask_registered_clients:
-            client.change_mask_data(self.mask)
+        self.update_mask_display()
 
         self.signal_pts_changed(t_change=t_change)
 
@@ -404,12 +380,34 @@ class Controller():
         self.i = t
         self.update(t_change=True)
 
-    def update_point_presence(self):
+    def recompute_point_presence(self):
         """
         To be called when self.pointdat or self.NN_pointdat is modified
         """
         self.NN_or_GT = np.where(np.isnan(self.pointdat), self.NN_pointdat, self.pointdat)
         self.neuron_presence = ~np.isnan(self.NN_or_GT[:, :, 0])
+
+    def update_mask_display(self):
+        """
+        To be called when on of the parameters of the mask display (such as whether to display the mask, or to display
+        only the NN mask...) is modified (the mask may be modified too, but then make sure mask_change is called... but
+        I don't think we ever modify both at the same time).
+        If only the mask itself changes, call mask_change instead.
+        """
+        if self._show_masks():
+            mask = self.data.get_mask(self.i, force_original=False)
+            if mask is False or self.data.only_NN_mask_mode:
+                mask = self.data.get_NN_mask(self.i, self.NNmask_key)
+                if mask is False:
+                    self.mask = None
+                else:
+                    self.mask = mask
+            else:
+                self.mask = mask
+        else:
+            self.mask = None
+        for client in self.mask_registered_clients:
+            client.change_mask_data(self.mask)
 
     def signal_pts_changed(self, t_change=True):
         """
@@ -422,7 +420,7 @@ class Controller():
         if not self.point_data:
             return
 
-        self.update_point_presence()
+        self.recompute_point_presence()
 
         if self.options["follow_high"] and t_change:
             self.center_on_highlighted()
@@ -430,10 +428,8 @@ class Controller():
         if self.options["overlay_tracks"] and self.highlighted != 0:
             for client in self.highlighted_track_registered_clients:
                 client.change_track(self.highlighted_track_data(self.highlighted))
-                # TODO AD: set =np.zeros((2,0)) = np.zeros((2,0)) otherwise, and do what if not self.point_data?
 
         pts_dict = {}
-        # TODO AD: good init for all pointdats if not self.point_data
 
         # ground truth points
         if self.options["overlay_pts"]:
@@ -465,7 +461,6 @@ class Controller():
 
         # highlighted point
         pts_dict["pts_high"] = self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i][self.highlighted])[None, :])
-        # TODO AD: set to np.array([[], [], []]).transpose() if not self.point_data, or not define?
 
         for client in self.points_registered_clients:
             client.change_pointdats(pts_dict)
@@ -481,7 +476,7 @@ class Controller():
         for client in self.pointlinks_registered_clients:
             client.change_links(link_data)
 
-    def signal_present_all_times_changed(self):   # TODO use when opening NN results for instance...
+    def signal_present_all_times_changed(self):   # TODO use when opening NN results for instance... (instead of update, but it is not sufficient to replace update)
         for client in self.present_neurons_all_times_registered_clients:
             client.change_present_neurons_all_times(self.neuron_presence)
 
@@ -547,7 +542,7 @@ class Controller():
             self.data.save_mask(t, mask, False)
             for client in self.mask_registered_clients:
                 client.change_mask_data(self.mask)
-        # TODO: change calcium if necessary
+        # Todo: change calcium if necessary
 
     def frame_clicked(self, button, coords):
         # a click with coordinates is received
@@ -1095,7 +1090,6 @@ class Controller():
 
         self.assigned_sorted_list = sorted(list(self.button_keys.values()))
         self.signal_pts_changed(t_change=False)   # just needed to display the activated neurons
-        # self.set_activated_tracks()   # TODO if necessary
 
     def _get_neuron_key(self, neuron_id_from1:int):
         """
@@ -1115,9 +1109,12 @@ class Controller():
         """
         if self.point_data and self.neuron_presence[self.i, self.highlighted]:
             # set z to the highlighted neuron
-            for client in self.zslice_registered_clients:
-                new_z = int(self.NN_or_GT[self.i][self.highlighted, 2] + 0.5)
-                client.change_z(new_z)
+            new_z = int(self.NN_or_GT[self.i][self.highlighted, 2] + 0.5)
+            self.change_z(new_z)
+
+    def change_z(self, new_z):
+        for client in self.zslice_registered_clients:
+            client.change_z(new_z)
 
     def toggle_first_channel_only(self):
         self.options["first_channel_only"] = not self.options["first_channel_only"]
@@ -1182,20 +1179,20 @@ class Controller():
 
     def toggle_mask_overlay(self):
         self.options["overlay_mask"] = not self.options["overlay_mask"]
-        self.update(t_change=False)   # TODO: not update everything
+        self.update_mask_display()
 
     def toggle_NN_mask_only(self): #MB added to check different NN results
-        self.data.only_NN_mask_mode = not self.data.only_NN_mask_mode
-        self.update(t_change=True)
+        self.data.only_NN_mask_mode = not self.data.only_NN_mask_mode   # TODO: should it really be in self.data??
+        self.update_mask_display()
 
     def toggle_display_alignment(self):
         self.data.align = not self.data.align
-        self.update(t_change=True)  # todo: could be just update()?
+        self.update()
 
     def toggle_display_cropped(self):
         self.data.crop = not self.data.crop
         self.options["ShowDim"] = True
-        self.update(t_change=True)  # todo: could be just update()?
+        self.update()
 
     def toggle_z_follow_highlighted(self):
         """Toggles the option of following the z dimension of the highlighted neuron"""
@@ -1403,8 +1400,8 @@ class Controller():
             print("Mask Annotation Mode")
         else:
             self.mask_temp = None
-            print("Saving Last Push")
-        self.update()   # TODO AD: is this necessary?
+            print("Saving Last Push")   # TODO MB does that mean you want to save something??
+        self.update_mask_display()
 
     def set_mask_annotation_threshold(self, value):   # SJR
         """Set mask threshold"""
@@ -1522,7 +1519,7 @@ class Controller():
         print("Deleting all annotations in frame", self.i)
         self.pointdat[self.i] = np.nan
         self.NN_pointdat[self.i] = np.nan
-        # self.neuron_presence[self.i] = False   # now useless due to update_point_presence in update()
+        # self.neuron_presence[self.i] = False   # now useless due to recompute_point_presence in update()
         self.update()
 
     def clear_NN_selective(self, fro, to):
@@ -1540,7 +1537,7 @@ class Controller():
         if self.point_data:
             self.pointdat[fro:to + 1, self.highlighted, :] = np.nan
             self.NN_pointdat[fro:to + 1, self.highlighted, :] = np.nan
-            # self.neuron_presence[fro:to + 1, self.highlighted] = False   # now useless due to update_point_presence in signal_pts_changed in update
+            # self.neuron_presence[fro:to + 1, self.highlighted] = False   # now useless due to recompute_point_presence in signal_pts_changed in update
             self.update()
         else:   # MB added this to use this feature for epfl data
             for k in range(fro,to):
@@ -1648,7 +1645,7 @@ class Controller():
         # checks the subprocess running status
         rundata = self.subprocmanager.check()
         # rundata={"NNtest":[["maskgen",0.1],["train",0.45],["pred",0.58]]}
-        dialog = QtHelpers.Dialog(rundata, self)   # TODO AD
+        dialog = QtHelpers.Dialog(rundata, self)   # Todo AD: I think the controller should not import PyQt5 stuff
         dialog.exec_()
         dialog.deleteLater()
 
@@ -1860,8 +1857,6 @@ class Controller():
             self.hlab.save_ci_int(self.data)#MB just added a tab to avoid an error with mask data
         self.data.neuron_presence = self.neuron_presence
         self.data.save()
-        # Todo AD: if th ci_int changes, we might want to update the ci display (which used to be done by calling
-        #  self.update() after self.save_status() everytime, but that was a bit overkill...)
         print("Saved")
 
     #we save the point data
@@ -1908,7 +1903,7 @@ class Controller():
             print("Removing neuron",i_from1,"at time",self.i)
             self.pointdat[self.i][i_from1,:]=np.nan
             self.hlab.update_single_ci(self.data,self.i,i_from1,None)
-            # self.neuron_presence[self.i, i_from1] = False   # now useless due to update_point_presence in signal_pts_changed
+            # self.neuron_presence[self.i, i_from1] = False   # now useless due to recompute_point_presence in signal_pts_changed
         else:
             if any(np.isnan(self.pointdat[self.i][i_from1])):
                 add = True
