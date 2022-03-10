@@ -860,7 +860,7 @@ class NNControlTab(QWidget):
             self.Exempt_Neurons.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             #self.PostProc_Mode = QLineEdit("1")
             #self.PostProc_Mode.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
-            main_layout.addWidget(QLabel("Neurons exempt from postprocessing:"),row,0,1, 1)
+            main_layout.addWidget(QLabel("Neurons exempt from postprocessing:"),row,0,1, 1)   # TODO MB: exempt for modes 1-2, but target for modes 3-4-5, right? I think we can change the label. Possibly we can even change the label depending on which mode is selected.
             main_layout.addWidget(self.Exempt_Neurons,row,1, 1, 1)
             row += 1
 
@@ -869,7 +869,7 @@ class NNControlTab(QWidget):
             PostProcess_mask.setStyleSheet("background-color: yellow")
             PostProcess_mask.clicked.connect(self._Postprocess_NN_masks)
             main_layout.addWidget(PostProcess_mask,row, 1,1,1)
-            self.PostProc_Mode = QLineEdit("1")
+            self.PostProc_Mode = QLineEdit("1")   # Todo: could be a QComboBox
             self.PostProc_Mode.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             main_layout.addWidget(self.PostProc_Mode,row,0, 1, 1)
             row += 1
@@ -1073,16 +1073,7 @@ class NNControlTab(QWidget):
         Mode = int(self.PostProc_Mode.text())
         Modes = set([1,2,3,4,5])
         assert Mode in Modes, "Acceptable modes are 1, 2, 3, 4, and 5"
-        if Mode ==1:
-            self.controller.post_process_NN_masks(ExNeu)
-        if Mode ==2:
-            self.controller.post_process_NN_masks2(ExNeu)
-        if Mode ==3:
-            self.controller.post_process_NN_masks3(ExNeu)
-        if Mode ==4:
-            self.controller.post_process_NN_masks4(ExNeu)
-        if Mode ==5:
-            self.controller.post_process_NN_masks5(ExNeu)
+        self.controller.post_process_NN_masks(Mode, ExNeu)
 
 
 class SelectionTab(QWidget):
