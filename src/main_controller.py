@@ -932,6 +932,9 @@ class Controller():
         # TODO MB: what is self.options["save_crop_rotate"]? This will copy the ROI anyways, indepentenlyt of the value of self.options["save_crop_rotate"].
         #  This behaviour is the same as before, but you had an option to copy it (redundantly) if self.options["save_crop_rotate"].
         #  Do we want the ROI to not be saved if not self.options["save_crop_rotate"]??
+        # MB : It is not about ROI. when the option is tru, the frame and mask
+        # frameRd = self.data.get_frame(i, col="red") returns will be the cropped frame and thus the
+        # cropped frame and its mask will be save which is what we want.
         OrigCrop = self.data.crop
         OrigAlign =self.data.align
         if self.options["save_crop_rotate"]:
@@ -1400,7 +1403,6 @@ class Controller():
             print("Mask Annotation Mode")
         else:
             self.mask_temp = None
-            print("Saving Last Push")   # TODO MB does that mean you want to save something??
         self.update_mask_display()
 
     def set_mask_annotation_threshold(self, value):   # SJR
