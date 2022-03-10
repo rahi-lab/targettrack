@@ -49,6 +49,14 @@ class DataSet:
             from .h5Data import h5Data
             return h5Data(dataset_path)
 
+    @classmethod
+    def create_dataset(cls, dataset_path):
+        if dataset_path.endswith(".nd2"):
+            from .nd2Data import nd2Data
+            return nd2Data._create_dataset(dataset_path)
+        else:
+            from .h5Data import h5Data
+            return h5Data._create_dataset(dataset_path)
 
     @property
     def align(self):
@@ -81,6 +89,15 @@ class DataSet:
         """Save what??"""   # TODO
         raise NotImplementedError
 
+    @classmethod
+    @abc.abstractmethod
+    def _create_dataset(cls, dataset_path):
+        """
+        Creates new empty dataset at given path.
+        :return: new DataSet instance
+        """
+        raise NotImplementedError
+
     @abc.abstractmethod
     def segmented_times(self):
         """Gets the list of times for which a segmentation is defined"""
@@ -98,10 +115,6 @@ class DataSet:
 
     ####################################################################################
     # reading the data
-    @abc.abstractmethod   # TODO AD GET RID OF THIS!!! I think it's just a relic of when dataset was directly an h5
-    def __getitem__(self,key):
-        """returns data[key]"""
-        raise NotImplementedError
 
     @abc.abstractmethod
     def _get_frame(self, t, col="red"):

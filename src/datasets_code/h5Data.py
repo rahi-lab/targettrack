@@ -27,7 +27,8 @@ class h5Data(DataSet):
         if "pointdat" in self.dataset:
             self.point_data = True
         if "C" not in self.dataset.attrs:   # or self.dataset.attrs["C"] is None
-            self.dataset.attrs["C"] = self.dataset["0/frame"].shape[0]   # number of channels
+            if "0/frame" in self.dataset:
+                self.dataset.attrs["C"] = self.dataset["0/frame"].shape[0]   # number of channels
 
     @property
     def point_data(self):
@@ -87,9 +88,11 @@ class h5Data(DataSet):
     @property
     def nb_channels(self):
         '''
-        Returns number of channels of the image data.
+        Returns number of channels of the image data. (Returns None in case it is not known (new empty dataset))
         :return: Integer
         '''
+        if "C" not in self.dataset.attrs:
+            return None
         return self.dataset.attrs["C"]
 
     @property
@@ -165,6 +168,12 @@ class h5Data(DataSet):
 
     def save(self):
         pass
+
+    @classmethod
+    def _create_dataset(cls, dataset_path):
+        dataset = h5py.File(dataset_path, "w")
+        dataset.close()
+        return h5Data(dataset_path)
 
     def segmented_times(self):
         # Todo: for Harvard lab data, should it filter and return only frames with pointdat?
@@ -326,7 +335,6 @@ class h5Data(DataSet):
                 neu = mask[xs[id], ys[id], zs[id]]#MB version,mask id of each present segment in frame t
                 neus.append(neu)
         return segs, neus
-
 
     def get_transformation(self, t):
         key = "{}/transfo_matrix".format(t)
