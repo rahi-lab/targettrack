@@ -7,8 +7,10 @@ import scipy.ndimage as sim
 def post_process_NN_masks(times, exempt_neurons, load_fun, save_fun):
     """
     MB added: to post process the predictions of NN for the selected frames as the ground truth
+    it goes through all the frames and all the cells and whenever the mask of two cells are touching each other it
+    relabels the smaller neuron to the label of the larger one
     :param times: iterable of the times to be post-processed
-    :param exempt_neurons: neurons that you do not want to post-process
+    :param exempt_neurons: neurons that you do not want to be considered fot this post-processing
     :param load_fun: callable such that load_fun(t) is the mask to be post-processed for time t
     :param save_fun: callable such that save_fun(t, mask) saves the post-processed mask for time t
     """
@@ -46,9 +48,11 @@ def post_process_NN_masks(times, exempt_neurons, load_fun, save_fun):
 def post_process_NN_masks2(times, exempt_neurons, load_fun, save_fun):
     """
     MB added: to post process the predictions of NN for the selected frames as the ground truth
-    This mode uses different connectivity criteria
+    This postprocessing step is basically like the previous one but uses different connectivity
+    criteria to decide whether the neurons are touching each other or not. If the neurons are only
+     neighbors across Z direction, it doesn't relabel them
     :param times: iterable of the times to be post-processed
-    :param exempt_neurons: neurons that you do not want to post-process
+    :param exempt_neurons: neurons that you do not want to be considered fot this post-processing
     :param load_fun: callable such that load_fun(t) is the mask to be post-processed for time t
     :param save_fun: callable such that save_fun(t, mask) saves the post-processed mask for time t
     """
@@ -70,32 +74,22 @@ def post_process_NN_masks2(times, exempt_neurons, load_fun, save_fun):
             Grandlist = np.unique(mask)  # list of all cell ids in the mask
             Grandlist = [int(k) for k in (set(Grandlist) - set(exempt_neurons))]
             for c in Grandlist:
-                print(c)
                 # get connected component of each neuron
                 labelArray_c, numFtr_c = sim.label(maskOrig == c,
                                                    structure=s)  # get all the disconnected components of a certain cell class
                 Vol = np.zeros([1, numFtr_c])
                 for i in range(0, numFtr_c):
                     Vol[0, i] = np.sum(labelArray_c == i + 1)  # volume of each connected component of cell class c
-                print("Vol")
-                print(Vol)
                 BigComp = np.argmax(Vol) + 1  # label of the biggest component of class
-                print("BigComp")
-                print(BigComp)
                 Comp_c_BigComp = (labelArray_c == BigComp)  # biggest connected component labeled as c
                 label_c_BigComp = np.unique(labelArray[Comp_c_BigComp])
                 for i in range(1, numFtr_c + 1):
-                    print(i)
                     if not i == BigComp:
                         Comp_c_i = (labelArray_c == i)
                         label_c_i = np.unique(labelArray[Comp_c_i])  # label of c_i component in the first big labeling
-                        print(label_c_i)
                         connCom_containing_c_i = (labelArray == label_c_i)
-                        print(np.sum(connCom_containing_c_i))
                         cells_Connected_To_i = set(np.unique(maskOrig[connCom_containing_c_i])) - {c} - {0}
                         cells_Connected_To_i = [int(k) for k in cells_Connected_To_i]
-                        print("cells_Connected_To_i")
-                        print(cells_Connected_To_i)
                         if not label_c_i == label_c_BigComp:
                             if len(cells_Connected_To_i) == 1:  # if only one other cell is connected to c_i
                                 mask[Comp_c_i] = cells_Connected_To_i[0]
@@ -104,20 +98,17 @@ def post_process_NN_masks2(times, exempt_neurons, load_fun, save_fun):
                                 for j in range(len(cells_Connected_To_i)):
                                     Vol_c_i_conn[0, j] = np.sum(
                                         connCom_containing_c_i & (mask == cells_Connected_To_i[j]))
-                                    print("Vol_c_i_conn")
-                                    print(Vol_c_i_conn)
                                 mask[Comp_c_i] = int(cells_Connected_To_i[np.argmax(Vol_c_i_conn)])
-                            # elif:
-                            #    mask[Comp_c_i] = 0
             save_fun(t, mask)
 
 
 def post_process_NN_masks3(times, neurons, load_fun, save_fun):
     """
     MB added: to post process the predictions of NN for the selected frames as the ground truth
+     If any of the neurons in the vector "neurons" touch each other
+     and form one connected component it renames the smaller ones to the largest one
     :param times: iterable of the times to be post-processed
-    :param neurons: neurons that you want to postprocess. If two or three neurons touch each other
-     and are in one connected component it renames the smaller ones to the largest one
+    :param neurons: neurons that you want to postprocess.
     :param load_fun: callable such that load_fun(t) is the mask to be post-processed for time t
     :param save_fun: callable such that save_fun(t, mask) saves the post-processed mask for time t
     """
@@ -145,9 +136,9 @@ def post_process_NN_masks3(times, neurons, load_fun, save_fun):
 def post_process_NN_masks4(times, neurons, load_fun, save_fun):
     """
     MB added: to post process the predictions of NN for the selected frames as the ground truth
+     if a certain neuron has multiple components, it deletes the components that have smaller volume.
     :param times: iterable of the times to be post-processed
-    :param neurons: neurons that you want to postprocess. if a certain neuron has multiple components
-     it deletes the components that have smaller volume
+    :param neurons: neurons that you want to postprocess.
     :param load_fun: callable such that load_fun(t) is the mask to be post-processed for time t
     :param save_fun: callable such that save_fun(t, mask) saves the post-processed mask for time t
     """
@@ -160,10 +151,7 @@ def post_process_NN_masks4(times, neurons, load_fun, save_fun):
                     Vol = np.zeros([1,numFtr])
                     for i in range(1,numFtr+1):
                         Vol[0,i-1] =  np.sum(labelArray==(i))#focus on each connected component separately
-                    print("Vol"+str(Vol))
                     MaxInd = np.argmax(Vol[0,:])
-                    print("MaxInd"+str(MaxInd))
-                    print("features to delete")
                     for k1 in range(numFtr):
                         if not k1==MaxInd:
                             print(k1+1)
@@ -177,9 +165,10 @@ def post_process_NN_masks4(times, neurons, load_fun, save_fun):
 def post_process_NN_masks5(times, neurons, load_fun, save_fun):
     """
     MB added: to post process the predictions of NN for the selected frames as the ground truth
+     If any of the neurons in the vector "neurons" touch each other,
+     and form one connected component it renames all the segments in the connected component to the first neuron in "neurons" vector
     :param times: iterable of the times to be post-processed
-    :param neurons: neurons that you want to postprocess. If two or three neurons touch each other
-     and are in one connected component it renames all to the first neuron in ProcessedNeurons vector
+    :param neurons: neurons that you want to postprocess.
     :param load_fun: callable such that load_fun(t) is the mask to be post-processed for time t
     :param save_fun: callable such that save_fun(t, mask) saves the post-processed mask for time t
     """
@@ -193,7 +182,6 @@ def post_process_NN_masks5(times, neurons, load_fun, save_fun):
                     submask =  (labelArray==i)#focus on each connected component separately
                     for k in range(len(neurons)):
                         Vol[0,k] = np.sum(mask[submask]==neurons[k])#volume of each of the chosen neurons in this component
-                    #MaxInd = np.argmax(Vol[0,:])
                     if not np.max(Vol[0,:])==0 and not Vol[0,0]==0:
                         for k1 in range(len(neurons)):
                             if not k1==0:
