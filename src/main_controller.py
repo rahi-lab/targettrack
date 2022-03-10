@@ -35,6 +35,7 @@ from .mask_processing.classification import Classification
 from .mask_processing.image_register import Register_Rotate
 from .mask_processing.NN_related import post_process_NN_masks, post_process_NN_masks2, post_process_NN_masks3, \
     post_process_NN_masks4, post_process_NN_masks5
+from .mask_processing.image_processing import blur, SubtBg, resize_frame
 
 # SJR: message box for indicating neuron number of new neuron and for renumbering neuron
 from .msgboxes import EnterCellValue as ecv
@@ -963,7 +964,7 @@ class Controller():
                         frameGr = np.pad(frameGr, ((padXL, padXR),(padYtop, padYbottom),(0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
 
                         if self.options["save_resized"]:
-                            frameGr = self.resize_frame(frameGr,width,height)
+                            frameGr = resize_frame(frameGr,width,height)
                     elif self.options["save_1st_channel"] or self.options["save_green_channel"]:
                         frameGr = 0
                     else:
@@ -972,7 +973,7 @@ class Controller():
                         frameGr = frameGr[x_0:,y_0:,z_0:]
                         frameGr = np.pad(frameGr, ((padXL, padXR),(padYtop, padYbottom), (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
                         if self.options["save_resized"]:
-                            frameGr = self.resize_frame(frameGr,width,height)
+                            frameGr = resize_frame(frameGr,width,height)
                 else:
                     frameGr = 0
 
@@ -981,14 +982,14 @@ class Controller():
                 else:
                     frameRd = self.data.get_frame(i, col="red")
                 if self.options["save_blurred"]:
-                    frameRd = self.Blur(frameRd, bg_blur, sd_blur, self.options["save_subtracted_bg"],bg_subt)
+                    frameRd = blur(frameRd, bg_blur, sd_blur, self.options["save_subtracted_bg"], bg_subt)
                 elif self.options["save_subtracted_bg"]:
-                    frameRd = self.SubtBg(frameRd,bg_subt)
+                    frameRd = SubtBg(frameRd,bg_subt)
                 frameRd = frameRd[:x_1,:y_1,:z_1]
                 frameRd = frameRd[x_0:,y_0:,z_0:]
                 frameRd = np.pad(frameRd, ((padXL, padXR),(padYtop, padYbottom),  (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
                 if self.options["save_resized"]:
-                    frameRd = self.resize_frame(frameRd,width,height)
+                    frameRd = resize_frame(frameRd,width,height)
 
                 maskTemp = self.data.get_mask(i)
                 if maskTemp is not False:
@@ -997,7 +998,7 @@ class Controller():
                     maskTemp = np.pad(maskTemp, ( (padXL, padXR),(padYtop, padYbottom), (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
                     fd.attrs["N_neurons"] = np.maximum(fd.attrs["N_neurons"],np.maximum(len(np.unique(maskTemp)),np.max(maskTemp)))
                     if self.options["save_resized"]:
-                        maskTemp = self.resize_frame(maskTemp,width,height,mask=True)
+                        maskTemp = resize_frame(maskTemp,width,height,mask=True)
                     hNew.save_frame(l, frameRd, frameGr, mask = maskTemp , force_original=True)
                 else:
                     hNew.save_frame(l,frameRd, frameGr ,force_original=True)
@@ -1049,46 +1050,7 @@ class Controller():
 
         hNew.close()
 
-    def Blur(self,frame,blur_b=40,blur_s=6, Subt_bg=False,subtVal = 1):
-        """this blures the images and subtracts background if asked"""
-        # TODO this static method should not be here
-        dimensions=(.1625, .1625, 1.5)
-        sigm=blur_s#value between 1-10
-        bg_factor=blur_b#value between 0-100
-        xysize, xysize2, zsize = dimensions
-        sdev = np.array([sigm, sigm, sigm * xysize / zsize])
-        im_rraw = frame
-        im = im_rraw
-        sm = sim.gaussian_filter(im, sigma=sdev) - sim.gaussian_filter(im, sigma=sdev * bg_factor)
-        im_rraw = sm
-        if Subt_bg:
-            threshold_r=(im_rraw<subtVal)
-            im_rraw[threshold_r]=0
 
-        frame=im_rraw
-
-        return frame
-
-    def SubtBg(self,frame,subtVal):
-        """subtracts a constant background valuefrom your movie"""
-        # TODO this static method should not be here
-        im_rraw = frame
-        threshold_r=(im_rraw<subtVal)
-        im_rraw[threshold_r]=0
-        return im_rraw
-
-    def resize_frame(self, frame, width,height, mask=False):
-        """resizes the frame to the dimensions given as width and height"""
-        # TODO this static method should not be here
-        #width = 16*int(width/16)
-        #height = 16*int(height/16)
-        frameResize = np.zeros((width,height,np.shape(frame)[2]))
-        for j in range(np.shape(frame)[2]):
-            if mask:
-                frameResize[:,:,j] = cv2.resize(frame[:,:,j], dsize=(height, width), interpolation=cv2.INTER_NEAREST)
-            else:
-                frameResize[:,:,j] = cv2.resize(frame[:,:,j], dsize=(height, width), interpolation=cv2.INTER_CUBIC)
-        return frameResize
 
     def highlight_neuron(self, neuron_id_from1, block_unhighlight=False):
         """
