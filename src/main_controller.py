@@ -827,7 +827,7 @@ class Controller():
 
                 if not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
-                    Zvec = ExtFile.dataset.attrs["original_Z_interval"]
+                    Zvec = ExtFile.original_intervals("z")
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
                     imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img#np.shape(img)[2]] = img
                     if green:
@@ -849,7 +849,7 @@ class Controller():
                 img = maskTemp
                 if not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
-                    Zvec = ExtFile.dataset.attrs["original_Z_interval"]
+                    Zvec = ExtFile.original_intervals("z")
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
                     imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img
                     if green:
@@ -872,10 +872,13 @@ class Controller():
         original movie or blur, subtract background andcrop in z direction.
         it saves the result in a new .h5 file in the directory of the original input files
         """
+        if all(i in frame_deleted or i not in self.selected_frames for i in frame_int):
+            print("No frames for new dataset, not doing anything. Please select frames.")
+            return
         self.save_status()
         self.update()
 
-        frameCheck = self.data.get_frame(0, col= "red")
+        frameCheck = self.data.get_frame(0, col="red")
         Zcheck = np.shape(frameCheck)
 
         z_0 = int(Z_interval[0])
@@ -929,10 +932,11 @@ class Controller():
             newpath = os.path.join(dset_path_cropped,key+".h5")
         else:
             newpath = key+".h5"
-        fd = h5py.File(newpath, 'w')   # TODO
-        for a in self.data.dataset.attrs:   # TODO
-            fd.attrs[a] = self.data.dataset.attrs[a]
-        hNew = DataSet.load_dataset(newpath)
+        hNew = DataSet.create_dataset(newpath)
+        hNew.copy_properties(self.data)
+        # TODO MB: what is self.options["save_crop_rotate"]? This will copy the ROI anyways, indepentenlyt of the value of self.options["save_crop_rotate"].
+        #  This behaviour is the same as before, but you had an option to copy it (redundantly) if self.options["save_crop_rotate"].
+        #  Do we want the ROI to not be saved if not self.options["save_crop_rotate"]??
         OrigCrop = self.data.crop
         OrigAlign =self.data.align
         if self.options["save_crop_rotate"]:
@@ -956,16 +960,7 @@ class Controller():
                             continue
 
                 if hNew.nb_channels==2:
-                    if (self.options["save_1st_channel"] and self.options["save_green_channel"]) :
-                        frameGr = self.data.get_frame(i, col= "green")
-                        frameGr = frameGr[:x_1,:y_1,:z_1]
-                        frameGr = frameGr[x_0:,y_0:,z_0:]
-
-                        frameGr = np.pad(frameGr, ((padXL, padXR),(padYtop, padYbottom),(0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
-
-                        if self.options["save_resized"]:
-                            frameGr = resize_frame(frameGr,width,height)
-                    elif self.options["save_1st_channel"] or self.options["save_green_channel"]:
+                    if self.options["save_1st_channel"] ^ self.options["save_green_channel"]:
                         frameGr = 0
                     else:
                         frameGr = self.data.get_frame(i, col= "green")
@@ -996,7 +991,7 @@ class Controller():
                     maskTemp = maskTemp[:x_1,:y_1,:z_1]
                     maskTemp = maskTemp[x_0:,y_0:,z_0:]
                     maskTemp = np.pad(maskTemp, ( (padXL, padXR),(padYtop, padYbottom), (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
-                    fd.attrs["N_neurons"] = np.maximum(fd.attrs["N_neurons"],np.maximum(len(np.unique(maskTemp)),np.max(maskTemp)))
+                    hNew.nb_neurons = max(hNew.nb_neurons, len(np.unique(maskTemp)), np.max(maskTemp))
                     if self.options["save_resized"]:
                         maskTemp = resize_frame(maskTemp,width,height,mask=True)
                     hNew.save_frame(l, frameRd, frameGr, mask = maskTemp , force_original=True)
@@ -1019,37 +1014,20 @@ class Controller():
                     print(i)
                     hNew.save_transformation_matrix(l, matrix)
                 hNew.save_frame_match(i, l)
-                keyTime = "{}/time".format(l)   # TODO
-                RealTimeKey = "{}/time".format(i)
-                if RealTimeKey in self.data.dataset.keys():
-                    realTime = np.array(self.data.dataset[RealTimeKey])
-                    hNew.dataset.create_dataset(keyTime, data=realTime)
-                l=l+1
-        frameRd_shape = np.shape(frameRd)
-        fd.attrs["W"] = frameRd_shape[0]
-        fd.attrs["H"] = frameRd_shape[1]
+                real_time = self.data.get_real_time(i)
+                if real_time is not None:
+                    hNew.save_real_time(l, real_time)
+                l = l+1
         if self.options["save_resized"]:
-            hNew.dataset.attrs["Original_size"] = [Zcheck[0],Zcheck[1]]   # TODO
-            fd.attrs["W"] = int(width)
-            fd.attrs["H"] = int(height)
+            hNew.save_original_size(Zcheck)
 
-        if self.options["save_crop_rotate"] or ("ROI" in self.data.dataset.attrs.keys()):
-            hNew.dataset.attrs["ROI"] = self.data.dataset.attrs["ROI"]   # TODO
-        hNew.dataset.attrs["original_Z_interval"] = Z_interval
-        hNew.dataset.attrs["original_X_interval"] = X_interval
-        hNew.dataset.attrs["original_Y_interval"] = Y_interval
+        hNew.save_original_intervals(X_interval, Y_interval, Z_interval)
 
-        if self.options["save_1st_channel"] and not self.options["save_green_channel"]:
-            fd.attrs["C"] = 1   # TODO
-        elif not self.options["save_1st_channel"] and self.options["save_green_channel"]:
-            fd.attrs["C"] = 1
-        fd.attrs["T"] = l   # TODO
-        fd.attrs["D"] = z_1-z_0
+        assert hNew.frame_num == l
         self.data.align = OrigAlign
         self.data.crop = OrigCrop
 
         hNew.close()
-
 
 
     def highlight_neuron(self, neuron_id_from1, block_unhighlight=False):
@@ -1541,7 +1519,6 @@ class Controller():
 
     def clear_frame_NN(self):
         """Deletes all NN predictions in current frame"""
-        # DEPRECATED, TODO CFP?
         print("Deleting all annotations in frame", self.i)
         self.pointdat[self.i] = np.nan
         self.NN_pointdat[self.i] = np.nan
@@ -1889,7 +1866,6 @@ class Controller():
 
     #we save the point data
     def save_pointdat(self):
-        # TODO: check for point_data use and consistency
         self.data.set_poindat(self.pointdat)
 
     def save_and_repack(self):
