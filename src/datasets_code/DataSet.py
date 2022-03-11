@@ -99,10 +99,11 @@ class DataSet:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def copy_properties(self, other_ds):
+    def copy_properties(self, other_ds, except_frame_num=False):
         """
         Copies all properties (such as number of frames, number of channels...) from other_ds into self.
         :param other_ds: DataSet (of same type as self)
+        :param except_frame_num: if True, will not copy the frame number
         """
         raise NotImplementedError
 

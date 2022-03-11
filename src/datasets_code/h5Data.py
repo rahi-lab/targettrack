@@ -175,10 +175,12 @@ class h5Data(DataSet):
         dataset.close()
         return h5Data(dataset_path)
 
-    def copy_properties(self, other_ds):
+    def copy_properties(self, other_ds, except_frame_num=False):
         assert isinstance(other_ds, h5Data), "Cannot copy properties from other class of dataset"
         source_ds = other_ds.dataset
         for key in source_ds.attrs:
+            if except_frame_num and key == "T":
+                continue
             self.dataset.attrs[key] = source_ds.attrs[key]
 
     def segmented_times(self):

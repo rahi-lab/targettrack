@@ -928,7 +928,7 @@ class Controller():
         else:
             newpath = key+".h5"
         hNew = DataSet.create_dataset(newpath)
-        hNew.copy_properties(self.data)
+        hNew.copy_properties(self.data, except_frame_num=True)
         OrigCrop = self.data.crop
         OrigAlign =self.data.align
         if self.options["save_crop_rotate"]:
