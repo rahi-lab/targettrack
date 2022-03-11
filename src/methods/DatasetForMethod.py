@@ -78,19 +78,19 @@ class DatasetForMethod:
     def get_points(self):
         assert self.data is not None, "file not open"
         if self.suffix=="h5":
-            if "points" not in self.data.keys():
-                points=np.full((self.data.attrs["T"],self.data.attrs["N_points"]+n_add+1,3),np.nan,dtype=np.float32)
+            if "pointdat" not in self.data.keys():
+                points=np.full((self.data.attrs["T"],self.data.attrs["N_neurons"]+n_add+1,3),np.nan,dtype=np.float32)
                 self.set_points(points)
-            return np.array(self.data["points"])
+            return np.array(self.data["pointdat"])
 
     def set_points(self,points):
         assert self.data is not None, "file not open"
         if self.suffix=="h5":
-            if "points" not in self.data.keys():
-                ds=self.data.create_dataset("points",shape=points.shape,dtype=points.dtype)
+            if "pointdat" not in self.data.keys():
+                ds=self.data.create_dataset("pointdat",shape=points.shape,dtype=points.dtype)
                 ds[...]=points
             else:
-                self.data["points"][...]=points
+                self.data["pointdat"][...]=points
 
     def get_helper(self,name):
         assert self.data is not None, "file not open"
@@ -179,16 +179,16 @@ class DatasetForMethod:
     def add_points(self,n_add):
         assert self.data is not None, "file not open"
         if self.suffix=="h5":
-            if  "points" not in self.data.keys():
-                points=np.full((self.data.attrs["T"],self.data.attrs["N_points"]+n_add+1,3),np.nan,dtype=np.float32)
+            if  "pointdat" not in self.data.keys():
+                points=np.full((self.data.attrs["T"],self.data.attrs["N_neurons"]+n_add+1,3),np.nan,dtype=np.float32)
             else:
-                points=np.array(self.data["points"])
-                del self.data["points"]
+                points=np.array(self.data["pointdat"])
+                del self.data["pointdat"]
                 points=np.concatenate([points,np.full((points.shape[0],n_add,3),np.nan)],axis=1)
 
-            ds=self.data.create_dataset("points",shape=points.shape,dtype=points.dtype)
+            ds=self.data.create_dataset("pointdat",shape=points.shape,dtype=points.dtype)
             ds[...]=points
-            self.data.attrs["N_points"]=self.data.attrs["N_points"]+n_add
+            self.data.attrs["N_neurons"]=self.data.attrs["N_neurons"]+n_add
 
     def set_data(self,name,data,compression="lzf",overwrite=False):
         assert self.data is not None, "file not open"
