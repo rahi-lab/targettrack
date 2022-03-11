@@ -2,8 +2,6 @@ import numpy as np
 import scipy.ndimage as sim
 
 
-# TODO MB: can you please describe in the docstrings what each post-processing does? (I see it is already done for some of them)
-
 def post_process_NN_masks(times, exempt_neurons, load_fun, save_fun):
     """
     MB added: to post process the predictions of NN for the selected frames as the ground truth

@@ -929,12 +929,6 @@ class Controller():
             newpath = key+".h5"
         hNew = DataSet.create_dataset(newpath)
         hNew.copy_properties(self.data)
-        # TODO MB: what is self.options["save_crop_rotate"]? This will copy the ROI anyways, indepentenlyt of the value of self.options["save_crop_rotate"].
-        #  This behaviour is the same as before, but you had an option to copy it (redundantly) if self.options["save_crop_rotate"].
-        #  Do we want the ROI to not be saved if not self.options["save_crop_rotate"]??
-        # MB : It is not about ROI. when the option is tru, the frame and mask
-        # frameRd = self.data.get_frame(i, col="red") returns will be the cropped frame and thus the
-        # cropped frame and its mask will be save which is what we want.
         OrigCrop = self.data.crop
         OrigAlign =self.data.align
         if self.options["save_crop_rotate"]:

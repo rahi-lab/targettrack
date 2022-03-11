@@ -30,7 +30,7 @@ def blur(frame, blur_b=40, blur_s=6, Subt_bg=False, subtVal=1):
 def SubtBg(frame, subtVal):
     # Todo: possibly rename function and its parameters
     """
-    subtracts a constant background value from your movie   # TODO MB looks like it is rather setting to black the background as defined by a threshold
+    subtracts a constant background value from your movie   # TODO MB looks like it is rather setting to black the background as defined by a threshold (if you agree we should make it clear in the docstring, and possibly rename the function and its parameters)
     """
     im_rraw = frame
     threshold_r=(im_rraw<subtVal)
