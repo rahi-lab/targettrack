@@ -34,7 +34,7 @@ from .mask_processing.classification import Classification
 from .mask_processing.image_register import Register_Rotate
 from .mask_processing.NN_related import post_process_NN_masks, post_process_NN_masks2, post_process_NN_masks3, \
     post_process_NN_masks4, post_process_NN_masks5
-from .mask_processing.image_processing import blur, SubtBg, resize_frame
+from .mask_processing.image_processing import blur, blacken_background, resize_frame
 
 # SJR: message box for indicating neuron number of new neuron and for renumbering neuron
 from .msgboxes import EnterCellValue as ecv
@@ -971,7 +971,7 @@ class Controller():
                 if self.options["save_blurred"]:
                     frameRd = blur(frameRd, bg_blur, sd_blur, self.options["save_subtracted_bg"], bg_subt)
                 elif self.options["save_subtracted_bg"]:
-                    frameRd = SubtBg(frameRd,bg_subt)
+                    frameRd = blacken_background(frameRd, bg_subt)
                 frameRd = frameRd[:x_1,:y_1,:z_1]
                 frameRd = frameRd[x_0:,y_0:,z_0:]
                 frameRd = np.pad(frameRd, ((padXL, padXR),(padYtop, padYbottom),  (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))

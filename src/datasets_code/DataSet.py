@@ -270,10 +270,9 @@ class DataSet:
     @abc.abstractmethod
     def get_real_time(self, t):
         """
-        # TODO MB what is this (it was saved as "t/time")? is it the time in the video??
-        MB: this is the time stamp of the frame from the original nd2 file
+        This is the time stamp in the original nd2 file of the time frame t (in self).
         :param t: time frame in self
-        :return:
+        :return: t (int), the time stamp in the original nd2 file
         """
         raise NotImplementedError
 
@@ -451,11 +450,9 @@ class DataSet:
     @abc.abstractmethod
     def save_real_time(self, t, real_time):
         """
-        # TODO MB what is this (it was saved as "t/time")? is it the time in the video??
-        #MB: it is the time stamp of that frame from the original nd2 file.
+        Saves the time stamp in the original nd2 file of the time frame t (in self).
         :param t: time in the dataset
-        :param real_time:
-        :return:
+        :param real_time: time stamp in the original nd2 file
         """
         raise NotImplementedError
 

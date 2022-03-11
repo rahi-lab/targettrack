@@ -20,7 +20,6 @@ def post_process_NN_masks(times, exempt_neurons, load_fun, save_fun):
                     labelArray, numFtr = sim.label(
                         mask > 0)  # get all the disconnected components of the nonzero regions of mask
                     for i in range(numFtr + 1):
-                        IfZero = False
                         submask = (labelArray == i)  # focus on each connected component separately
                         list = np.unique(
                             mask[submask])  # list of all cell ids corresponded to the connected component i
@@ -31,8 +30,7 @@ def post_process_NN_masks(times, exempt_neurons, load_fun, save_fun):
                                     # mentioned. If a cell is mentioned somewhere else set this component to zero.
                                     if list[l] not in exempt_neurons:
                                         mask[submask] = 0
-                                        IfZero = True  # whether the component was set to zero   # TODO MB: IfZero is not used... did you want elif or rather if on the next line??
-                        elif len(list) > 1 and not IfZero:
+                        elif len(list) > 1:
                             Volume = np.zeros(len(list))
                             for l in range(len(list)):
                                 Volume[l] = sum(mask[submask] == list[l])

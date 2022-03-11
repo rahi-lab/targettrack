@@ -27,13 +27,15 @@ def blur(frame, blur_b=40, blur_s=6, Subt_bg=False, subtVal=1):
     return frame
 
 
-def SubtBg(frame, subtVal):
-    # Todo: possibly rename function and its parameters
+def blacken_background(frame, thresh):
     """
-    subtracts a constant background value from your movie   # TODO MB looks like it is rather setting to black the background as defined by a threshold (if you agree we should make it clear in the docstring, and possibly rename the function and its parameters)
+    Makes the background (as defined by the given threshold) black. (Zeroes the background)
+    :param frame: video frame to be processed
+    :param thresh: background is defined by values < thresh
+    :return:
     """
     im_rraw = frame
-    threshold_r=(im_rraw<subtVal)
+    threshold_r=(im_rraw < thresh)
     im_rraw[threshold_r]=0
     return im_rraw
 
