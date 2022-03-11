@@ -91,8 +91,10 @@ class Controller():
         else:   # either masks, or yet unknown
             self.pointdat = np.full((self.frame_num,self.n_neurons + 1, 3), np.nan)
         self.neuron_presence = self.data.neuron_presence   # self.frame_num * self.n_neurons+1 array of booleans
-        if self.neuron_presence is None:
-            self._fill_neuron_presence()
+        # if self.neuron_presence is None:
+        self._fill_neuron_presence()   # This is done systematically to quick-fix the fact that the saved neuron_presence
+        # is sometimes wrong. Todo: fix origin of wrong saving and remove this. Or even do NOT save neuron_presence??
+        # or make only Dataset update neuron_presence?
         self.NN_pointdat = np.full((self.frame_num,self.n_neurons+1,3),np.nan)
         self.NN_or_GT = np.where(np.isnan(self.pointdat),self.NN_pointdat,self.pointdat)   # TODO AD: init using method?
 
