@@ -12,7 +12,38 @@ This is the user manual for the graphical interface for segmenting and editing *
 1. Clone this repository ("git clone https://github.com/lpbsscientist/targettrack").
 2. If you don't have conda or miniconda installed, download it from https://docs.conda.io/en/latest/miniconda.html.
 3. Follow the instructions of install.txt to create a virtual environment and install the necessary packages.
-8. Run the program from your command line with `python3 gui_launcher.py [dataset name]`
+4. Run the program from your command line with `python3 gui_launcher.py [dataset name]`
+
+
+# Running demo
+We guide you step-by-step through the demo:
+1. open the sample file using `python3 gui_launcher.py epfl10_CZANet_Final.h5`
+  <p align="center"> 
+  <img src="src/Images/start.png" width=600> 
+  </p>
+  
+2. check the `Overlay mask` checkbox to see the annotated frames' masks. Notice that the present neurons in each frame are marked with blue in the neuron bar and absent ones by red. 
+  <p align="center"> 
+  <img src="src/Images/OverlayMask.png" width=600> 
+  </p>
+  
+3. Highlight the masks by pressing on their corresponding key in the neuron bar. The highlighted neurons' key becomes green as you can see in the figure below. You can change the label of the highlighted neurons by pressing the `Renumber` button in the `Annotate` tab.
+
+<p align="center"> 
+<img src="src/Images/Highlight10.png" width=600> 
+</p> 
+
+4. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural network` button. This will copy the file in the `data/data_temp` folder and train the neural network on the new file.
+<p align="center"> 
+<img src="src/Images/NNtrain.png" width=600> 
+</p> 
+
+5. To check the performance of the neural network, choose the run name under `Select NN masks`. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
+<p align="center"> 
+<img src="src/Images/unannotatedFrame.png" width=400> 
+<img src="src/Images/SeeNNresults.png" width=400> 
+</p>
+
 
 # User Guide
 ### Preparing the h5 file
@@ -70,6 +101,7 @@ The actions of Deleting and renumbering can be reversed by pressing the key `z` 
 <p align="center"> 
 <img src="src/Images/annotateTab.png" width=300> 
 </p>
+
 ### NN tab
 This tab is designed to train the neural network (NN) directly from the GUI. The GUI will copy of the `.h5` file in the `data/data_temp` folder and save the result of the NN in that file.
 To train the neural network, enter the number of validation set, training set, and the epochs for training in the corresponding boxes and press the `Train Mask Prediction Neural network` button. Note that the sum of validation and tratining set should not exceed the total number of annotated frames.
