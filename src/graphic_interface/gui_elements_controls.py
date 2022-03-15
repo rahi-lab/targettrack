@@ -475,6 +475,7 @@ class ViewTab(QScrollArea):
 
         self.setWidgetResizable(True)
         self.setContentsMargins(5, 5, 5, 5)
+        # Todo no sideways scrolling
 
     def _adjacent_changed(self, value):
         ok = self.controller.change_adjacent(value)
@@ -482,7 +483,7 @@ class ViewTab(QScrollArea):
             self.getadjlab.setText(str(int(value)))
 
 
-class AnnotationTab(QWidget):
+class AnnotationTab(QScrollArea):
     """
     This is the tab with point and mask annotation tools
     """
@@ -703,7 +704,11 @@ class AnnotationTab(QWidget):
 
             main_layout.addLayout(Permute_buttons, row, 0)
 
-        self.setLayout(main_layout)
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
 
     def _selective_delete(self):
         fro, to = int(self.delete_select_from.text()), int(self.delete_select_to.text())
@@ -804,7 +809,7 @@ class AnnotationTab(QWidget):
             self.auto_en_lab.setStyleSheet("background-color: red; height: 15px; width: 5px;min-width: 5px;")
 
 
-class NNControlTab(QWidget):
+class NNControlTab(QScrollArea):
     """
     This is the tab that deals with NNs, launching them, retrieving their results...
     """
@@ -965,7 +970,11 @@ class NNControlTab(QWidget):
             main_layout.addWidget(self.NN_instance_select, row, 1)
             row += 1
 
-        self.setLayout(main_layout)
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
 
     @property
     def NNinstances(self):
@@ -1087,7 +1096,7 @@ class NNControlTab(QWidget):
         self.controller.post_process_NN_masks(Mode, ExNeu)
 
 
-class SelectionTab(QWidget):
+class SelectionTab(QScrollArea):
     """
     This is the tab that allows to select subsets of data
     """
@@ -1150,17 +1159,20 @@ class SelectionTab(QWidget):
         single_radiobtn.setChecked(False)
         self.population_buttons.addButton(single_radiobtn)
         buttons_layout.addWidget(single_radiobtn)
-
-
         selection_lay.addLayout(buttons_layout, 0, 2)
-
 
         select_btn = QPushButton("Select")
         select_btn.clicked.connect(self._frame_fraction_fun)
         selection_lay.addWidget(select_btn, 0, 3)
 
         main_layout.addLayout(selection_lay)
-        self.setLayout(main_layout)
+
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
+        # Todo no sideways scrolling
 
     def _frame_fraction_fun(self):
         frac = self.frac_entry.text()
@@ -1180,7 +1192,7 @@ class SelectionTab(QWidget):
         self.controller.select_frames(float(frac)/100, Tot_fr_final, self.population_buttons.checkedButton().text())
 
 
-class MaskProcessingTab(QWidget):
+class MaskProcessingTab(QScrollArea):
     """
     This is the tab that controls all processes specific to data with masks (though not just masks themselves): segmentation, clustering...
     """
@@ -1290,10 +1302,14 @@ class MaskProcessingTab(QWidget):
         crop_btn.clicked.connect(self.controller.define_crop_region)
         main_layout.addWidget(crop_btn)
 
-        self.setLayout(main_layout)
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
 
 
-class SavingTab(QWidget):
+class SavingTab(QScrollArea):
     """
     This is the tab for saving etc
     """
@@ -1331,14 +1347,18 @@ class SavingTab(QWidget):
         main_layout.addWidget(save_button, row, 0)
         row += 1
 
-        self.setLayout(main_layout)
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
 
 
-class PreProcessTab(QWidget):
+class ExportImportTab(QScrollArea):
         """
         MB: This is the tab for preprocessing and saving an a separate file
         """
-        def __init__(self, controller, frame_num:int, mask_threshold_for_new_region):
+        def __init__(self, controller, frame_num:int):
             """
             :param controller: main controller to report to
             :param frame_num: number of frames in video
@@ -1441,11 +1461,8 @@ class PreProcessTab(QWidget):
             preproc_tab_grid.addLayout(save_checkboxes_lay, row, 0)
             row += 1
 
-
-
             subrow = 0
             approve_lay = QGridLayout()
-
 
             approve_lay.addWidget(QLabel("Choose frames from:"), subrow, 0)
             self.frame_from = QLineEdit("0")
@@ -1505,7 +1522,12 @@ class PreProcessTab(QWidget):
 
             preproc_tab_grid.addLayout(approve_lay, row, 0)
             row += 1
-            self.setLayout(preproc_tab_grid)
+
+            wid = QWidget()
+            wid.setLayout(preproc_tab_grid)
+            self.setWidget(wid)
+            self.setWidgetResizable(True)
+            self.setContentsMargins(5, 5, 5, 5)
 
         def _Preprocess_and_save(self):
             Z_int = np.zeros(2)

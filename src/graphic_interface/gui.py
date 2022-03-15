@@ -106,12 +106,11 @@ class gui(QMainWindow):
                 tracking_panel.tabBar().setTabTextColor(3,QtGui.QColor(0,0,0))
 
                 # this is the preprocessing tab
-                preprocessing_tab = controls.PreProcessTab(self.controller,self.controller.frame_num,
-                                                        self.settings["mask_threshold_for_new_region"])
+                export_import_tab = controls.ExportImportTab(self.controller, self.controller.frame_num)
 
                 tracking_panel.setFixedSize(view_tab.sizeHint().width(),self.settings["screen_h"]//3)
 
-                tracking_panel.addTab(preprocessing_tab, "Export/Import")
+                tracking_panel.addTab(export_import_tab, "Export/Import")
                 tracking_panel.tabBar().setTabTextColor(4,QtGui.QColor(0,0,0))
 
             # this is the mask processes
