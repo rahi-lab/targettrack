@@ -650,7 +650,7 @@ class AnnotationTab(QWidget):
             mask_annotation_thresh_label = QLabel("Treshold for adding regions")
             mask_annotation_Layout.addWidget(mask_annotation_thresh_label,subrow, 2)
             subrow += 1
-            box_mode_checkbox = QCheckBox("boxing mode")
+            box_mode_checkbox = QCheckBox("Boxing mode")
             box_mode_checkbox.toggled.connect(self.controller.toggle_box_mode)
             mask_annotation_Layout.addWidget(box_mode_checkbox,subrow, 0)
             self.box_dimensions = QLineEdit("1,1,1-0")
@@ -869,8 +869,11 @@ class NNControlTab(QWidget):
             PostProcess_mask.setStyleSheet("background-color: yellow")
             PostProcess_mask.clicked.connect(self._Postprocess_NN_masks)
             main_layout.addWidget(PostProcess_mask,row, 1,1,1)
-            self.PostProc_Mode = QLineEdit("1")   # Todo: could be a QComboBox
-            self.PostProc_Mode.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
+            self.PostProc_Mode = QComboBox()
+            self.PostProc_Mode.addItem("Post-processing mode")
+            for i in range(1,6):
+                self.PostProc_Mode.addItem(str(i))
+            self.PostProc_Mode.currentTextChanged.connect(self._select_pmode)
             main_layout.addWidget(self.PostProc_Mode,row,0, 1, 1)
             row += 1
 
@@ -891,11 +894,13 @@ class NNControlTab(QWidget):
             val_frame_box.setContentLayout(lay)
             main_layout.addWidget(val_frame_box, row, 0, 1, 2)
             row += 1
-
+            '''
             main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
             row += 1
-        
+
             #CFP made this conditional
+            #MB: just removed this.
+
             NN_Check = QPushButton("Check NN progress")
             NN_Check.clicked.connect(self.controller.check_NN_run)
             main_layout.addWidget(NN_Check, row, 0, 1, 2)
@@ -903,7 +908,7 @@ class NNControlTab(QWidget):
 
             main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
             row += 1
-            
+            '''
             old_train_checkbox = QCheckBox("Use old train set")
             old_train_checkbox.toggled.connect(self.controller.toggle_old_trainset)
             main_layout.addWidget(old_train_checkbox, row, 0)
@@ -983,7 +988,13 @@ class NNControlTab(QWidget):
         else:
             net, instance = txt.split(" ")
         self.controller.select_NN_instance_masks(net, instance)
-        
+
+    def _select_pmode(self, txt):
+        if txt == "":
+            self.post_process_mode = 1
+        else:
+            self.post_process_mode = int(txt)
+
     def _run_script(self):
         pass
 
@@ -1070,7 +1081,7 @@ class NNControlTab(QWidget):
         ExNeu = ExNeu.split(',')
         ExNeu = [int(n) for n in ExNeu ]
 
-        Mode = int(self.PostProc_Mode.text())
+        Mode = self.post_process_mode#int(self.PostProc_Mode.text())
         Modes = set([1,2,3,4,5])
         assert Mode in Modes, "Acceptable modes are 1, 2, 3, 4, and 5"
         self.controller.post_process_NN_masks(Mode, ExNeu)
@@ -1108,8 +1119,8 @@ class SelectionTab(QWidget):
 
         #MB added to selet individual frames manually
         self.fr_num_entry = QLineEdit("0")
-        self.fr_num_entry.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
-        selection_lay.addWidget(QLabel("Enter frame numbers separated with ,"), 1, 0)
+        self.fr_num_entry.setStyleSheet("height: 15px; width: 5px;min-width: 150px;")
+        selection_lay.addWidget(QLabel("Enter frame numb-\n ers separated\n with ,"), 1, 0)
         selection_lay.addWidget(self.fr_num_entry, 1, 1)
 
         # select population of frames from which to select this proportion
@@ -1979,5 +1990,3 @@ class TrackTab(QWidget):
         self.gui.dataset.open()
         self.gui.respond("renew_helpers")
         self.gui.respond("timer_start")
-        
-        
