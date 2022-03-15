@@ -146,7 +146,7 @@ class h5Data(DataSet):
         key = "neuron_presence"
         if key not in self.dataset:
             self.dataset.create_dataset(key, (self.frame_num, self.nb_neurons + 1), dtype=bool,
-                                        maxshape=(self.frame_num, None))
+                                        maxshape=(None, None))
         elif self.dataset[key].shape != value.shape:
             self.dataset[key].resize(value.shape)
         self.dataset[key][...] = value
