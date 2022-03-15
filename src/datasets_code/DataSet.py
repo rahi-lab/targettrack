@@ -246,6 +246,11 @@ class DataSet:
         """
 
     @abc.abstractmethod
+    def available_NNdats(self):
+        """Gets iterable of NN ids for which pointdat is available"""
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def get_frame_match(self, t):
         """
         For a dataset A that was built from dataset B. Matches frame t of A to corresponding time frame in the original

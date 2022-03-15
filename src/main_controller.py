@@ -174,6 +174,7 @@ class Controller():
             self.NNmodels = []
             self.NNinstances = {}
             self._scan_NN_models()
+            self._scan_NN_instances()
 
         self.subprocmanager=SubProcManager.SubProcManager()
 
@@ -1735,6 +1736,19 @@ class Controller():
 
     def available_method_results(self):
         return self.data.get_available_methods()
+
+    def _scan_NN_instances(self):
+        """
+        Looks for existing NN instances in self.data, and populates the dict self.NNinstances with them.
+        Only used for initialization.
+        """
+        for key in self.data.available_NNdats():   # Todo AD why for pointdat only? is it just the name?
+            print("instances")
+            NetName, instance = key.split("_")
+            if NetName not in self.NNinstances:
+                self.NNinstances[NetName] = []
+            if instance not in self.NNinstances[NetName]:
+                self.NNinstances[NetName].append(instance)
 
     def pull_NN_res(self, key: str, success: bool):
         """

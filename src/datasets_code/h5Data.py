@@ -375,6 +375,11 @@ class h5Data(DataSet):
             return None
         return self.dataset.attrs["ROI"]
 
+    def available_NNdats(self):
+        if "net" not in self.dataset:
+            return []
+        return self.dataset["net"].keys()
+
     def get_frame_match(self, t):
         group_key = "original_match"
         if group_key not in self.dataset or str(t) not in self.dataset[group_key].attrs:
