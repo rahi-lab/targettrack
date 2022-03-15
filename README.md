@@ -78,11 +78,11 @@ There are multiple modes of postprocessing you can use to improve NN predictions
 
 -Mode 2: this postprocessing mode is basically like the previous one but uses different connectivity criteria to decide whether the neurons are touching each other or not. If the neurons are only neighbors across Z direction, it doesn't relabel them. Only the neurons listed in the input box are exempted from this modification. 
 
--Mode 3: if any of the neurons listed in the box touch each other and form one connected component it renames the smaller ones to the largest one. 
+-Mode 3: if any of the neurons listed in the box touch each other and form one connected component, it renames the smaller ones to the largest one. 
 
 -Mode 4: if a certain neuron has multiple disjoint components, it deletes the components that have smaller volumes.
 
--Mode 5: If any of the neurons neurons listed in the box touch each other and form one connected component it renames all the segments in the connected component to the first neuron in the list.
+-Mode 5: If any of the neurons neurons listed in the box touch each other and form one connected component, it renames all the segments in the connected component to the first neuron in the list.
 
 Finally, if after postprocessing the results look good enough, you can save it as ground truth mask using `Approve mask` button.
 
@@ -96,9 +96,36 @@ You can also use the reference frame for alignment in thes tab. If you push `Use
 
 ### Export/Import tab
 
+This tab is designed for modifying the movie file. The tab can be used to transfer masks from one movie to another. To import mask from another `.h5` file (source file) to the current file (target file), the address of the source file should be entered in the `Address of the imported masks` box. If the source file is rotated w.r.t. the current file (rotation function derived in the Processing tab), you chould check the `reverse transform` check box to reverse the rotation. By pressing `import` button, the mask from the source file will replace any existing mask in the target file. If instead you press `import as green mask`, only regions that are not already labeled will be labeled based on the source files masks.\
+In addition to importing masks, you can also export edited version of the current movie as a new `.h5` file using this tab. The exported movie will only contain the frames selected in the `Frame selection`. There are multiple options for editing the movie before exporting it.\
+`Rotate and crop`: this option applies the rotation and translation derived in `Processing tab` on the frames and then crops the frames based on the region you selected in `Processing tab`. The resulting frames which will have smaller size than the current frames will be saved as an external file.\
+`auto delete`: This option is useful for recordings of the freely moving worm where the worm gets out of the field of view (FOV) in some time points. This option detects the frames where the worm is substantially outside of the FOV by using coarse segmentation from `Processing tab`. If the coarse segmentation for a frame results in less than 3 objects in one frame, autodelete mode will exclude that frame while exporting.\
+`save red channel` and `save green channel`: if the movie has more than 1 channel, this option saves only the first or the second channel respectively.\
+`Blur`: it blurs the frames using difference of Gaussians method with parameters set in the `background factor` and `sigma` box.\
+`Subtract bg`: it will set all the pixels that have a value less than a threshold to zero. This can be used to reduce the background noise. The threshold is set in the background box.\
+`Resize image`: Resizes the movie in X and Y direction using nearest neighbor or bicubic interpolation for masks and images respectively (https://docs.opencv.org/4.x/da/d6e/tutorial_py_geometric_transformations.html).
+`Choose frames from`: if you want to export only a subset of the frames, you can enter the desired interval in the boxes of this section.\
+`Delete frames and intervals`: if you want to exclude certain frames or intervals in the exported movie, you can enter them in this section.\
+`Choose x/y/z from ... to`: if you want to crop the movie in any of the X, Y, or Z directions, you can enter the cropped regions coordinates in this section. The  cropping performed in this tabe is different from the one performed in `Processing` tab which apllies cropping only on the rotated and aligned frames. If the X coordinate you start from has negative value, then you will have zero paddings at the left side of your frames. Similarly if the X coordinates you end at is larger than the width of the frames you will have zero paddings on the right side. The same goes for Y and Z direction.
+
+
 
 ### Processing tab
 
+This tab is used mainly for segmenting the frames and aligning them.
+#### Segmentation
+1. First select the frames you want to segment using `Frame selection` tab. 
+2. After that you can tune the parameters of segmentation using the `segmentation parameter` collapsible box.
+3. Push the `Test segmentation on current frame` button to check the result of each parameter set.
+4. If the results look good, press the `segmentation` button to segment all the selected frames.
+
+#### Alignment
+1. Check the coarse segmentation checkbox
+2. Set the `perc` parameter high enough such that only a few objects are segmented in each frame (To check if the threshold set by `perc` i good enough, use the `Test segmentation on current frame`)
+3. If the threshold is good enough, press the `segmentation` button to coarse-segment all the frames.
+4. Find a frame that you want to use as the reference to align all other frames. Go to that frame and push the `Use this frame as reference` button in the `Frame selection` tab to save that frame as the reference.
+5. Push the `Compute rotation` button to compute the rotation and translation for each frame to align it to the reference frame. When the compuation is finished, you can check the results by using the `Aligned` checkbox in `View` tab.
+6. After the alignment you can crop the movie. First push the `Crop` button. Then left-click on the four corners of the rectangle you want to crop and press the `Crop` button again. The crop region will be compputed automatically to include the corners you clicked and be a multiple of 32. To check the result you can use the `Cropped` checkbox in the `View` tab.
 ### IO tab
 
 
