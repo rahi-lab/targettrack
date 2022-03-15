@@ -1910,16 +1910,16 @@ class DashboardTab(QWidget):
 
 
 class TrackTab(QWidget):
-    def __init__(self,gui):
+    def __init__(self,controller):
         super().__init__()
-        self.gui=gui
+        self.controller = controller
 
         self.methods=tracking_methods.methodnames
         self.methodhelps=tracking_methods.methodhelps
         self.grid=QGridLayout()
 
         row=0
-        self.grid.addWidget(QLabel("Select Method"),row,0)
+        self.grid.addWidget(QLabel("Select Method:"),row,0)
         row+=1
 
         self.combobox=QComboBox()
@@ -1931,9 +1931,21 @@ class TrackTab(QWidget):
         self.grid.addWidget(self.combobox,row,0)
         row+=1
 
+        self.grid.addWidget(QLabel("Parameters:"),row,0)
+        row+=1
+
+        scroll=QScrollArea()
+        scroll.setWidgetResizable(True)
+        content = QWidget()
+        lay = QVBoxLayout()
         self.help=QLabel()
         self.help.setWordWrap(True)
-        self.grid.addWidget(self.help,row,0)
+        self.help.setAlignment(Qt.AlignLeft | Qt.AlignTop)
+        lay.addWidget(self.help)
+        content.setLayout(lay)
+        scroll.setWidget(content)
+
+        self.grid.addWidget(scroll,row,0)
         row+=1
 
         self.param_edit=QLineEdit()
@@ -1974,9 +1986,8 @@ class TrackTab(QWidget):
         res=msgbox.exec()
         if res==QMessageBox.No:
             return
-        self.gui.respond("save")
-        self.gui.respond("timer_stop")
-        self.gui.dataset.close()
+        self.controller.save_status()
+        dataset_path = self.controller.pause_for_NN()
 
         progress=QProgressDialog("","cancel",-1,101)
         labeltext="Running "+method_name+((" with "+params) if params!="" else "") +":\n"
@@ -1988,7 +1999,7 @@ class TrackTab(QWidget):
         QApplication.processEvents()
 
         command_pipe_main,command_pipe_sub=Pipe()
-        process = Process(target=tracking_methods.run, args=(method_name,command_pipe_sub,self.gui.dataset.file_path,params))
+        process = Process(target=tracking_methods.run, args=(method_name,command_pipe_sub,dataset_path,params))
         process.start()
         command_pipe_main.send("run")
         while True:
@@ -2009,6 +2020,4 @@ class TrackTab(QWidget):
         process.join()
 
         progress.setValue(101)
-        self.gui.dataset.open()
-        self.gui.respond("renew_helpers")
-        self.gui.respond("timer_start")
+        self.controller.unpause_for_NN(dataset_path)
