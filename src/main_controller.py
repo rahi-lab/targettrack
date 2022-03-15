@@ -91,10 +91,9 @@ class Controller():
         else:   # either masks, or yet unknown
             self.pointdat = np.full((self.frame_num,self.n_neurons + 1, 3), np.nan)
         self.neuron_presence = self.data.neuron_presence   # self.frame_num * self.n_neurons+1 array of booleans
-        # if self.neuron_presence is None:
-        self._fill_neuron_presence()   # This is done systematically to quick-fix the fact that the saved neuron_presence
-        # is sometimes wrong. Todo: fix origin of wrong saving and remove this. Or even do NOT save neuron_presence??
-        # or make only Dataset update neuron_presence?
+        # todo Warning, this will be saved automatically in mask mode but not in point mode (in point mode it is saved only when pointdat is saved)
+        if self.neuron_presence is None:
+            self._fill_neuron_presence()
         self.NN_pointdat = np.full((self.frame_num,self.n_neurons+1,3),np.nan)
         self.NN_or_GT = np.where(np.isnan(self.pointdat),self.NN_pointdat,self.pointdat)   # TODO AD: init using method?
 
@@ -540,6 +539,7 @@ class Controller():
                     client.change_present_neurons(present=new_present)
             else:
                 self.signal_present_all_times_changed()   # Todo actually only one time changes; and this will be called many times after segmentation
+            self.data.neuron_presence = self.neuron_presence
 
         if t == self.i:
             self.data.save_mask(t, mask, False)
@@ -1867,7 +1867,7 @@ class Controller():
         if self.point_data:
             self.save_pointdat()
             self.hlab.save_ci_int(self.data)#MB just added a tab to avoid an error with mask data
-        self.data.neuron_presence = self.neuron_presence
+        self.data.neuron_presence = self.neuron_presence   # todo I think it could be just for points
         self.data.save()
         print("Saved")
 
