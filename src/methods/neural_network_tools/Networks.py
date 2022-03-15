@@ -6,10 +6,10 @@ def getpad(ten,minshape):
     sh=ten.shape
     if len(sh)==4:
         W,H=sh[2],sh[3]
-        return (W-W%minshape[0])%minshape[0],(H-H%minshape[1])%minshape[1]
+        return minshape[0]*(W//minshape[0]+(W%minshape[0]!=0))-W,minshape[1]*(H//minshape[1]+(H%minshape[1]!=0))-H
     elif len(sh)==5:
         W,H,D=sh[2],sh[3],sh[4]
-        return (W-W%minshape[0])%minshape[0],(H-H%minshape[1])%minshape[1],(D-D%minshape[2])%minshape[2]
+        return minshape[0]*(W//minshape[0]+(W%minshape[0]!=0))-W,minshape[1]*(H//minshape[1]+(H%minshape[1]!=0))-H,minshape[2]*(D//minshape[2]+(D%minshape[2]!=0))-D
     else:
         assert False, str(sh)+"not valid"
 
@@ -164,6 +164,9 @@ class ThreeDCN(nn.Module):
                 #print("no init",name)
 
     def forward(self, x,verbose=False):
+        padW,padH,padD=getpad(x,minshape=(32,32,4))
+        x=nn.functional.pad(x, pad=(padD,0,padH,0,padW,0), mode='constant', value=0.0)
+        
         ori=x#n_channels
         if verbose:
             print(x.size())
@@ -205,7 +208,7 @@ class ThreeDCN(nn.Module):
 
         x=self.conv_out(x)
 
-        return x
+        return x[:,:,padW:,padH:,padD:]
 
 class TwoDCN(nn.Module):
     def __init__(self, n_channels=3,n_filt_init=16,growth=24,kernel_size=3,compress_targ=32,num_classes=10):
@@ -330,7 +333,9 @@ class TwoDCN(nn.Module):
 class AutoEnc2d(nn.Module):
     def __init__(self,sh2d,n_channels=3,n_z=20,out=torch.sigmoid):
         super().__init__()
-        assert (sh2d[0]%32==0 and sh2d[1]%32==0),"Shape is not multiple of 32"
+        x_mock=torch.randn(1,1,sh2d[0],sh2d[1])
+        padW,padH=getpad(x_mock,minshape=(32,32))
+        sh2d=np.array(sh2d)+np.array([padW,padH])
         self.relu=nn.ReLU(inplace=True)
         self.down=nn.MaxPool2d(kernel_size=2)
 
@@ -414,6 +419,9 @@ class AutoEnc2d(nn.Module):
                 pass
 
     def forward(self, x):
+        padW,padH=getpad(x,minshape=(32,32))
+        x=nn.functional.pad(x, pad=(padH,0,padW,0), mode='constant', value=0.0)
+        
         x=self.relu(self.norm1(self.conv1(x)))
         x=self.down(x)
         x=self.relu(self.norm2(self.conv2(x)))
@@ -434,7 +442,10 @@ class AutoEnc2d(nn.Module):
         x=self.relu(self.norm9(self.conv9(self.convt9(x))))
         x=self.relu(self.norm10(self.conv10(self.convt10(x))))
         x=self.relu(self.norm11(self.conv11(self.convt11(x))))
-        return self.out(self.conv_out(x)),latent
+        res=self.out(self.conv_out(x))
+        res=res[:,:,padW:,padH:]
+        
+        return res,latent
         
         
         

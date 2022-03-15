@@ -8,10 +8,9 @@ import glob
 import cc3d
 
 class TrainDataset(Dataset):
-    def __init__(self,folpath,channels,shape):
+    def __init__(self,folpath,shape):
         super().__init__()
         self.folpath=folpath
-        self.channels=channels
         self.shape=shape
         self.framefolpath=os.path.join(self.folpath,"frames")
         self.maskfolpath=os.path.join(self.folpath,"masks")
@@ -38,8 +37,8 @@ class TrainDataset(Dataset):
             )
             
         self.query={}
-        for i,dset_ind in enumerate(self.indlist):
-            self.query[dset_ind]=i
+        for i,real_ind in enumerate(self.indlist):
+            self.query[real_ind]=i
         
         self.augment="comp_cut"
         self.grid2d=None
@@ -110,7 +109,7 @@ class TrainDataset(Dataset):
     def __getitem__(self,i):
         assert 0<=i<self.num_frames_tot
         ii=self.indlist[i]
-        fr=(torch.load(os.path.join(self.framefolpath,str(ii)+".pt"))[self.channels]/255).to(torch.float32)
+        fr=(torch.load(os.path.join(self.framefolpath,str(ii)+".pt"))/255).to(torch.float32)
         mask=torch.load(os.path.join(self.maskfolpath,str(ii)+".pt"))
         fr,mask=self.get_trf(fr,mask,self.augment)
         return [fr,mask]
@@ -129,17 +128,30 @@ class TrainDataset(Dataset):
         return dset_inds
 
 class EvalDataset(Dataset):
-    def __init__(self,folpath,channels,T,maxz=False):
+    def __init__(self,folpath,T,mask=False,maxz=False):
         super().__init__()
         self.maxz=maxz
         self.folpath=folpath
-        self.channels=channels
         self.framefolpath=os.path.join(self.folpath,"frames")
+        self.mask=mask
+        if self.mask:
+            self.maskfolpath=os.path.join(self.folpath,"masks")
         self.num_frames_tot=T
+        
 
     def __getitem__(self,i):
         assert 0<=i<self.num_frames_tot
-        fr=(torch.load(os.path.join(self.framefolpath,str(i)+".pt"))[self.channels]/255).to(torch.float32)
+        fr=(torch.load(os.path.join(self.framefolpath,str(i)+".pt"))/255).to(torch.float32)
+        if self.mask:
+            maskfp=os.path.join(self.maskfolpath,str(i)+".pt")
+            if (not self.maxz) and os.path.exists(maskfp):
+                mask=torch.load(maskfp).to(torch.long)
+            else:
+                mask=None
+            if self.maxz:
+                return fr.max(3)[0],None
+            else:
+                return fr,mask
         if self.maxz:
             return fr.max(3)[0]
         else:
@@ -194,3 +206,19 @@ def selective_ce(pred_raw,target_mask):
         mask=trf[target_mask]
         mask.requires_grad=False
     return torch.nn.functional.cross_entropy(pred_raw[:,existing],mask)
+    
+def get_additional_inds(traininds,distmat):
+    T=distmat.shape[0]
+    traininds_aug=np.array(traininds).copy()
+    while len(traininds_aug)<T:
+        not_tr=np.ones(T,dtype=bool)
+        not_tr[traininds_aug]=0
+        not_traininds=np.nonzero(not_tr)[0]#MB: index of frames that are not in training set
+        subdist=distmat[traininds_aug]#MB: distance matrix for frames
+        subdist=subdist[:,not_tr]
+        dists=np.min(subdist,axis=0)#min of each colums, minimum distance of each not-trained frame from the training set
+        new=not_traininds[np.argmax(dists)]#index of a frameoutside of training set that has the maximum dist
+        traininds_aug=np.append(traininds_aug,new)#MB:add the frame corresponding to index 'new' to the training set
+    return traininds_aug[len(traininds):]
+    
+    
