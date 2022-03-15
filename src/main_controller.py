@@ -92,7 +92,9 @@ class Controller():
             self.pointdat = np.full((self.frame_num,self.n_neurons + 1, 3), np.nan)
         self.neuron_presence = self.data.neuron_presence   # self.frame_num * self.n_neurons+1 array of booleans
         # todo Warning, this will be saved automatically in mask mode but not in point mode (in point mode it is saved only when pointdat is saved)
-        if self.neuron_presence is None:
+        if self.neuron_presence is None or self.frame_num > self.neuron_presence.shape[0]:
+            self._fill_neuron_presence()
+        elif self.frame_num > self.neuron_presence.shape[0]:
             self._fill_neuron_presence()
         self.NN_pointdat = np.full((self.frame_num,self.n_neurons+1,3),np.nan)
         self.NN_or_GT = np.where(np.isnan(self.pointdat),self.NN_pointdat,self.pointdat)   # TODO AD: init using method?
@@ -239,14 +241,21 @@ class Controller():
         self.signal_nb_neurons_changed()
         self.update(t_change=True)
 
-    def _fill_neuron_presence(self):
+    def _fill_neuron_presence(self, frame_num_change=False):
+        if frame_num_change:
+            old_pres = self.neuron_presence
+            old_t = old_pres.shape[0]
+            self.neuron_presence = np.full((self.frame_num, self.n_neurons + 1), False)
+            self.neuron_presence[:old_t] = old_pres
+        else:
+            old_t = 0
+            self.neuron_presence = np.full((self.frame_num, self.n_neurons + 1), False)
         if self.point_data:
             self.neuron_presence = ~np.isnan(self.pointdat[:, :, 0])
         elif self.point_data is None:
-            self.neuron_presence = np.full((self.frame_num, self.n_neurons + 1), False)
+            pass
         else:
-            self.neuron_presence = np.full((self.frame_num, self.n_neurons + 1), False)
-            for t in range(self.frame_num):
+            for t in range(old_t, self.frame_num):
                 mask = self.data.get_mask(t)
                 if mask is not False:
                     present = np.unique(mask)
