@@ -79,11 +79,12 @@ class CollapsibleBox(QtWidgets.QWidget):
 
 
 class Dialog(QDialog):
-    def __init__(self, rundata,parent=None):
+    def __init__(self, rundata, controller=None):
+        # this is used only for masks
         super().__init__()
         self.buttonOk = QtGui.QPushButton('Ok',self)
         self.buttonOk.clicked.connect(self.accept)
-        self.parent=parent
+        self.controller = controller
         layout = QtGui.QGridLayout(self)
         row=0
         if len(rundata)==0:
@@ -122,7 +123,7 @@ class Dialog(QDialog):
 
     def make_pullfunc(self,key,success):
         def pullfunc():
-            res,msg=self.parent.tracking.pull_NN_res(key,success)
+            res,msg=self.controller.pull_NN_res(key,success)
             if res:
                 dial=QMessageBox()
                 dial.setText(msg)

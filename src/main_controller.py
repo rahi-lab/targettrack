@@ -13,8 +13,6 @@ import skimage.feature as skfeat
 import scipy.spatial as spat
 import scipy.ndimage as sim
 import cv2
-import time
-import h5py
 
 from PyQt5.QtWidgets import QErrorMessage
 
@@ -34,6 +32,9 @@ from .mask_processing.features import FeatureBuilder
 from .mask_processing.clustering import Clustering
 from .mask_processing.classification import Classification
 from .mask_processing.image_register import Register_Rotate
+from .mask_processing.NN_related import post_process_NN_masks, post_process_NN_masks2, post_process_NN_masks3, \
+    post_process_NN_masks4, post_process_NN_masks5
+from .mask_processing.image_processing import blur, blacken_background, resize_frame
 
 # SJR: message box for indicating neuron number of new neuron and for renumbering neuron
 from .msgboxes import EnterCellValue as ecv
@@ -79,16 +80,22 @@ class Controller():
 
         #we fetch the useful information of the dataset, the h5 file is initialized here.
         self.channel_num = self.data.nb_channels
-        self.n_neurons = self.data.nb_neurons
-        self.frame_shape = self.data.frame_shape      # Todo: make sure that changes in shae due to cropping do not matter
+        self.n_neurons = self.data.nb_neurons   # Todo: Warning, this can change with masks but not with points
+        self.frame_shape = self.data.frame_shape      # Todo: make sure that changes in shape due to cropping do not matter
 
         self.NNmask_key=""
 
         # all points are loaded in memory
         if self.point_data:
             self.pointdat = self.data.pointdat
-        else:
-            self.pointdat = np.full((self.frame_num,self.n_neurons+1,3),np.nan)
+        else:   # either masks, or yet unknown
+            self.pointdat = np.full((self.frame_num,self.n_neurons + 1, 3), np.nan)
+        self.neuron_presence = self.data.neuron_presence   # self.frame_num * self.n_neurons+1 array of booleans
+        # todo Warning, this will be saved automatically in mask mode but not in point mode (in point mode it is saved only when pointdat is saved)
+        if self.neuron_presence is None or self.frame_num > self.neuron_presence.shape[0]:
+            self._fill_neuron_presence()
+        elif self.frame_num > self.neuron_presence.shape[0]:
+            self._fill_neuron_presence()
         self.NN_pointdat = np.full((self.frame_num,self.n_neurons+1,3),np.nan)
         self.NN_or_GT = np.where(np.isnan(self.pointdat),self.NN_pointdat,self.pointdat)   # TODO AD: init using method?
 
@@ -120,7 +127,7 @@ class Controller():
         self.options["overlay_NN"] = True   # this is for points only
         self.options["overlay_mask"]=int(self.settings["overlay_mask_by_default"])
         self.mask_thres=int(self.settings["mask_threshold_for_new_region"])
-        self.options["overlay_act"]=True# Todo: should depend on point_data?
+        self.options["overlay_act"]=True
         self.options["mask_annotation_mode"] = False
         self.options["RenumberComp"] = False#MB added to be able to renumber only one component of a cell
         self.options["defining_cropzone_mode"] = False   # AD Whether we are in the process of defining a cropping zone
@@ -158,7 +165,7 @@ class Controller():
 
         self.highlighted=0
 
-        self.button_keys = {}   # TODO AD: rename
+        self.button_keys = {}
 
         self.assigned_sorted_list = []  # AD sorted list of neurons (from1) that have a key assigned
         self.mask_temp=None
@@ -168,6 +175,7 @@ class Controller():
             self.NNmodels = []
             self.NNinstances = {}
             self._scan_NN_models()
+            self._scan_NN_instances()
 
         self.subprocmanager=SubProcManager.SubProcManager()
 
@@ -198,7 +206,7 @@ class Controller():
         # here when the highlighted track data changes
         self.highlighted_track_registered_clients = []
         # here when the z-viewing should change:
-        self.zslice_registered_clients = []   # Todo: Warning, controller will not be aware of z changes if they are done
+        self.zslice_registered_clients = []
         # by wheeling the mouse in MainFigWidget (but that's not hard to change, see methods of MainFigWidget)
         # here when the mask annotation threshold changes
         self.mask_thres_registered_clients = []
@@ -233,8 +241,31 @@ class Controller():
         self.signal_nb_neurons_changed()
         self.update(t_change=True)
 
-    def update(self,t_change=False):
-        if not self.ready:   # this is jsut to avoid gui elements from calling callbacks resulting in update during their init   # Todo AD: find more elegant way
+    def _fill_neuron_presence(self, frame_num_change=False):
+        if frame_num_change:
+            old_pres = self.neuron_presence
+            old_t = old_pres.shape[0]
+            self.neuron_presence = np.full((self.frame_num, self.n_neurons + 1), False)
+            self.neuron_presence[:old_t] = old_pres
+        else:
+            old_t = 0
+            self.neuron_presence = np.full((self.frame_num, self.n_neurons + 1), False)
+        if self.point_data:
+            self.neuron_presence = ~np.isnan(self.pointdat[:, :, 0])
+        elif self.point_data is None:
+            pass
+        else:
+            for t in range(old_t, self.frame_num):
+                mask = self.data.get_mask(t)
+                if mask is not False:
+                    present = np.unique(mask)
+                    if present[0] == 0:   # should be the case (background)
+                        present = present[1:]
+                    self.neuron_presence[t, present] = True
+        self.data.neuron_presence = self.neuron_presence
+
+    def update(self, t_change=False):
+        if not self.ready:   # this is jsut to avoid gui elements from calling callbacks resulting in update during their init   # todo: find more elegant way
             return
         # TODO AD: maybe split into smaller methods, and replace calls to update by methods updating only some parts
 
@@ -253,24 +284,9 @@ class Controller():
             for client in self.frame_registered_clients:
                 client.change_t(self.i)
 
-            # SJR: save number of neurons before loading next frame in order to update neuron bar if needed, see below
-            old_n_neurons = self.n_neurons
             # SJR: next step deletes the old mask to prevent "undo" from being based on the previous frame
             if self.options["mask_annotation_mode"]:
                 self.mask_temp = None
-
-            # SJR: read mask if time changed and not in point mode
-            if not self.point_data:
-                k=str(self.i)+"/mask"
-                if self.data.check_key(k):
-                    #MB: so the mask transformation matches those of the frame which are determined by gui's checkboxes
-                    self.mask = self.data.get_mask(self.i, force_original=False)
-                    self.data.nb_neurons = int(self.mask.max())
-                    self.n_neurons = self.data.nb_neurons
-                else:
-                    self.mask = None
-                    self.data.nb_neurons = 0
-                    self.n_neurons = 0
 
         #load the images from the dataset
 
@@ -299,61 +315,25 @@ class Controller():
 
         #load the mask, from ground truth or neural network
         #show mask if either the "overlay mask" OR the "mask annotation mode" checkboxes are checked
-        if self.options["overlay_mask"] or self.options["mask_annotation_mode"] or self.options["boxing_mode"]:
-            k=str(self.i)+"/mask"
-            knn="net/"+self.NNmask_key+"/"+str(self.i)+"/predmask"
-            if self.data.check_key(k):
-                self.mask = self.data[k][...] # SJR: added [...] to get array back, without [...] got a 'h5py._hl.dataset.Dataset' back
-            elif self.data.check_key(knn):
-                self.mask = self.data[knn][...] # SJR: added [...] (without testing) to see whether we get array instead of weird data type
-            else:
-                self.mask=None
-            '''
-            visualizing masks for epfl lab-MB
-            to see the coarse segmentation when coarse seg check box is activated
-            '''
-            kcoarse=str(self.i)+"/coarse_mask"
-            if not self.point_data:
-                if self.data.check_key(k) or self.data.check_key(kcoarse):
-                    self.mask = self.data.get_mask(self.i, force_original=False)
-        else:
-            self.mask = None
+        self.update_mask_display()
 
-        '''
-        MB: to check the validation set visually. to see only the NN mask
-        '''
-        if self.data.only_NN_mask_mode:#MB added
-            knn="net/"+self.NNmask_key+"/"+str(self.i)+"/predmask"
-            if self.data.check_key(knn):
-                self.mask = self.data[knn][...]
-            else:
-                self.mask = None
-
-        for client in self.mask_registered_clients:
-            client.change_mask_data(self.mask)
-        self.existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[self.i][:,0]))#MB added:needs to be added befor signal point change to avoid error
         self.signal_pts_changed(t_change=t_change)
 
-        # it is important that this be done AFTER self.signal_pts_changed so that self.NN_or_GT is updated
-        self.existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[self.i][:,0]))   # TODO AD what about masks??
-
-        # TODO AD: this is terrible.
-        #  Also, I think n_neurons should not be the nb of neurons present in the current frame...
-        if t_change and not self.point_data and old_n_neurons != self.n_neurons:
-            self.signal_nb_neurons_changed()
-        if self.point_data:
-            present_neurons = np.nonzero(self.existing_annotations)[0]
-        elif not (self.mask is None):#MB: added this to have proper coloring of neuron bar for the masked data
-            neuronAndbg = np.unique(self.mask)
-            present_neurons = neuronAndbg[np.nonzero(neuronAndbg)]
-        else:
-            present_neurons = np.nonzero(self.existing_annotations)[0]
+        present_neurons = np.flatnonzero(self.neuron_presence[self.i])
 
         for client in self.present_neurons_registered_clients:
             client.change_present_neurons(present_neurons)
 
         #peak calculation is only when requested
         self.peak_calced=False
+
+    def _show_masks(self):
+        """
+        In mask mode, whether we are currently showing masks.
+        :return: bool
+        """
+        return (self.options["overlay_mask"] or self.options["mask_annotation_mode"]
+                or self.options["boxing_mode"] or self.data.only_NN_mask_mode)
 
     def valid_points_from_all_points(self, points):
         """
@@ -363,14 +343,6 @@ class Controller():
         """
         valids = np.logical_not(np.isnan(points[:, 0]))
         return points[valids]
-
-    def signal_frame_change(self):
-        """
-        Signals to all clients that the time frame, and subsequently all values that change along with it such as the
-        image and the pointdat, have changed.
-        """
-        # TODO AD : call all updates
-        raise NotImplementedError
 
     @property
     def i(self):
@@ -419,6 +391,35 @@ class Controller():
         self.i = t
         self.update(t_change=True)
 
+    def recompute_point_presence(self):
+        """
+        To be called when self.pointdat or self.NN_pointdat is modified
+        """
+        self.NN_or_GT = np.where(np.isnan(self.pointdat), self.NN_pointdat, self.pointdat)
+        self.neuron_presence = ~np.isnan(self.NN_or_GT[:, :, 0])
+
+    def update_mask_display(self):
+        """
+        To be called when on of the parameters of the mask display (such as whether to display the mask, or to display
+        only the NN mask...) is modified (the mask may be modified too, but then make sure mask_change is called... but
+        I don't think we ever modify both at the same time).
+        If only the mask itself changes, call mask_change instead.
+        """
+        if self._show_masks():
+            mask = self.data.get_mask(self.i, force_original=False)
+            if mask is False or self.data.only_NN_mask_mode:
+                mask = self.data.get_NN_mask(self.i, self.NNmask_key)
+                if mask is False:
+                    self.mask = None
+                else:
+                    self.mask = mask
+            else:
+                self.mask = mask
+        else:
+            self.mask = None
+        for client in self.mask_registered_clients:
+            client.change_mask_data(self.mask)
+
     def signal_pts_changed(self, t_change=True):
         """
         Updates self.NN_or_GT to match changes in self.pointdat and self.NN_pointdat,
@@ -430,7 +431,7 @@ class Controller():
         if not self.point_data:
             return
 
-        self.NN_or_GT = np.where(np.isnan(self.pointdat), self.NN_pointdat, self.pointdat)
+        self.recompute_point_presence()
 
         if self.options["follow_high"] and t_change:
             self.center_on_highlighted()
@@ -438,10 +439,8 @@ class Controller():
         if self.options["overlay_tracks"] and self.highlighted != 0:
             for client in self.highlighted_track_registered_clients:
                 client.change_track(self.highlighted_track_data(self.highlighted))
-                # TODO AD: set =np.zeros((2,0)) = np.zeros((2,0)) otherwise, and do what if not self.point_data?
 
         pts_dict = {}
-        # TODO AD: good init for all pointdats if not self.point_data
 
         # ground truth points
         if self.options["overlay_pts"]:
@@ -473,7 +472,6 @@ class Controller():
 
         # highlighted point
         pts_dict["pts_high"] = self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i][self.highlighted])[None, :])
-        # TODO AD: set to np.array([[], [], []]).transpose() if not self.point_data, or not define?
 
         for client in self.points_registered_clients:
             client.change_pointdats(pts_dict)
@@ -489,16 +487,74 @@ class Controller():
         for client in self.pointlinks_registered_clients:
             client.change_links(link_data)
 
-    def signal_present_all_times_changed(self):
+    def signal_present_all_times_changed(self):   # TODO use when opening NN results for instance... (instead of update, but it is not sufficient to replace update)
         for client in self.present_neurons_all_times_registered_clients:
-            client.change_present_neurons_all_times()
+            client.change_present_neurons_all_times(self.neuron_presence)
 
     def signal_nb_neurons_changed(self):
         """
         Method to signal to all registered clients that the neumber of neurons has changed.
         """
+        if self.highlighted > self.n_neurons:
+            self.highlighted = 0
         for client in self.nb_neuron_registered_clients:
             client.change_nb_neurons(self.n_neurons)
+
+    def mask_change(self, t=None):
+        """
+        Updates everything that needs to be updated when the mask for the current time frame is modified.
+        If added_neuron_from1 or removed_neuron_from1 is given, it must be the only modification of the mask.
+        Warning: if t is not the current time, no mask will be saved to the dataset (it is assumed that it was already
+        saved, eg by Segmenter)
+        """
+        if t is None:
+            t = self.i
+            mask = self.mask
+        else:
+            mask = self.data.get_mask(t)
+            if t == self.i and self._show_masks() and not self.data.only_NN_mask_mode:
+                self.mask = mask
+
+        old_present = np.flatnonzero(self.neuron_presence[t])
+        assert 0 not in old_present, "0 corresponds to no neuron and should never be set to present"
+        new_present = np.unique(mask)
+        if new_present[0] == 0:   # should always be the case (otherwise it means there is no background)
+            new_present = new_present[1:]
+        if len(new_present) != len(old_present) or np.any(new_present != old_present):
+            # at least one neuron has appeared/disappeared from this frame
+            # First, increase number of neurons if a new neuron exists
+            max_neu = max(new_present)
+            if max_neu > self.n_neurons:
+                self.n_neurons = max_neu
+                self.data.nb_neurons = self.n_neurons
+                old_presence = self.neuron_presence
+                self.neuron_presence = np.zeros((self.frame_num, self.n_neurons + 1), dtype=bool)
+                self.neuron_presence[:, :old_presence.shape[1]] = old_presence
+                self.signal_nb_neurons_changed()
+            # Second, update the presence
+            self.neuron_presence[t] = False
+            self.neuron_presence[t, new_present] = True
+            # Third, reduce number of neurons if neurons have disappeared (from all frames)
+            # Todo: that will not reduce the nb of neurons if the last n neurons are absent and already were absent. Is it ok?
+            cumsum = np.cumsum(np.sum(self.neuron_presence, axis=0)[::-1])
+            if cumsum[0] == 0:   # last neuron is absent at all times
+                self.n_neurons = self.n_neurons - np.flatnonzero(cumsum)[0]
+                self.data.nb_neurons = self.n_neurons
+                self.neuron_presence = self.neuron_presence[:, :self.n_neurons + 1]
+                self.signal_nb_neurons_changed()
+            # Finally
+            if t == self.i:
+                for client in self.present_neurons_registered_clients:
+                    client.change_present_neurons(present=new_present)
+            else:
+                self.signal_present_all_times_changed()   # Todo actually only one time changes; and this will be called many times after segmentation
+            self.data.neuron_presence = self.neuron_presence
+
+        if t == self.i:
+            self.data.save_mask(t, mask, False)
+            for client in self.mask_registered_clients:
+                client.change_mask_data(self.mask)
+        # Todo: change calcium if necessary
 
     def frame_clicked(self, button, coords):
         # a click with coordinates is received
@@ -549,11 +605,8 @@ class Controller():
                     self.mask_temp = self.mask.copy()
 
                     self.mask[loc] = value  # SJR: used to have on the RHS: self.highlighted
-                    self.data.save_mask(self.i, self.mask, False, True)
-                    self.update()
+                    self.mask_change()
 
-                    self.n_neurons = self.data.nb_neurons
-                    self.signal_nb_neurons_changed()
             #MB added this extra condition to renumber only one connected component of the mask, not the whole object
             #this function works in either of mask annotation mode and boxing mode
             elif button == 2 and self.options["RenumberComp"]:
@@ -570,13 +623,9 @@ class Controller():
                 self.mask_temp= self.mask.copy()
 
                 self.mask[loc] = self.options["RenumberComp"]
-                self.data.save_mask(self.i, self.mask, False, True)
-                self.update()
+                self.mask_change()
 
-                self.n_neurons = self.data.nb_neurons
-                self.signal_nb_neurons_changed()
                 self.options["RenumberComp"] = False
-
 
             # SJR: User left clicks (arg[0]==1) to select which cell to delete
             elif button == 1 and not self.options["boxing_mode"]:
@@ -599,11 +648,8 @@ class Controller():
                 self.mask_temp= self.mask.copy()#save to allow undo
 
                 self.mask[coord[0]:coord[0]+w,coord[1]:coord[1]+h,coord[2]:coord[2]+d] = box_id
-                self.data.save_mask(self.i, self.mask, False, True)
-                self.update()
+                self.mask_change()
 
-                self.n_neurons = self.data.nb_neurons
-                self.signal_nb_neurons_changed()
             if button == 2 and self.options["RenumberComp"]:
                 if not (coord[0] >= 0 and coord[0] < self.frame_shape[0] and coord[1] >= 0 and coord[1] < self.frame_shape[1] and coord[
                     2] >= 0 and coord[2] < self.frame_shape[2]):
@@ -618,18 +664,18 @@ class Controller():
                 self.mask_temp= self.mask.copy()
 
                 self.mask[loc] = self.options["RenumberComp"]
-                self.data.save_mask(self.i, self.mask, False, True)
-                self.update()
+                self.mask_change()
 
-                self.n_neurons = self.data.nb_neurons
-                self.signal_nb_neurons_changed()
                 self.options["RenumberComp"] = False
 
         elif None not in coords:  # skip when the coordinate is NaN
+            if not self.point_data:
+                return
+            # assert self.point_data, "Not available with mask data."   # Todo could be implemented
             coord = np.array(coords).astype(np.int16)
             # this will click on the nearest existing annotation
-            assert self.point_data, "Not available with mask data."
-            indarr = np.nonzero(self.existing_annotations)[0]
+            existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[self.i][:,0]))
+            indarr = np.nonzero(existing_annotations)[0]
             if len(indarr) == 0:
                 return
             tree_temp = spat.cKDTree(self.NN_or_GT[self.i][indarr, :3])
@@ -688,7 +734,6 @@ class Controller():
         If leaving the cropzone definition mode, computes the desired crop zone coordinates from saved points, and saves
         this crop zone to self.data.
         """
-        # AD
         self.options["defining_cropzone_mode"] = not self.options["defining_cropzone_mode"]
         if self.options["defining_cropzone_mode"]:
             # enters cropzone definition mode, creates an empty list of points.
@@ -759,85 +804,72 @@ class Controller():
         shapeCheck = np.shape(frameCheck)
         transformBack = self.options["save_after_reversing"]
         for t in range(ExtFile.dataset.attrs["T"]):
-            mkey = str(t) + "/mask"
             #Assuming the imported file was a derivative of the current file after cropping, rotating and other preprocesses,
             #fr t of imported file corresponds to frame "orig_index" of the current file
-            origFrkey = "{}/original_fr".format(t)#original number of frame that t corresponds to is saved in this dataset
-            if origFrkey in ExtFile.dataset.keys():
-                origIndex = ExtFile.dataset[origFrkey][...]
-            else:
+            origIndex = ExtFile.get_frame_match(t)   # original number of frame that t corresponds to is saved in this dataset
+            if origIndex is False:
                 print("The map between the two files frame numbers is not found. It is taken to be identity")
                 origIndex = t
-            origfrkey = str(origIndex) + "/frame"
-            if mkey in ExtFile.dataset.keys() and transformBack and origfrkey in self.data.dataset.keys():
-                maskTemp = ExtFile.get_mask(t,force_original=True)#don't apply crop and rotate on the imported masks
+            maskTemp = ExtFile.get_mask(t, force_original=True)   # don't apply crop and rotate on the imported masks
+            if maskTemp is not False and transformBack and origIndex < self.frame_num:
                 ExtFile.crop = True
                 ExtFile.align = True
 
                 img = maskTemp
 
-                key = "{}/transfo_matrix".format(t)
-                keyOrig = "{}/transfo_matrix".format(origIndex)
+                origTrans = self.data.get_transformation(origIndex)
+                origROI = self.data.get_ROI_params()
                 #copy the cropping parameters of the imported file temporarily into the current file:
-                if "ROI" in list(self.data.dataset.attrs.keys()) and keyOrig in list(self.data.dataset.keys()):
-                    origROI = self.data.dataset.attrs["ROI"]
-                    origTrans = self.data.dataset[keyOrig]
+                if origROI is not None and origTrans is not None:
                     TemptransParam = 1
                 else:
                     TemptransParam = 0
-                self.data.dataset.attrs["ROI"] = ExtFile.dataset.attrs["ROI"]
+                self.data.save_ROI_params(*ExtFile.get_ROI_params())
 
-                if keyOrig not in self.data.dataset:
-                    self.data.dataset.create_dataset(keyOrig, data=ExtFile.dataset[key])
-                else:
-                    self.data.dataset[keyOrig][...] = ExtFile.dataset[key]
+                self.data.save_transformation_matrix(origIndex, ExtFile.get_transformation(t))
                 OrigCrop = self.data.crop
                 OrigAlign =self.data.align
-                self.data.crop = True#so that the save_mask function applies the reverse transformations
+                self.data.crop = True   # so that the save_mask function applies the reverse transformations
                 self.data.align = True
 
                 if not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
-                    Zvec = ExtFile.dataset.attrs["original_Z_interval"]
+                    Zvec = ExtFile.original_intervals("z")
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
                     imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img#np.shape(img)[2]] = img
                     if green:
-                        self.data.save_green_mask(origIndex, imgT, False, True)
+                        self.data.save_green_mask(origIndex, imgT, False)
                     else:
-                        self.data.save_mask(origIndex, imgT, False, True)
+                        self.data.save_mask(origIndex, imgT, False)
                 else:
                     if green:
-                        self.data.save_green_mask(origIndex, img, False, True)
+                        self.data.save_green_mask(origIndex, img, False)
                     else:
-                        self.data.save_mask(origIndex, img, False, True)
-                if TemptransParam == 1:
-                    self.data.dataset[keyOrig][...] = origTrans
-                    self.data.dataset.attrs["ROI"] = origROI
+                        self.data.save_mask(origIndex, img, False)
+                if TemptransParam == 1:   # Todo I think this just saves what was loaded identically
+                    self.data.save_transformation_matrix(origIndex, origTrans)
+                    self.data.save_ROI_params(*origROI)
                 self.data.align = OrigAlign
                 self.data.crop = OrigCrop
-            elif mkey in ExtFile.dataset.keys() and origfrkey in self.data.dataset.keys():
-                origFrkey = "{}/original_fr".format(t)#original number of frame that t corresponds to is saved in this dataset
-                if origFrkey in ExtFile.dataset.keys():
-                    origIndex = ExtFile.dataset[origFrkey][...]
-                else:
-                    print("The map between the two files frame numbers is not found. It is taken to be identity")
-                    origIndex = t
-                img = ExtFile.get_mask(t,force_original=True)
+                self.mask_change(origIndex)
+            elif maskTemp is not False and origIndex < self.frame_num:
+                img = maskTemp
                 if not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
-                    Zvec = ExtFile.dataset.attrs["original_Z_interval"]
+                    Zvec = ExtFile.original_intervals("z")
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
                     imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img
                     if green:
-                        self.data.save_green_mask(origIndex, imgT, True, True)
+                        self.data.save_green_mask(origIndex, imgT, True)
                     else:
-                        self.data.save_mask(origIndex, imgT, True, True)
+                        self.data.save_mask(origIndex, imgT, True)
 
                 else:
                     if green:
-                        self.data.save_green_mask(origIndex, img, True, True)
+                        self.data.save_green_mask(origIndex, img, True)
                     else:
-                        self.data.save_mask(origIndex, img, True, True)
+                        self.data.save_mask(origIndex, img, True)
+                self.mask_change(origIndex)
         ExtFile.close()
         print("mask upload finished")
 
@@ -847,13 +879,14 @@ class Controller():
         original movie or blur, subtract background andcrop in z direction.
         it saves the result in a new .h5 file in the directory of the original input files
         """
+        if all(i in frame_deleted or i not in self.selected_frames for i in frame_int):
+            print("No frames for new dataset, not doing anything. Please select frames.")
+            return
         self.save_status()
         self.update()
 
-
-        frameCheck = self.data.get_frame(0, col= "red")
+        frameCheck = self.data.get_frame(0, col="red")
         Zcheck = np.shape(frameCheck)
-
 
         z_0 = int(Z_interval[0])
         z_1 = int(Z_interval[1])
@@ -896,12 +929,8 @@ class Controller():
         assert x_0 < Zcheck[0], "lower bound for x is too high"
         assert not x_1 > Zcheck[0], "upper bound for x is too high"
 
-
-
-
-
         dset_path=self.data.dset_path_from_GUI
-        name=self.data.name#TODO: get it as input
+        name = self.data_name
         dset_path_rev = dset_path[::-1]
         key=name+"_CroppedandRotated"
         if '/' in dset_path_rev:
@@ -910,10 +939,8 @@ class Controller():
             newpath = os.path.join(dset_path_cropped,key+".h5")
         else:
             newpath = key+".h5"
-        fd = h5py.File(newpath, 'w')
-        for a in self.data.dataset.attrs:
-            fd.attrs[a] = self.data.dataset.attrs[a]
-        hNew = DataSet.load_dataset(newpath)
+        hNew = DataSet.create_dataset(newpath)
+        hNew.copy_properties(self.data, except_frame_num=True)
         OrigCrop = self.data.crop
         OrigAlign =self.data.align
         if self.options["save_crop_rotate"]:
@@ -923,7 +950,7 @@ class Controller():
 
         key="distmat"
         if key in self.data.dataset.keys():
-            distmat = self.data.dataset[key]
+            distmat = self.data.dataset[key]   # TODO
             ds = hNew.dataset.create_dataset(key,shape=np.shape(distmat),dtype="f4")
             ds[...]=distmat
             print("distmat saved")
@@ -936,18 +963,8 @@ class Controller():
                         if len(np.unique(self.data.dataset[kcoarse]))<3:
                             continue
 
-
-                if hNew.dataset.attrs["C"]==2:
-                    if (self.options["save_1st_channel"] and self.options["save_green_channel"]) :
-                        frameGr = self.data.get_frame(i, col= "green")
-                        frameGr = frameGr[:x_1,:y_1,:z_1]
-                        frameGr = frameGr[x_0:,y_0:,z_0:]
-
-                        frameGr = np.pad(frameGr, ((padXL, padXR),(padYtop, padYbottom),(0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
-
-                        if self.options["save_resized"]:
-                            frameGr = self.resize_frame(frameGr,width,height)
-                    elif self.options["save_1st_channel"] or self.options["save_green_channel"]:
+                if hNew.nb_channels==2:
+                    if self.options["save_1st_channel"] ^ self.options["save_green_channel"]:
                         frameGr = 0
                     else:
                         frameGr = self.data.get_frame(i, col= "green")
@@ -955,7 +972,7 @@ class Controller():
                         frameGr = frameGr[x_0:,y_0:,z_0:]
                         frameGr = np.pad(frameGr, ((padXL, padXR),(padYtop, padYbottom), (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
                         if self.options["save_resized"]:
-                            frameGr = self.resize_frame(frameGr,width,height)
+                            frameGr = resize_frame(frameGr,width,height)
                 else:
                     frameGr = 0
 
@@ -964,24 +981,23 @@ class Controller():
                 else:
                     frameRd = self.data.get_frame(i, col="red")
                 if self.options["save_blurred"]:
-                    frameRd = self.Blur(frameRd, bg_blur, sd_blur, self.options["save_subtracted_bg"],bg_subt)
+                    frameRd = blur(frameRd, bg_blur, sd_blur, self.options["save_subtracted_bg"], bg_subt)
                 elif self.options["save_subtracted_bg"]:
-                    frameRd = self.SubtBg(frameRd,bg_subt)
+                    frameRd = blacken_background(frameRd, bg_subt)
                 frameRd = frameRd[:x_1,:y_1,:z_1]
                 frameRd = frameRd[x_0:,y_0:,z_0:]
                 frameRd = np.pad(frameRd, ((padXL, padXR),(padYtop, padYbottom),  (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
                 if self.options["save_resized"]:
-                    frameRd = self.resize_frame(frameRd,width,height)
+                    frameRd = resize_frame(frameRd,width,height)
 
-                mkey = str(i) + "/mask"
-                if mkey in self.data.dataset.keys():
-                    maskTemp = self.data.get_mask(i)
+                maskTemp = self.data.get_mask(i)
+                if maskTemp is not False:
                     maskTemp = maskTemp[:x_1,:y_1,:z_1]
                     maskTemp = maskTemp[x_0:,y_0:,z_0:]
                     maskTemp = np.pad(maskTemp, ( (padXL, padXR),(padYtop, padYbottom), (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
-                    fd.attrs["N_neurons"] = np.maximum(fd.attrs["N_neurons"],np.maximum(len(np.unique(maskTemp)),np.max(maskTemp)))
+                    hNew.nb_neurons = max(hNew.nb_neurons, len(np.unique(maskTemp)), np.max(maskTemp))
                     if self.options["save_resized"]:
-                        maskTemp = self.resize_frame(maskTemp,width,height,mask=True)
+                        maskTemp = resize_frame(maskTemp,width,height,mask=True)
                     hNew.save_frame(l, frameRd, frameGr, mask = maskTemp , force_original=True)
                 else:
                     hNew.save_frame(l,frameRd, frameGr ,force_original=True)
@@ -997,88 +1013,26 @@ class Controller():
                     hNew.dataset.create_dataset(kcoarseSegl, data=CoarseSegTemp)
                     print(i)
                 #save the transformation functions for later retrieval
-                key = "{}/transfo_matrix".format(i)
-                keyl = "{}/transfo_matrix".format(l)
-                if self.options["save_crop_rotate"] or (key in self.data.dataset.keys()):
-                    matrix = self.data.dataset[key]
+                matrix = self.data.get_transformation(i)
+                if self.options["save_crop_rotate"] or (matrix is not None):
                     print(i)
-                    if key not in hNew.dataset:
-                        hNew.dataset.create_dataset(keyl, data=matrix)
-                    else:
-                        hNew.dataset[keyl][...] = matrix
-                keyfrnum = "{}/original_fr".format(l)
-                hNew.dataset.create_dataset(keyfrnum, data=int(i))
-                keyTime = "{}/time".format(l)
-                RealTimeKey = "{}/time".format(i)
-                if RealTimeKey in self.data.dataset.keys():
-                    realTime = np.array(self.data.dataset[RealTimeKey])
-                    hNew.dataset.create_dataset(keyTime, data=realTime)
-                l=l+1
-        frameRd_shape = np.shape(frameRd)
-        fd.attrs["W"] = frameRd_shape[0]
-        fd.attrs["H"] = frameRd_shape[1]
+                    hNew.save_transformation_matrix(l, matrix)
+                hNew.save_frame_match(i, l)
+                real_time = self.data.get_real_time(i)
+                if real_time is not None:
+                    hNew.save_real_time(l, real_time)
+                l = l+1
         if self.options["save_resized"]:
-            hNew.dataset.attrs["Original_size"] = [Zcheck[0],Zcheck[1]]
-            fd.attrs["W"] = int(width)
-            fd.attrs["H"] = int(height)
+            hNew.save_original_size(Zcheck)
 
-        if self.options["save_crop_rotate"] or ("ROI" in self.data.dataset.attrs.keys()):
-            hNew.dataset.attrs["ROI"] = self.data.dataset.attrs["ROI"]
-        hNew.dataset.attrs["original_Z_interval"] = Z_interval
-        hNew.dataset.attrs["original_X_interval"] = X_interval
-        hNew.dataset.attrs["original_Y_interval"] = Y_interval
+        hNew.save_original_intervals(X_interval, Y_interval, Z_interval)
 
-        if self.options["save_1st_channel"] and not self.options["save_green_channel"]:
-            fd.attrs["C"] = 1
-        elif not self.options["save_1st_channel"] and self.options["save_green_channel"]:
-            fd.attrs["C"] = 1
-        fd.attrs["T"] = l
-        fd.attrs["D"] = z_1-z_0
+        assert hNew.frame_num == l
         self.data.align = OrigAlign
         self.data.crop = OrigCrop
 
-
-
-
         hNew.close()
 
-    def Blur(self,frame,blur_b=40,blur_s=6, Subt_bg=False,subtVal = 1):
-        """this blures the images and subtracts background if asked"""
-        dimensions=(.1625, .1625, 1.5)
-        sigm=blur_s#value between 1-10
-        bg_factor=blur_b#value between 0-100
-        xysize, xysize2, zsize = dimensions
-        sdev = np.array([sigm, sigm, sigm * xysize / zsize])
-        im_rraw = frame
-        im = im_rraw
-        sm = sim.gaussian_filter(im, sigma=sdev) - sim.gaussian_filter(im, sigma=sdev * bg_factor)
-        im_rraw = sm
-        if Subt_bg:
-            threshold_r=(im_rraw<subtVal)
-            im_rraw[threshold_r]=0
-
-        frame=im_rraw
-
-        return frame
-
-    def SubtBg(self,frame,subtVal):
-        """subtracts a constant background valuefrom your movie"""
-        im_rraw = frame
-        threshold_r=(im_rraw<subtVal)
-        im_rraw[threshold_r]=0
-        return im_rraw
-
-    def resize_frame(self, frame, width,height, mask=False):
-        """resizes the frame to the dimensions given as width and height"""
-        #width = 16*int(width/16)
-        #height = 16*int(height/16)
-        frameResize = np.zeros((width,height,np.shape(frame)[2]))
-        for j in range(np.shape(frame)[2]):
-            if mask:
-                frameResize[:,:,j] = cv2.resize(frame[:,:,j], dsize=(height, width), interpolation=cv2.INTER_NEAREST)
-            else:
-                frameResize[:,:,j] = cv2.resize(frame[:,:,j], dsize=(height, width), interpolation=cv2.INTER_CUBIC)
-        return frameResize
 
     def highlight_neuron(self, neuron_id_from1, block_unhighlight=False):
         """
@@ -1090,7 +1044,7 @@ class Controller():
         """
 
         if neuron_id_from1 == self.highlighted:
-            if block_unhighlight:
+            if self.highlighted == 0 or block_unhighlight:   # self.highlighted == 0 is edge case for instance in renumber_mask_obj if the neuron has been deleted completely
                 return
             self.highlighted = 0
             for client in self.highlighted_neuron_registered_clients:
@@ -1101,13 +1055,17 @@ class Controller():
         else:
             hprev = self.highlighted
             self.highlighted = neuron_id_from1
+            if self.point_data:
+                high_ptdat = self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i, [self.highlighted]]))
+            else:
+                high_ptdat = None
             for client in self.highlighted_neuron_registered_clients:
                 client.change_highlighted_neuron(high=self.highlighted,
                                                  unhigh=(hprev if hprev else None),
                                                  # high_present=bool(not self.point_data or self.existing_annotations[self.highlighted]),
                                                  # unhigh_present=bool(not self.point_data or self.existing_annotations[hprev] if hprev else False),
                                                  high_key=self._get_neuron_key(self.highlighted),
-                                                 high_pointdat=self.valid_points_from_all_points(np.array(self.NN_or_GT[self.i, [self.highlighted]])))
+                                                 high_pointdat=high_ptdat)
             if self.options["follow_high"]:
                 self.center_on_highlighted()
 
@@ -1141,7 +1099,6 @@ class Controller():
 
         self.assigned_sorted_list = sorted(list(self.button_keys.values()))
         self.signal_pts_changed(t_change=False)   # just needed to display the activated neurons
-        # self.set_activated_tracks()   # TODO if necessary
 
     def _get_neuron_key(self, neuron_id_from1:int):
         """
@@ -1159,11 +1116,14 @@ class Controller():
         """
         Changes the z slice to the highlighted neuron (if possible)
         """
-        if self.existing_annotations[self.highlighted]:
-        # set z to the highlighted neuron
-            for client in self.zslice_registered_clients:
-                new_z = int(self.NN_or_GT[self.i][self.highlighted, 2] + 0.5)
-                client.change_z(new_z)
+        if self.point_data and self.neuron_presence[self.i, self.highlighted]:
+            # set z to the highlighted neuron
+            new_z = int(self.NN_or_GT[self.i][self.highlighted, 2] + 0.5)
+            self.change_z(new_z)
+
+    def change_z(self, new_z):
+        for client in self.zslice_registered_clients:
+            client.change_z(new_z)
 
     def toggle_first_channel_only(self):
         self.options["first_channel_only"] = not self.options["first_channel_only"]
@@ -1228,21 +1188,20 @@ class Controller():
 
     def toggle_mask_overlay(self):
         self.options["overlay_mask"] = not self.options["overlay_mask"]
-        self.update(t_change=False)   # TODO: not update everything
+        self.update_mask_display()
 
     def toggle_NN_mask_only(self): #MB added to check different NN results
-        self.data.only_NN_mask_mode = not self.data.only_NN_mask_mode
-        self.update(t_change=True)
-
+        self.data.only_NN_mask_mode = not self.data.only_NN_mask_mode   # TODO: should it really be in self.data??
+        self.update_mask_display()
 
     def toggle_display_alignment(self):
         self.data.align = not self.data.align
-        self.update(t_change=True)  # todo: could be just update()?
+        self.update()
 
     def toggle_display_cropped(self):
         self.data.crop = not self.data.crop
         self.options["ShowDim"] = True
-        self.update(t_change=True)  # todo: could be just update()?
+        self.update()
 
     def toggle_z_follow_highlighted(self):
         """Toggles the option of following the z dimension of the highlighted neuron"""
@@ -1376,10 +1335,8 @@ class Controller():
                           " you may want to test segmentation parameters on a single frame first")
             self.segmenter = Segmenter(self.data, self.data.seg_params)
         self.segmenter.segment(self.selected_frames)
-        # update number of neurons and neuron bar
-        self.n_neurons = self.data.nb_neurons
-        self.signal_nb_neurons_changed()
-        # Todo: we might also want to update masks?
+        for t in self.selected_frames:
+            self.mask_change(t)
 
     def extract_features(self):
         feature_builder = FeatureBuilder(self.data)
@@ -1388,9 +1345,8 @@ class Controller():
     def cluster(self):
         clustering = Clustering(self.data, self.data.cluster_params)
         clustering.find_assignment(self.selected_frames)  # MB changed from data.frames to selected_frames
-        # update number of neurons and neuron bar
-        self.n_neurons = self.data.nb_neurons
-        self.signal_nb_neurons_changed()
+        for t in self.selected_frames:
+            self.mask_change(t)
 
     def classify(self):
         clf = Classification(self.data)
@@ -1406,9 +1362,12 @@ class Controller():
         print(Ground_TruthSet)  # MB added
         clf.prepare(Ground_TruthSet)  # MB changed
         # clf.prepare(self.data.ground_truth_frames())#MB removed
+        frames = self.data.segmented_non_ground_truth()
         print("The non-gound-truth frames you are classifying:")  # MB added
-        print(set(self.data.segmented_non_ground_truth()))
-        clf.find_assignment(self.data.segmented_non_ground_truth())
+        print(set(frames))
+        clf.find_assignment(frames)
+        for t in frames:
+            self.mask_change(t)
 
     def auto_add_gt_by_registration(self):
         """
@@ -1450,8 +1409,7 @@ class Controller():
             print("Mask Annotation Mode")
         else:
             self.mask_temp = None
-            print("Saving Last Push")
-        self.update()   # TODO AD: is this necessary?
+        self.update_mask_display()
 
     def set_mask_annotation_threshold(self, value):   # SJR
         """Set mask threshold"""
@@ -1489,10 +1447,8 @@ class Controller():
             # reads the new value to set and converts it from str to int
             value = int(dlg.entry1.text())
 
-            # SJR: remember how many neurons there were
-            temp_n_neurons = self.n_neurons
             # SJR: save old mask to allow undo
-            self.mask_temp = self.mask.copy()
+            self.mask_temp = self.mask.copy()   # Todo this will not work (self.mask=None) if not showing the masks
             if numFtr >1:#MB added
                 if not dlg2.exec_():
                     # SJR: erase neuron
@@ -1503,14 +1459,9 @@ class Controller():
                     return
             else:
                 self.mask[self.mask == self.highlighted] = value
-            self.data.save_mask(self.i, self.mask, False, True)
-            self.n_neurons = self.data.nb_neurons
-            if temp_n_neurons != self.n_neurons:
-                self.signal_nb_neurons_changed()
+            self.mask_change()
             # unhighlight and turn off neuron_bar button, careful!! does an update, which resets self.mask
             self.highlight_neuron(self.highlighted)
-
-        self.update()
 
     def renumber_All_mask_instances(self, fro, to):
         if self.highlighted == 0:
@@ -1523,59 +1474,44 @@ class Controller():
             value = int(dlg.entry1.text())
             print("Renumbering", self.highlighted, "fro", fro, "to", to)
             if not self.point_data:#MB added this to use this feature for epfl data
-                temp_n_neurons = self.n_neurons
                 for k in range(fro,to):
-                    key=str(k)+"/mask"
-                    if self.data.check_key(key):
-                        mask_k = self.data.get_mask(k, force_original=False)#MB added
+                    mask_k = self.data.get_mask(k, force_original=False)  # MB added
+                    if mask_k is not False:
                         mask_k[mask_k == self.highlighted] = value
-                        self.data.save_mask(k, mask_k, False, True)
+                        self.data.save_mask(k, mask_k, False)
+                        self.mask_change(k)
 
-                self.n_neurons = self.data.nb_neurons
-                if temp_n_neurons != self.n_neurons:
-                    self.signal_nb_neurons_changed()
                 self.highlight_neuron(self.highlighted)
-        self.update()
 
     def permute_masks(self, Permutation):
-        temp_n_neurons = self.n_neurons
         self.mask_temp = self.mask.copy()
         for l in range(len(Permutation)-1):
             k = Permutation[l]
             print(k)
             self.mask[self.mask_temp == k] = Permutation[l+1]
-            self.data.save_mask(self.i, self.mask, False, True)
-            self.n_neurons = self.data.nb_neurons
-            if temp_n_neurons != self.n_neurons:
-                self.signal_nb_neurons_changed()
+            self.mask_change()
             #self.highlight_neuron(self.highlighted)
-        self.update()
 
     def delete_mask_obj(self):
         if self.highlighted == 0:
             return
-        # SJR: remember how many neurons there were
-        temp_n_neurons = self.n_neurons
         # SJR: save old mask to allow undo
         self.mask_temp = self.mask.copy()
         # SJR: erase neuron
         self.mask[self.mask == self.highlighted] = 0
-        self.data.save_mask(self.i, self.mask, False, True)
+        self.mask_change()
         print("SJR: self.mask.max() in delete_mask_obj", self.mask.max())
         # unhighlight and turn off neuron_bar button, careful!! does an update, which resets self.mask
-        self.n_neurons = self.data.nb_neurons
-        if temp_n_neurons != self.n_neurons:
-            self.signal_nb_neurons_changed()
         self.highlight_neuron(self.highlighted)
         print("SJR: self.mask.max() in delete_mask_obj", self.mask.max())
-        print("SJR: self.data.nb_neurons in delete_mask_obj", self.data.nb_neurons)
+        print("SJR: self.data.nb_neurons in delete_mask_obj", self.n_neurons)
 
     def undo_mask(self):
         if self.options["mask_annotation_mode"] or self.options["boxing_mode"]:
             if self.mask_temp is not None:
                 self.mask = self.mask_temp
                 self.data.save_mask(self.i, self.mask)
-                self.update()
+                self.mask_change()
 
     ####################################################################################################################
     # self.hlab and ci related methods
@@ -1588,10 +1524,10 @@ class Controller():
 
     def clear_frame_NN(self):
         """Deletes all NN predictions in current frame"""
-        # DEPRECATED, TODO CFP?
         print("Deleting all annotations in frame", self.i)
         self.pointdat[self.i] = np.nan
         self.NN_pointdat[self.i] = np.nan
+        # self.neuron_presence[self.i] = False   # now useless due to recompute_point_presence in update()
         self.update()
 
     def clear_NN_selective(self, fro, to):
@@ -1609,20 +1545,15 @@ class Controller():
         if self.point_data:
             self.pointdat[fro:to + 1, self.highlighted, :] = np.nan
             self.NN_pointdat[fro:to + 1, self.highlighted, :] = np.nan
-        else:#MB added this to use this feature for epfl data
-            temp_n_neurons = self.n_neurons
+            # self.neuron_presence[fro:to + 1, self.highlighted] = False   # now useless due to recompute_point_presence in signal_pts_changed in update
+            self.update()
+        else:   # MB added this to use this feature for epfl data
             for k in range(fro,to):
-                key=str(k)+"/mask"
-                if self.data.check_key(key):
-                    mask_k = self.data.get_mask(k, force_original=False)#MB added
+                mask_k = self.data.get_mask(k, force_original=False)   # MB added
+                if mask_k is not False:
                     mask_k[mask_k == self.highlighted] = 0
-                    self.data.save_mask(k, mask_k, False, True)
-            self.n_neurons = self.data.nb_neurons
-            if temp_n_neurons != self.n_neurons:
-                self.signal_nb_neurons_changed()
-            self.highlight_neuron(self.highlighted)
-
-        self.update()
+                    self.mask_change(k)
+            self.highlight_neuron(self.highlighted)   # todo: why not for point_data too?
 
     def approve_selective(self, fro, to):
         """
@@ -1679,231 +1610,50 @@ class Controller():
             print("You should first choose the NN instance")
         else:
             for t in self.selected_frames:
-                mkey = str(t) + "/mask"
                 if True:#not mkey in self.data.dataset.keys():
-                    knn="net/"+self.NNmask_key+"/"+str(t)+"/predmask"
-                    if knn in self.data.dataset.keys():
-                        mask = self.data[knn][...]
-                        self.data.save_mask(t, mask, False, True)
+                    mask = self.data.get_NN_mask(t, self.NNmask_key)
+                    if mask is not False:
+                        self.data.save_mask(t, mask, False)
+                        self.mask_change(t)
                     else:
                         print("There are no predictions for this frame")
-        self.update()
 
-    def post_process_NN_masks(self,ExemptNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ExemptNeurons: neurons that you do not want to postprocess
-
+    def post_process_NN_masks(self, mode, neurons):
+        """
+        MB added: to post process the predictions of NN for the selected frames as the ground truth
+        :param mode: which post-processing to apply
+        :param neurons: for modes 1 and 2, neurons to be excluded from post-processing; for modes 3-4-5, neurons to be
+            post-processed.
+        :return:
         """
         if self.NNmask_key == "":
             print("You should first choose the NN instance")
-        else:
-            for t in self.selected_frames:
-                mkey = str(t) + "/mask"
-                if True:#not mkey in self.data.dataset.keys():
-                    knn="net/"+self.NNmask_key+"/"+str(t)+"/predmask"
-                    if knn in self.data.dataset.keys():
-                        mask = self.data[knn][...]
-                        if True:#for c in cell_list:
-                            labelArray, numFtr = sim.label(mask>0)#get all the disconnected components of the nonzero regions of mask
-                            for i in range(numFtr+1):
-                                IfZero = False
-                                submask =  (labelArray==i)#focus on each connected component separately
-                                list = np.unique(mask[submask])#list of all cell ids corresponded to the connected component i
-                                list = [int(k) for k in (set(list)-set(ExemptNeurons))]
-                                if np.sum(submask)<3:#if the component is only 1 or 2 pixels big:
-                                    for l in range(len(list)):
-                                        if np.sum(mask==list[l])>5:#check if this is the only place any cell is mentioned. if a cell is mentioned somewhere else set this component to zero.
-                                            if list[l] not in ExemptNeurons:
-                                                mask[submask]=0
-                                                IfZero = True #whether the component was set to zero
+            return
 
-                                elif len(list)>1 and not IfZero:
-                                    Volume = np.zeros(len(list))
-                                    for l in range(len(list)):
-                                        Volume[l] = sum(mask[submask]==list[l])
-                                    BiggestCell = list[np.argmax(Volume)]
-                                    mask[submask] = BiggestCell
-                        self.data[knn][...] = mask
-                    else:
-                        print("There are no predictions for this frame")
+        def load_fun(t):
+            return self.data.get_NN_mask(t, self.NNmask_key)
+
+        def save_fun(t, mask):
+            self.data.save_NN_mask(t, self.NNmask_key, mask)
+
+        if mode == 1:
+            post_process_NN_masks(self.selected_frames, neurons, load_fun, save_fun)
+        elif mode == 2:
+            post_process_NN_masks2(self.selected_frames, neurons, load_fun, save_fun)
+        elif mode == 3:
+            post_process_NN_masks3(self.selected_frames, neurons, load_fun, save_fun)
+        elif mode == 4:
+            post_process_NN_masks4(self.selected_frames, neurons, load_fun, save_fun)
+        elif mode == 5:
+            post_process_NN_masks5(self.selected_frames, neurons, load_fun, save_fun)
         self.update()
-
-    def post_process_NN_masks2(self,ExemptNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ExemptNeurons: neurons that you do not want to postprocess.
-        This mode uses different connectivity criteria
-
-        """
-
-        if self.NNmask_key == "":
-            print("You should first choose the NN instance")
-        else:
-            s = [[[False, False, False],
-                [False,  True, False],
-                [False, False, False]],
-                [[False,  True, False],
-                [ False,  True,  False],
-                [False,  True, False]],
-                [[False, False, False],
-                [False,  True, False],
-                [False, False, False]]]
-            for t in self.selected_frames:
-                mkey = str(t) + "/mask"
-                knn="net/"+self.NNmask_key+"/"+str(t)+"/predmask"
-                if knn in self.data.dataset.keys():
-                    mask = self.data[knn][...]
-                    maskOrig = mask
-                    labelArray, numFtr = sim.label(mask>0,structure=s)#get all the disconnected components of the nonzero regions of mask
-                    Grandlist = np.unique(mask)#list of all cell ids in the mask
-                    Grandlist = [int(k) for k in (set(Grandlist)-set(ExemptNeurons))]
-                    for c in Grandlist:
-                        print(c)
-                        #get connected component of each neuron
-                        labelArray_c, numFtr_c = sim.label(maskOrig==c,structure=s)#get all the disconnected components of a certain cell class
-                        Vol = np.zeros([1,numFtr_c])
-                        for i in range(0,numFtr_c):
-                            Vol[0,i] = np.sum(labelArray_c==i+1)#volume of each connected component of cell class c
-                        print("Vol")
-                        print(Vol)
-                        BigComp=np.argmax(Vol)+1#label of the biggest component of class
-                        print("BigComp")
-                        print(BigComp)
-                        Comp_c_BigComp = (labelArray_c==BigComp)#biggest connected component labeled as c
-                        label_c_BigComp = np.unique(labelArray[Comp_c_BigComp])
-                        for i in range(1,numFtr_c+1):
-                            print(i)
-                            if not i==BigComp:
-                                Comp_c_i = (labelArray_c==i)
-                                label_c_i = np.unique(labelArray[Comp_c_i])#label of c_i component in the first big labeling
-                                print(label_c_i)
-                                connCom_containing_c_i = (labelArray==label_c_i)
-                                print(np.sum(connCom_containing_c_i))
-                                cells_Connected_To_i =set(np.unique(maskOrig[connCom_containing_c_i]))-{c}-{0}
-                                cells_Connected_To_i = [int(k) for k in  cells_Connected_To_i]
-                                print("cells_Connected_To_i")
-                                print(cells_Connected_To_i)
-                                if not label_c_i== label_c_BigComp:
-                                    if len(cells_Connected_To_i) == 1:#if only one other cell is connected to c_i
-                                        mask[Comp_c_i] = cells_Connected_To_i[0]
-                                    elif len(cells_Connected_To_i) > 1:
-                                        Vol_c_i_conn = np.zeros([1,len(cells_Connected_To_i)])
-                                        for j in range(len(cells_Connected_To_i)):
-                                            Vol_c_i_conn[0,j] = np.sum(connCom_containing_c_i&(mask==cells_Connected_To_i[j]))
-                                            print("Vol_c_i_conn")
-                                            print(Vol_c_i_conn)
-                                        mask[Comp_c_i] = int(cells_Connected_To_i[np.argmax(Vol_c_i_conn)])
-                                    #elif:
-                                    #    mask[Comp_c_i] = 0
-                    self.data[knn][...] = mask
-
-    def post_process_NN_masks3(self,ProcessedNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ProcessedNeurons: neurons that you want to postprocess. If two or three neurons touch each other
-         and are in one connected component it renames the smaller ones to the largest one
-
-        """
-        Vol = np.zeros([1,len(ProcessedNeurons)])
-        if self.NNmask_key == "":
-            print("You should first choose the NN instance")
-        else:
-            for t in self.selected_frames:
-                mkey = str(t) + "/mask"
-                if True:#not mkey in self.data.dataset.keys():
-                    knn="net/"+self.NNmask_key+"/"+str(t)+"/predmask"
-                    if knn in self.data.dataset.keys():
-                        mask = self.data[knn][...]
-                        if True:#for c in cell_list:
-                            labelArray, numFtr = sim.label(mask>0)#get all the disconnected components of the nonzero regions of mask
-                            for i in range(1,numFtr+1):
-                                submask =  (labelArray==i)#focus on each connected component separately
-                                for k in range(len(ProcessedNeurons)):
-                                    Vol[0,k] = np.sum(mask[submask]==ProcessedNeurons[k])#volume of each of the chosen neurons in this component
-                                MaxInd = np.argmax(Vol[0,:])
-                                if not np.max(Vol[0,:])==0:
-                                    for k1 in range(len(ProcessedNeurons)):
-                                        if not k1==MaxInd:
-                                            k1_comp = (submask&(mask==ProcessedNeurons[k1]))
-                                            mask[k1_comp] = int(ProcessedNeurons[MaxInd])
-                        self.data[knn][...] = mask
-                    else:
-                        print("There are no predictions for this frame")
-        self.update()
-
-    def post_process_NN_masks4(self,ProcessedNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ProcessedNeurons: neurons that you want to postprocess. if a certain neuron has multiple components
-         it deletes the components that have smaller volume
-
-        """
-
-        if self.NNmask_key == "":
-            print("You should first choose the NN instance")
-        else:
-            for t in self.selected_frames:
-                mkey = str(t) + "/mask"
-                if True:#not mkey in self.data.dataset.keys():
-                    knn="net/"+self.NNmask_key+"/"+str(t)+"/predmask"
-                    if knn in self.data.dataset.keys():
-                        mask = self.data[knn][...]
-                        for n in ProcessedNeurons:#for c in cell_list:
-                            labelArray, numFtr = sim.label(mask==n)#get all the disconnected components of the nonzero regions of mask
-                            if numFtr>1:
-                                Vol = np.zeros([1,numFtr])
-                                for i in range(1,numFtr+1):
-                                    Vol[0,i-1] =  np.sum(labelArray==(i))#focus on each connected component separately
-                                print("Vol"+str(Vol))
-                                MaxInd = np.argmax(Vol[0,:])
-                                print("MaxInd"+str(MaxInd))
-                                print("features to delete")
-                                for k1 in range(numFtr):
-                                    if not k1==MaxInd:
-                                        print(k1+1)
-                                        k1_comp = (labelArray==(k1+1))
-                                        mask[k1_comp] = 0
-                        self.data[knn][...] = mask
-                    else:
-                        print("There are no predictions for this frame")
-        self.update()
-
-    def post_process_NN_masks5(self,ProcessedNeurons):
-        """MB added: to post process the predicttions of NN for the selected frames as the ground truth
-        ProcessedNeurons: neurons that you want to postprocess. If two or three neurons touch each other
-         and are in one connected component it renames all to the first neuron in ProcessedNeurons vector
-
-        """
-        Vol = np.zeros([1,len(ProcessedNeurons)])
-        if self.NNmask_key == "":
-            print("You should first choose the NN instance")
-        else:
-            for t in self.selected_frames:
-                mkey = str(t) + "/mask"
-                if True:#not mkey in self.data.dataset.keys():
-                    knn="net/"+self.NNmask_key+"/"+str(t)+"/predmask"
-                    if knn in self.data.dataset.keys():
-                        mask = self.data[knn][...]
-                        if True:#for c in cell_list:
-                            labelArray, numFtr = sim.label(mask>0)#get all the disconnected components of the nonzero regions of mask
-                            for i in range(1,numFtr+1):
-                                submask =  (labelArray==i)#focus on each connected component separately
-                                for k in range(len(ProcessedNeurons)):
-                                    Vol[0,k] = np.sum(mask[submask]==ProcessedNeurons[k])#volume of each of the chosen neurons in this component
-                                #MaxInd = np.argmax(Vol[0,:])
-                                if not np.max(Vol[0,:])==0 and not Vol[0,0]==0:
-                                    for k1 in range(len(ProcessedNeurons)):
-                                        if not k1==0:
-                                            k1_comp = (submask&(mask==ProcessedNeurons[k1]))
-                                            mask[k1_comp] = int(ProcessedNeurons[0])
-                        self.data[knn][...] = mask
-                    else:
-                        print("There are no predictions for this frame")
-        self.update()
-
 
     def check_NN_run(self):
+        # this is used only for masks
         # checks the subprocess running status
         rundata = self.subprocmanager.check()
         # rundata={"NNtest":[["maskgen",0.1],["train",0.45],["pred",0.58]]}
-        dialog = QtHelpers.Dialog(rundata, self)   # TODO AD
+        dialog = QtHelpers.Dialog(rundata, self)   # Todo AD: I think the controller should not import PyQt5 stuff
         dialog.exec_()
         dialog.deleteLater()
 
@@ -1971,52 +1721,6 @@ class Controller():
             return True, ""
         return self.subprocmanager.run(key, args, newlogpath)
 
-    def run_NN_points(self, modelname, instancename, fol):
-        # Todo AD could this be factorized in some way?
-        # run a point prediction neural network
-        os.makedirs(os.path.join("data", "data_temp"), exist_ok=True)
-        self.save_status()
-        RGN = (modelname == "RGN")
-        dset_path = self.data.path_from_GUI
-        name = self.data.name
-        # temporary close
-        key = name + "_" + modelname + "_" + instancename
-        newpath = os.path.join("data", "data_temp", key + ".h5")
-        newlogpath = os.path.join("data", "data_temp", key + ".log")
-        if key in self.subprocmanager.runnings.keys():
-            return False, "This run is already running."
-        if os.path.exists(newpath):
-            return False, "There is an unpulled instance of this run."
-
-        # we are safe now.
-        self.data.close()  # close
-        shutil.copyfile(dset_path, newpath)
-        self.data = DataSet.load_dataset(dset_path)  # reopen
-        args = ["python3", "./src/neural_network_scripts/run_NNpts.py", newpath, newlogpath]
-        if fol:
-            os.mkdir(key)
-            dfd = os.path.join("data", "data_temp")
-            os.mkdir(os.path.join(key, "data"))
-            os.mkdir(os.path.join(key, "runouterr"))
-            os.mkdir(os.path.join(key, "data", "data_temp"))
-            nnewpath = os.path.join(dfd, key + ".h5")
-            nnewlogpath = os.path.join(dfd, key + ".log")
-            shutil.move(newpath, os.path.join(key, nnewpath))
-            shutil.copyfile(os.path.join("./src/neural_network_scripts/models", modelname + ".py"),
-                            os.path.join(key, modelname + ".py"))
-            shutil.copyfile("./src/neural_network_scripts/run_" + ("RGN" if RGN else "NNpts") + ".py",
-                            os.path.join(key, "run_" + ("RGN" if RGN else "NNpts") + ".py"))
-            for filename in ["NNtools.py", "FourierAugment.py", "autoencoder.ipynb", "conv_autoenc.py", "UNet2d.py",
-                             "highlighter.ipynb"]:
-                shutil.copyfile(os.path.join("src", "neural_network_scripts", filename), os.path.join(key, filename))
-            with open(os.path.join(key, "run.sh"), "w") as f:
-                if RGN:
-                    f.write("python3 run_RGN.py" + " " + nnewpath + " " + nnewlogpath)
-                else:
-                    f.write("python3 run_NNpts.py" + " " + nnewpath + " " + nnewlogpath)
-            return True, ""
-        return self.subprocmanager.run(key, args, newlogpath)
-
     def _scan_NN_models(self):
         """
         Looks for existing NNs in files, and populates the list self.NNmodels with them.
@@ -2042,8 +1746,22 @@ class Controller():
     def available_method_results(self):
         return self.data.get_available_methods()
 
+    def _scan_NN_instances(self):
+        """
+        Looks for existing NN instances in self.data, and populates the dict self.NNinstances with them.
+        Only used for initialization.
+        """
+        for key in self.data.available_NNdats():   # Todo AD why for pointdat only? is it just the name?
+            print("instances")
+            NetName, instance = key.split("_")
+            if NetName not in self.NNinstances:
+                self.NNinstances[NetName] = []
+            if instance not in self.NNinstances[NetName]:
+                self.NNinstances[NetName].append(instance)
+
     def pull_NN_res(self, key: str, success: bool):
         """
+        Only used for masks.
         Gets the NN results from the file system and saves them to self.data (if success); deletes corresponding NN
         files to leave the file system clear.
         :param key: NN instance identifier (as usual, includes dataname, NN model name, and instance name)
@@ -2071,17 +1789,6 @@ class Controller():
         os.remove(newpath)
         self.subprocmanager.free(key)
         return val, msg
-
-    def NN_inst_has_pointdat(self, NNmodel: str, instance: str):
-        """
-        Filtering function that returns whether the dataset has associated pointdat.
-        :param NNmodel: standard NN model name
-        :param instance: name of the instance of NNmodel
-        :return: bool, whether given instance has associated pointdat in self.data.
-        """
-        if not self.point_data:
-            return False
-        return "NN_pointdat" in self.data["net"][NNmodel + "_" + instance]  # TODO AD self.data["net"]
 
     ####################################################################################################################
 
@@ -2149,7 +1856,7 @@ class Controller():
                 return coord
             pts=intcoord[:,None]+self.autocenter_kernel
 
-            ws=self.imdat.swapaxes(0,1)[pts[0],pts[1],pts[2]]   # Todo: is self.imdat defined??
+            ws = self.im_rraw.swapaxes(0,1)[pts[0],pts[1],pts[2]]   # TODO should it be im_rraw or im_graw or ??
 
             w=np.sum(ws)
             if w==0:
@@ -2169,14 +1876,12 @@ class Controller():
         if self.point_data:
             self.save_pointdat()
             self.hlab.save_ci_int(self.data)#MB just added a tab to avoid an error with mask data
+        self.data.neuron_presence = self.neuron_presence   # todo I think it could be just for points
         self.data.save()
-        # Todo AD: if th ci_int changes, we might want to update the ci display (which used to be done by calling
-        #  self.update() after self.save_status() everytime, but that was a bit overkill...)
         print("Saved")
 
     #we save the point data
     def save_pointdat(self):
-        # TODO: check for point_data use and consistency
         self.data.set_poindat(self.pointdat)
 
     def save_and_repack(self):
@@ -2210,6 +1915,7 @@ class Controller():
             for client in self.NN_instances_registered_clients:
                 client.change_NN_instances()   # Todo Mahsa do we also want this for masks?
         self.update()
+        # TODO if the dataset has changed, some things such as the name may have changed, they should be updated (e.g. self.data_name)
 
     #when a key for a neuron is clicked the point is now annotated. rm is the remove option
     def registerpointdat(self,i_from1,coord,rm=False):
@@ -2218,9 +1924,11 @@ class Controller():
             print("Removing neuron",i_from1,"at time",self.i)
             self.pointdat[self.i][i_from1,:]=np.nan
             self.hlab.update_single_ci(self.data,self.i,i_from1,None)
+            # self.neuron_presence[self.i, i_from1] = False   # now useless due to recompute_point_presence in signal_pts_changed
         else:
             if any(np.isnan(self.pointdat[self.i][i_from1])):
                 add = True
+                # self.neuron_presence[self.i, i_from1] = True   # now useless (idem)
             else:
                 add = False
             print("Setting neuron",i_from1,"at time",self.i,"to",coord)
@@ -2244,15 +1952,15 @@ class Controller():
         :return activity: array of shape nb_frames * 2 with activity[t] is the activity value and error bars of neuron
             neuron_id_from1 at time t
         """
+        if not self.point_data:   # Todo: enable for masks
+            return np.full((self.frame_num, 2), np.nan)
         return self.hlab.ci_int[neuron_id_from1-1][:, :2]
 
-    def present_neurons_at_t(self, t):
-        # TODO can be deprecated (I think)
-        existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[t][:, 0]))  # TODO AD what about masks??
-        return np.nonzero(existing_annotations)[0]
-
     def times_of_presence(self, neuron_idx_from1):
-        existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[:, neuron_idx_from1, 0]))  # TODO AD what about masks??
+        if self.point_data:
+            existing_annotations = np.logical_not(np.isnan(self.NN_or_GT[:, neuron_idx_from1, 0]))
+        else:
+            existing_annotations = self.neuron_presence[:, neuron_idx_from1]
         return np.nonzero(existing_annotations)[0]
 
     def get_seg_params(self):
@@ -2283,7 +1991,7 @@ class Controller():
             otherwise list of such RGB values for each neuron of self.assigned_sorted_list that is currently present
         """
         if idx_from1 is None:
-            present = np.argwhere(~np.isnan(self.NN_or_GT[self.i][self.assigned_sorted_list, 0])).flatten()
+            present = np.argwhere(self.neuron_presence[self.i, self.assigned_sorted_list]).flatten()
             col_lst = [self.color_manager.color_for_neuron(self.assigned_sorted_list[pres_idx]) for pres_idx in present]
             return col_lst
         return self.color_manager.color_for_neuron(idx_from1)

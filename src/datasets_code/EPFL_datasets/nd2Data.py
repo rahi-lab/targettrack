@@ -14,9 +14,6 @@ class nd2Data(AnnotationData, WormReader, FeatureData, OrigFrameInfo, DataSet):
     - all pre-existing annotations (features, segments, etc)
     """
 
-    def available_NNpointdats(self):
-        pass
-
     def pull_NN_results(self, NetName, runname, newpath):
         pass
 

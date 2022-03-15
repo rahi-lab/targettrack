@@ -368,7 +368,7 @@ class NN():
             self.dataset.set_data("helper_NN",ptss,overwrite=True)
 
         self.dataset.close()
-        shutil.rmtree(self.folpath)
+        #shutil.rmtree(self.folpath)
         self.state="Done"
 
     def quit(self):

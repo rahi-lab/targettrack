@@ -140,13 +140,13 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
     def change_highlighted_neuron(self, high: int=None, unhigh:int=None, high_pointdat=None, **kwargs):
         """
         :param high_pointdat: 1x3 array with the x, y, z coordinates of the highlighted point.
-            Must be given if high is not None.
+            Must be given if high is not None (only in point_data mode).
         """
         high_key = "pts_high"
         if high is None:
             self.pointsetplots[high_key].setData(pos=[])
             self.pointsetsdata[high_key] = []
-        else:
+        elif high_pointdat is not None:
             self.pointsetplots[high_key].setData(pos=high_pointdat[:, :2])
             self.pointsetsdata[high_key] = high_pointdat
             self.pointsetplots[high_key].setSize(size=self.size_func(high_pointdat[:, 2]))
@@ -168,15 +168,14 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         self.track.setData(track[0], track[1])
 
     def wheelEvent(self,event):
-        self.change_z(max(-1, self.z + event.angleDelta().y()/8/15))
+        new_z = max(-1, self.z + event.angleDelta().y()/8/15)
+        self.controller.change_z(new_z)
 
     def change_z(self, value):
-        # TODO if any other classes need to use z, then wheelEvent should only notify controller of z change and let the
-        #  subsequent call to self.change_z do the job
         if value == -1:
             self.z = value
         else:
-            prop = int(np.clip(value, 0, self.img_data.shape[2]-1))   # Todo: could be a pb if img_data does not yet exist
+            prop = int(np.clip(value, 0, self.img_data.shape[2]-1))
             if not np.isnan(prop):
                 self.z = prop
         self.update_image_display()
@@ -198,7 +197,7 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
             self.update_image_display()
 
         if mask is not None:
-            if mask is False:   # in this case reomve the mask
+            if mask is False:   # in this case remove the mask
                 self.mask_data = None
             else:
                 self.mask_data = mask
@@ -357,7 +356,8 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
             self.neuron_plotidx = dict(zip(sorted(neurons_to_display), range(len(neurons_to_display))))
             if rm:
                 for neuron_idx_from1 in rm:
-                    del self.neuron_activities[neuron_idx_from1]
+                    if neuron_idx_from1 in self.neuron_activities:
+                        del self.neuron_activities[neuron_idx_from1]
                 self._remove_old_plots()
             if add:
                 for neuron_idx_from1 in add:

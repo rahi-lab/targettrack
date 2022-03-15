@@ -20,10 +20,18 @@ class gui(QMainWindow):
         self.controller.freeze_registered_clients.append(self)
         self.settings = settings
 
-        self.setWindowTitle("Tracking")
+        self.setWindowTitle("Targettrack")
         self.resize(self.settings["screen_w"]*4//5, self.settings["screen_h"]*4//5)
         self.centralWidget = QWidget()
         self.setCentralWidget(self.centralWidget)
+
+        # whether data is going to be as points or as masks:
+        if self.controller.point_data is None:
+            dtype = QtHelpers.DataTypeChoice.choose_data()
+            if dtype == "points":
+                self.controller.set_point_data(True)
+            else:
+                self.controller.set_point_data(False)
 
         tracking_grid = QGridLayout()#this is the full grid
         topgrid=QGridLayout()
@@ -91,19 +99,19 @@ class gui(QMainWindow):
             tracking_panel.addTab(NN_control_tab, "NN")
             tracking_panel.tabBar().setTabTextColor(2,QtGui.QColor(0,0,0))
 
-            # this is to select subsets of the data
-            selection_tab = controls.SelectionTab(self.controller)
-            tracking_panel.addTab(selection_tab, "Frame selection")
-            tracking_panel.tabBar().setTabTextColor(3,QtGui.QColor(0,0,0))
+            if not self.controller.point_data:
+                # this is to select subsets of the data
+                selection_tab = controls.SelectionTab(self.controller)
+                tracking_panel.addTab(selection_tab, "Frame selection")
+                tracking_panel.tabBar().setTabTextColor(3,QtGui.QColor(0,0,0))
 
-            # this is the preprocessing tab
-            preprocessing_tab = controls.PreProcessTab(self.controller,self.controller.frame_num,
-                                                    self.settings["mask_threshold_for_new_region"])
+                # this is the preprocessing tab
+                export_import_tab = controls.ExportImportTab(self.controller, self.controller.frame_num)
 
-            tracking_panel.setFixedSize(view_tab.sizeHint().width(),self.settings["screen_h"]//3)
+                tracking_panel.setFixedSize(view_tab.sizeHint().width(),self.settings["screen_h"]//3)
 
-            tracking_panel.addTab(preprocessing_tab, "Export/Import")
-            tracking_panel.tabBar().setTabTextColor(4,QtGui.QColor(0,0,0))
+                tracking_panel.addTab(export_import_tab, "Export/Import")
+                tracking_panel.tabBar().setTabTextColor(4,QtGui.QColor(0,0,0))
 
             # this is the mask processes
             processing_tab = controls.MaskProcessingTab(self.controller)
@@ -150,14 +158,6 @@ class gui(QMainWindow):
         self.eventbucket['\n'].activated.connect(self.controller.flag_current_as_gt)
         self.eventbucket['x']=QShortcut(QKeySequence('x'), self)
         self.eventbucket['x'].activated.connect(lambda:self.activate_rotate(abort=True))
-
-        # whether data is going to be as points or as masks:
-        if self.controller.point_data is None:
-            dtype = QtHelpers.DataTypeChoice.choose_data()
-            if dtype == "points":
-                self.controller.set_point_data(True)
-            else:
-                self.controller.set_point_data(False)
 
     def _make_move_relative(self, nb):
         def fun():

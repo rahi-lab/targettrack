@@ -42,7 +42,11 @@ class NeuronBar(QScrollArea):
         dummy = QWidget()
         self.neuron_bar_holderLayout = QHBoxLayout()
         self.separator = QLabel("|")
-        self._create_contents()
+        self.unactivated_contents = QGridLayout()
+        self.activated_contents = QGridLayout()
+        self.neuron_bar_holderLayout.addLayout(self.activated_contents)
+        self.neuron_bar_holderLayout.addWidget(self.separator)
+        self.neuron_bar_holderLayout.addLayout(self.unactivated_contents)
         dummy.setLayout(self.neuron_bar_holderLayout)
         self.setWidget(dummy)
 
@@ -50,17 +54,6 @@ class NeuronBar(QScrollArea):
         self.keyed_neurons_from1 = set()   # set of neurons that have a key displayed
         self.setContentsMargins(0, 0, 0, 0)
         self.neuron_bar_holderLayout.setSpacing(0)
-
-    def _create_contents(self):
-        for i in range(self.neuron_bar_holderLayout.count() - 1, -1, -1):
-            wid = self.neuron_bar_holderLayout.itemAt(i).widget()
-            if wid is not None:
-                wid.setParent(self.removed_holder)   # This is necessary to make separator go away
-        self.unactivated_contents = QGridLayout()
-        self.activated_contents = QGridLayout()
-        self.neuron_bar_holderLayout.addLayout(self.activated_contents)
-        self.neuron_bar_holderLayout.addWidget(self.separator)
-        self.neuron_bar_holderLayout.addLayout(self.unactivated_contents)
 
     def change_neuron_keys(self, changes:list):
         """
@@ -81,20 +74,13 @@ class NeuronBar(QScrollArea):
         """
         Re-creates the activated_neuron_bar_contents (a bar with only the neurons that have a key assigned??)
         """
-        del self.activated_contents
-        del self.unactivated_contents
-        # del self.separator
-
-        #MB: initialize neuron_bar_holderLayout here so the neuron bar updates properly
-        #without repeating sequences of neurons
-        #dummy = QWidget()
-        #self.neuron_bar_holderLayout = QHBoxLayout()
-        #self.separator = QLabel("|")
-        #dummy.setLayout(self.neuron_bar_holderLayout)
-        #self.setWidget(dummy)
-
-        self._create_contents()
-
+        # First remove all buttons from the layouts
+        for lay in [self.activated_contents, self.unactivated_contents]:
+            for i in range(lay.count() - 1, -1, -1):
+                item = lay.itemAt(i)
+                if item.widget() is not None:
+                    item.widget().setParent(self.removed_holder) # or lay.removeItem(item) would be enough?
+        # Then put every button in the right layout (activated or inactivated)
         for i_from1 in sorted(self.neurons.keys()):
             if i_from1 in self.keyed_neurons_from1:
                 self.neurons[i_from1].install_in(self.activated_contents)
@@ -106,17 +92,16 @@ class NeuronBar(QScrollArea):
         Changes the number of neurons in the neuron bar.
         :param nb_neurons: new number of neurons
         """
-        # TODO AD this removes highlighting and present/absent color...!! do we want that??
-        n_delete = len(self.neurons) - nb_neurons
+        old_n_neurons = len(self.neurons)
+        if nb_neurons > old_n_neurons:
+            for i_from1 in range(old_n_neurons+1, nb_neurons+1):
+                self.neurons[i_from1] = NeuronBarItem(i_from1, self)
+                self.neurons[i_from1].install_in(self.unactivated_contents)
+        elif nb_neurons < old_n_neurons:
+            for i_from1 in range(nb_neurons+1, old_n_neurons+1):
+                self.neurons[i_from1].delete()
+                del self.neurons[i_from1]
 
-        # SJR: if number of neurons decreased, reset neuron bar
-        #MB: set this loop to false because it gives an error for frames with no annotations
-        if False:#n_delete > 0:
-            for i in reversed(range(self.neuron_bar_contents.count())):
-                self.neuron_bar_contents.itemAt(i).widget().setParent(None)   # Todo: or use self.removed_holder if we want to keep the buttons, not sure about that (same remark as above)
-
-        for i_from1 in range(1,nb_neurons+1):
-            self.neurons[i_from1] = NeuronBarItem(i_from1, self)
         self._restore_activated_neurons()
 
     def _make_user_neuron_key(self, neuron_id_from1):
@@ -187,7 +172,7 @@ class NeuronBarItem:
              height: 10px;
              min-height: 10px;
              width: 10px;
-             min-width: 10px;
+             min-width: 40px;
              }
              QPushButton[color = "a"]{
                  background-color: red;
@@ -218,8 +203,10 @@ class NeuronBarItem:
         self.highlighted = False   # Todo: set at init??
 
     def install_in(self, holder_layout):
-        holder_layout.addWidget(self.neuron_key_button, 0, self.i_from1 - 1)
-        holder_layout.addWidget(self.neuron_button, 1, self.i_from1 - 1)
+        j = holder_layout.count() // 2   # this is the number of items already in the layout; there are two per neuron
+        # already installed (the button and the key button). We add self after the neurons already present.
+        holder_layout.addWidget(self.neuron_key_button, 0, j)
+        holder_layout.addWidget(self.neuron_button, 1, j)
 
     def set_present(self):
         self.present = True
@@ -255,6 +242,11 @@ class NeuronBarItem:
 
     def set_text(self, text):
         self.neuron_key_button.setText(text)
+
+    def delete(self):
+        self.neuron_key_button.setParent(None)
+        self.neuron_button.setParent(None)
+        del self
 
 
 class DashboardItem(QPushButton):
@@ -483,6 +475,7 @@ class ViewTab(QScrollArea):
 
         self.setWidgetResizable(True)
         self.setContentsMargins(5, 5, 5, 5)
+        # Todo no sideways scrolling
 
     def _adjacent_changed(self, value):
         ok = self.controller.change_adjacent(value)
@@ -490,7 +483,7 @@ class ViewTab(QScrollArea):
             self.getadjlab.setText(str(int(value)))
 
 
-class AnnotationTab(QWidget):
+class AnnotationTab(QScrollArea):
     """
     This is the tab with point and mask annotation tools
     """
@@ -658,7 +651,7 @@ class AnnotationTab(QWidget):
             mask_annotation_thresh_label = QLabel("Treshold for adding regions")
             mask_annotation_Layout.addWidget(mask_annotation_thresh_label,subrow, 2)
             subrow += 1
-            box_mode_checkbox = QCheckBox("boxing mode")
+            box_mode_checkbox = QCheckBox("Boxing mode")
             box_mode_checkbox.toggled.connect(self.controller.toggle_box_mode)
             mask_annotation_Layout.addWidget(box_mode_checkbox,subrow, 0)
             self.box_dimensions = QLineEdit("1,1,1-0")
@@ -711,7 +704,11 @@ class AnnotationTab(QWidget):
 
             main_layout.addLayout(Permute_buttons, row, 0)
 
-        self.setLayout(main_layout)
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
 
     def _selective_delete(self):
         fro, to = int(self.delete_select_from.text()), int(self.delete_select_to.text())
@@ -812,7 +809,7 @@ class AnnotationTab(QWidget):
             self.auto_en_lab.setStyleSheet("background-color: red; height: 15px; width: 5px;min-width: 5px;")
 
 
-class NNControlTab(QWidget):
+class NNControlTab(QScrollArea):
     """
     This is the tab that deals with NNs, launching them, retrieving their results...
     """
@@ -868,7 +865,7 @@ class NNControlTab(QWidget):
             self.Exempt_Neurons.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             #self.PostProc_Mode = QLineEdit("1")
             #self.PostProc_Mode.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
-            main_layout.addWidget(QLabel("Neurons exempt from postprocessing:"),row,0,1, 1)
+            main_layout.addWidget(QLabel("Neurons exempt from postprocessing:"),row,0,1, 1)   # TODO MB: exempt for modes 1-2, but target for modes 3-4-5, right? I think we can change the label. Possibly we can even change the label depending on which mode is selected.
             main_layout.addWidget(self.Exempt_Neurons,row,1, 1, 1)
             row += 1
 
@@ -877,8 +874,11 @@ class NNControlTab(QWidget):
             PostProcess_mask.setStyleSheet("background-color: yellow")
             PostProcess_mask.clicked.connect(self._Postprocess_NN_masks)
             main_layout.addWidget(PostProcess_mask,row, 1,1,1)
-            self.PostProc_Mode = QLineEdit("1")
-            self.PostProc_Mode.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
+            self.PostProc_Mode = QComboBox()
+            self.PostProc_Mode.addItem("Post-processing mode")
+            for i in range(1,6):
+                self.PostProc_Mode.addItem(str(i))
+            self.PostProc_Mode.currentTextChanged.connect(self._select_pmode)
             main_layout.addWidget(self.PostProc_Mode,row,0, 1, 1)
             row += 1
 
@@ -899,11 +899,13 @@ class NNControlTab(QWidget):
             val_frame_box.setContentLayout(lay)
             main_layout.addWidget(val_frame_box, row, 0, 1, 2)
             row += 1
-
+            '''
             main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
             row += 1
-        
+
             #CFP made this conditional
+            #MB: just removed this.
+
             NN_Check = QPushButton("Check NN progress")
             NN_Check.clicked.connect(self.controller.check_NN_run)
             main_layout.addWidget(NN_Check, row, 0, 1, 2)
@@ -911,7 +913,7 @@ class NNControlTab(QWidget):
 
             main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
             row += 1
-            
+            '''
             old_train_checkbox = QCheckBox("Use old train set")
             old_train_checkbox.toggled.connect(self.controller.toggle_old_trainset)
             main_layout.addWidget(old_train_checkbox, row, 0)
@@ -947,9 +949,9 @@ class NNControlTab(QWidget):
             row += 1
 
             NN_train = QPushButton("Train Mask Prediction Neural Network")
-            NN_train.clicked.connect(lambda: self._run_mask_NN(mask=True))
+            NN_train.clicked.connect(lambda: self._run_mask_NN())
             NN_train_fol = QPushButton("Output Train NNmasks folder")
-            NN_train_fol.clicked.connect(lambda: self._run_mask_NN(mask=True, fol=True))
+            NN_train_fol.clicked.connect(lambda: self._run_mask_NN(fol=True))
             main_layout.addWidget(NN_train, row, 0, 1, 2)
             row += 1
             main_layout.addWidget(NN_train_fol, row, 0, 1, 2)
@@ -968,7 +970,11 @@ class NNControlTab(QWidget):
             main_layout.addWidget(self.NN_instance_select, row, 1)
             row += 1
 
-        self.setLayout(main_layout)
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
 
     @property
     def NNinstances(self):
@@ -991,11 +997,17 @@ class NNControlTab(QWidget):
         else:
             net, instance = txt.split(" ")
         self.controller.select_NN_instance_masks(net, instance)
-        
+
+    def _select_pmode(self, txt):
+        if txt == "":
+            self.post_process_mode = 1
+        else:
+            self.post_process_mode = int(txt)
+
     def _run_script(self):
         pass
 
-    def _run_mask_NN(self, mask=False, fol=False):
+    def _run_mask_NN(self, fol=False):
         modelname = self.NN_model_select.currentText()
         instancename = self.NN_instance_select.currentText()
         if instancename == "new":
@@ -1013,10 +1025,9 @@ class NNControlTab(QWidget):
         msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
         confirmation = msgBox.exec()
         if confirmation == QMessageBox.Ok:
-            if mask:
-                runres, msg = self.controller.run_NN_masks(modelname,instancename,fol,int(self.epochs.text()),int(self.trainset.text()),int(self.valset.text()),int(self.targset.text()))
-            else:
-                runres, msg = self.controller.run_NN_points(modelname,instancename,fol)
+            runres, msg = self.controller.run_NN_masks(modelname, instancename, fol, int(self.epochs.text()),
+                                                       int(self.trainset.text()), int(self.valset.text()),
+                                                       int(self.targset.text()))
             if not runres:
                 errdial=QErrorMessage()
                 errdial.showMessage('Run Failed:\n'+msg)
@@ -1050,9 +1061,7 @@ class NNControlTab(QWidget):
         self.NN_pt_select.clear()
         currname = self.NN_pt_select.currentText()
         helper_names = self.controller.available_method_results()
-        if len(helper_names) == 0:
-            self.NN_pt_select.addItem("None")
-            return
+        self.NN_pt_select.addItem("None")
         for name in helper_names:
             self.NN_pt_select.addItem(name)
         if currname in helper_names:
@@ -1081,21 +1090,13 @@ class NNControlTab(QWidget):
         ExNeu = ExNeu.split(',')
         ExNeu = [int(n) for n in ExNeu ]
 
-        Mode = int(self.PostProc_Mode.text())
+        Mode = self.post_process_mode#int(self.PostProc_Mode.text())
         Modes = set([1,2,3,4,5])
         assert Mode in Modes, "Acceptable modes are 1, 2, 3, 4, and 5"
-        if Mode ==1:
-            self.controller.post_process_NN_masks(ExNeu)
-        if Mode ==2:
-            self.controller.post_process_NN_masks2(ExNeu)
-        if Mode ==3:
-            self.controller.post_process_NN_masks3(ExNeu)
-        if Mode ==4:
-            self.controller.post_process_NN_masks4(ExNeu)
-        if Mode ==5:
-            self.controller.post_process_NN_masks5(ExNeu)
+        self.controller.post_process_NN_masks(Mode, ExNeu)
 
-class SelectionTab(QWidget):
+
+class SelectionTab(QScrollArea):
     """
     This is the tab that allows to select subsets of data
     """
@@ -1127,8 +1128,8 @@ class SelectionTab(QWidget):
 
         #MB added to selet individual frames manually
         self.fr_num_entry = QLineEdit("0")
-        self.fr_num_entry.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
-        selection_lay.addWidget(QLabel("Enter frame numbers separated with ,"), 1, 0)
+        self.fr_num_entry.setStyleSheet("height: 15px; width: 5px;min-width: 150px;")
+        selection_lay.addWidget(QLabel("Enter frame numb-\n ers separated\n with ,"), 1, 0)
         selection_lay.addWidget(self.fr_num_entry, 1, 1)
 
         # select population of frames from which to select this proportion
@@ -1158,17 +1159,20 @@ class SelectionTab(QWidget):
         single_radiobtn.setChecked(False)
         self.population_buttons.addButton(single_radiobtn)
         buttons_layout.addWidget(single_radiobtn)
-
-
         selection_lay.addLayout(buttons_layout, 0, 2)
-
 
         select_btn = QPushButton("Select")
         select_btn.clicked.connect(self._frame_fraction_fun)
         selection_lay.addWidget(select_btn, 0, 3)
 
         main_layout.addLayout(selection_lay)
-        self.setLayout(main_layout)
+
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
+        # Todo no sideways scrolling
 
     def _frame_fraction_fun(self):
         frac = self.frac_entry.text()
@@ -1188,7 +1192,7 @@ class SelectionTab(QWidget):
         self.controller.select_frames(float(frac)/100, Tot_fr_final, self.population_buttons.checkedButton().text())
 
 
-class MaskProcessingTab(QWidget):
+class MaskProcessingTab(QScrollArea):
     """
     This is the tab that controls all processes specific to data with masks (though not just masks themselves): segmentation, clustering...
     """
@@ -1298,10 +1302,14 @@ class MaskProcessingTab(QWidget):
         crop_btn.clicked.connect(self.controller.define_crop_region)
         main_layout.addWidget(crop_btn)
 
-        self.setLayout(main_layout)
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
 
 
-class SavingTab(QWidget):
+class SavingTab(QScrollArea):
     """
     This is the tab for saving etc
     """
@@ -1339,13 +1347,18 @@ class SavingTab(QWidget):
         main_layout.addWidget(save_button, row, 0)
         row += 1
 
-        self.setLayout(main_layout)
+        wid = QWidget()
+        wid.setLayout(main_layout)
+        self.setWidget(wid)
+        self.setWidgetResizable(True)
+        self.setContentsMargins(5, 5, 5, 5)
 
-class PreProcessTab(QWidget):
+
+class ExportImportTab(QScrollArea):
         """
         MB: This is the tab for preprocessing and saving an a separate file
         """
-        def __init__(self, controller, frame_num:int, mask_threshold_for_new_region):
+        def __init__(self, controller, frame_num:int):
             """
             :param controller: main controller to report to
             :param frame_num: number of frames in video
@@ -1448,11 +1461,8 @@ class PreProcessTab(QWidget):
             preproc_tab_grid.addLayout(save_checkboxes_lay, row, 0)
             row += 1
 
-
-
             subrow = 0
             approve_lay = QGridLayout()
-
 
             approve_lay.addWidget(QLabel("Choose frames from:"), subrow, 0)
             self.frame_from = QLineEdit("0")
@@ -1512,7 +1522,12 @@ class PreProcessTab(QWidget):
 
             preproc_tab_grid.addLayout(approve_lay, row, 0)
             row += 1
-            self.setLayout(preproc_tab_grid)
+
+            wid = QWidget()
+            wid.setLayout(preproc_tab_grid)
+            self.setWidget(wid)
+            self.setWidgetResizable(True)
+            self.setContentsMargins(5, 5, 5, 5)
 
         def _Preprocess_and_save(self):
             Z_int = np.zeros(2)
@@ -1814,8 +1829,8 @@ class DashboardTab(QWidget):
         chunknumber = t // self.chunksize
         if self.chunknumber != chunknumber:
             for i in range(self.chunksize):
-                t = self.chunksize * chunknumber + i
-                self.time_label_buttons[i].setText(str(t) if t < self.T else "")
+                t_i = self.chunksize * chunknumber + i
+                self.time_label_buttons[i].setText(str(t_i) if t_i < self.T else "")
             self.chunknumber = chunknumber
         self.current_i = t % self.chunksize
 
@@ -1830,7 +1845,7 @@ class DashboardTab(QWidget):
         :param key_changes: list of (neuron_idx_from1, key), with key=None for unassigning
         """
         for idx_from1, key in key_changes:
-            if key is None:   # remove the button column
+            if key is None and idx_from1 in self.button_columns:   # remove the button column
                 for btn in self.button_columns[idx_from1]:
                     # btn.widget().setParent(None)
                     btn.setParent(None)
@@ -1884,31 +1899,41 @@ class DashboardTab(QWidget):
         if removed is not None and removed in self.button_columns:
             self.button_columns[removed][self.current_i+1].set_absent()
 
-    def change_present_neurons_all_times(self):
-        pass   # TODO
+    def change_present_neurons_all_times(self, neuron_presence):
+        for idx_from1, column in self.button_columns.items():
+            for i in range(self.chunksize):
+                t = self.chunknumber * self.chunksize + i
+                if neuron_presence[t, idx_from1]:
+                    column[i+1].set_present()
+                else:
+                    column[i+1].set_absent()
 
 
-
-class TrackTab(QWidget):   # Todo rename
-    def __init__(self, controller):
+class TrackTab(QWidget):
+    def __init__(self,gui):
         super().__init__()
-        #CFP-HELP: Probably, this should be the controller? # AD yes!
-        self.controller = controller
+        self.gui=gui
 
-        self.methods=tracking_methods.methods
+        self.methods=tracking_methods.methodnames
+        self.methodhelps=tracking_methods.methodhelps
         self.grid=QGridLayout()
-        
+
         row=0
         self.grid.addWidget(QLabel("Select Method"),row,0)
         row+=1
 
         self.combobox=QComboBox()
         self.combobox.addItem("")
-        for key in self.methods.keys():
+        for key in self.methods:
             self.combobox.addItem(key)
         self.combobox.setCurrentIndex(0)
-        self.combobox.currentIndexChanged.connect(lambda x: self.run_button.setEnabled(False) if x==0 else self.run_button.setEnabled(True))
+        self.combobox.currentIndexChanged.connect(self.make_method_change_func())
         self.grid.addWidget(self.combobox,row,0)
+        row+=1
+
+        self.help=QLabel()
+        self.help.setWordWrap(True)
+        self.grid.addWidget(self.help,row,0)
         row+=1
 
         self.param_edit=QLineEdit()
@@ -1923,6 +1948,16 @@ class TrackTab(QWidget):   # Todo rename
         row+=1
 
         self.setLayout(self.grid)
+
+    def make_method_change_func(self):
+        def method_change_func(index):
+            if index==0:
+                self.run_button.setEnabled(False)
+                self.help.setText("")
+            else:
+                self.run_button.setEnabled(True)
+                self.help.setText(self.methodhelps[str(self.combobox.currentText())])
+        return method_change_func
 
     def make_run_function(self):
         def run_function():
@@ -1939,14 +1974,9 @@ class TrackTab(QWidget):   # Todo rename
         res=msgbox.exec()
         if res==QMessageBox.No:
             return
-            
-        #CFP-HELP: I want to save all changes and close the dataset completely, as well as freeze the gui until the script runs, can you do this?
-        # AD done
-        self.controller.save_status()
-        dataset_path = self.controller.pause_for_NN()
-        print("CFP:save")
-        print("CFP:timer_stop")
-        print("CFP:close")
+        self.gui.respond("save")
+        self.gui.respond("timer_stop")
+        self.gui.dataset.close()
 
         progress=QProgressDialog("","cancel",-1,101)
         labeltext="Running "+method_name+((" with "+params) if params!="" else "") +":\n"
@@ -1958,7 +1988,7 @@ class TrackTab(QWidget):   # Todo rename
         QApplication.processEvents()
 
         command_pipe_main,command_pipe_sub=Pipe()
-        process = Process(target=self.methods[method_name], args=(command_pipe_sub, dataset_path, params))
+        process = Process(target=tracking_methods.run, args=(method_name,command_pipe_sub,self.gui.dataset.file_path,params))
         process.start()
         command_pipe_main.send("run")
         while True:
@@ -1979,13 +2009,6 @@ class TrackTab(QWidget):   # Todo rename
         process.join()
 
         progress.setValue(101)
-        
-        #CFP-HELP: Now that the script ended, I want to reopen the dataset and link it to the GUI, is this possible?
-        # AD done
-        self.controller.unpause_for_NN(dataset_path)
-        print("CFP:open")
-        #CFP-HELP:Finally, the GUI should be alerted that the NN points have changed(have new results)
-        # AD NOT FINISHED
-        print("CFP:renew_helpers")
-        print("CFP:timer_start")
-        
+        self.gui.dataset.open()
+        self.gui.respond("renew_helpers")
+        self.gui.respond("timer_start")
