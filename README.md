@@ -5,7 +5,7 @@ This is the user manual for the graphical interface for segmenting and editing *
 
 # Requirements
 - python 3.8
-- pyqt5, numpy, scipy, matplotlib, scikit-image, h5py
+- ipython, matplotlib, numpy, pandas, scikit-image, scikit-learn, scipy, tqdm, sparse, nd2reader, PyQt5, pyqtgraph, opencv-python, opencv-python-headless, h5py, albumentations, connected-components-3d, torchvision, alphashape
 
 # Installation Steps
 
@@ -33,12 +33,12 @@ We guide you step-by-step through the demo:
 <img src="src/Images/Highlight10.png" width=600> 
 </p> 
 
-4. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural network` button. This will copy the file in the `data/data_temp` folder and train the neural network on the new file.
+4. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural network` button. Once you enter the name of the run, the program will copy the file in the `data/data_temp` folder and train the neural network on the new file.
 <p align="center"> 
 <img src="src/Images/NNtrain.png" width=600> 
 </p> 
 
-5. To check the performance of the neural network, choose the run name under `Select NN masks`. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
+5. To check the performance of the neural network, open the file in `data/data_temp`. Choose the run name under `Select NN masks`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame.png" width=400> 
 <img src="src/Images/SeeNNresults.png" width=400> 
