@@ -11,33 +11,32 @@ This is the user manual for the graphical interface for segmenting and editing *
 
 1. Clone this repository ("git clone https://github.com/lpbsscientist/targettrack").
 2. If you don't have conda or miniconda installed, download it from https://docs.conda.io/en/latest/miniconda.html.
-3. Follow the instructions of install.txt to create a virtual environment and install the necessary packages.
-4. Run the program from your command line with `python3 gui_launcher.py [dataset name]`
+3. In your command line, run each of the commands in install.txt (except the first, if you have already cloned the repository).
+This will create a virtual environment and install the necessary packages.
+4. Place your `.h5` data file in the folder called "data" then run the program from your command line with `python3 gui_launcher.py [dataset name]`,
+where `[dataset name]` is the name of your file.
 
 
 # Running demo
 We guide you step-by-step through the demo:
-1. open the sample file using `python3 gui_launcher.py epfl10_CZANet_Final.h5`
+1. Open the sample file using `python3 gui_launcher.py epfl10_CZANet_Final.h5`
   <p align="center"> 
   <img src="src/Images/start.png" width=600> 
   </p>
-  
-2. check the `Overlay mask` checkbox to see the annotated frames' masks. Notice that the present neurons in each frame are marked with blue in the neuron bar and absent ones by red. 
+2. Check the `Overlay mask` checkbox to see the annotated frames' masks. Notice that the present neurons in each frame are marked with blue in the neuron bar on top and absent ones by red. 
   <p align="center"> 
   <img src="src/Images/OverlayMask.png" width=600> 
   </p>
-  
-3. Highlight the masks by pressing on their corresponding key in the neuron bar. The highlighted neurons' key becomes green as you can see in the figure below. You can change the label of the highlighted neurons by pressing the `Renumber` button in the `Annotate` tab.
-
+3. Highlight the masks by pressing on their corresponding key in the neuron bar. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). 
+You can change the label of the highlighted neurons by pressing the `Renumber` button in the `Annotate` tab.
 <p align="center"> 
 <img src="src/Images/Highlight10.png" width=600> 
 </p> 
-
-4. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural network` button. Once you enter the name of the run, the program will copy the file in the `data/data_temp` folder and train the neural network on the new file.
+4. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural network` button. 
+Once you enter the name of the run, the program will copy the file in the `data/data_temp` folder and train the neural network on the new file.
 <p align="center"> 
 <img src="src/Images/NNtrain.png" width=600> 
 </p> 
-
 5. To check the performance of the neural network, open the file in `data/data_temp`. Choose the run name under `Select NN masks`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame.png" width=400> 
@@ -47,16 +46,20 @@ We guide you step-by-step through the demo:
 
 # User Guide
 ### Preparing the h5 file
-This program is designed for 3D movies in `.h5` file format. The `.h5` file should have T groups where T is the number of volumes in the movie. The volume at time t is saved the member 'frame' of group t. The `.h5` file should also contain the following attributes:\
+This program is designed for 3D movies in `.h5` file format. The `.h5` file should have T groups where T is the number of volumes (times) in the movie. 
+The volume at time t (where t ranges from 0 to T-1) is saved as the member 'frame' of group t. 
+The `.h5` file should also contain the following attributes:\
 "name"= name of the movie\
 "C" = number of channels in the movie\
-"W" = width of each volume\ 
+"W" = width of each volume\
 "H" = height of each volume\
 "D" = depth of each volume\
 "T" = number of volumes in the movie\
 "N_neurons" = number of neurons which is set to zero before annotation.
 You can use the script `nd22h5.py` to convert the `.nd2` files obtained by Nikon Eclipse Ti2 spinning disc confocal microscope into proper `.h5` file format for the Targettrack GUI.
 The program will save segmentation masks for each frame t as the member "mask" of the group t in the '.h5' file.
+
+For example, if `ds` is the `h5` file opened in python, `ds["3/frame"]` contains the 3D video image of time 3 (which is the fourth time of the video).
 
 ### The interface
 After opening the '.h5' file, you will see the first volume of the movie as the main part of the window. Then, using the wheel of the mouse, you can go through different Z-stacks of your volume.
@@ -83,15 +86,19 @@ This tab is used for improving the visualization of the movie. You can view diff
 
 
 ### Annotation tab
-This tab is used for annotating the volumes. It can be used for correcting the predictions of the neural network or the results of the watershed segmentation method (implemented in `Processing` tab). There are two modes of annotating a region from scratch:\
-`Mask annotation mode`: it uses the value in the `Threshold for adding regions` box as the threshold. If you right-click on any pixel, a box will ask you to enter the number of the neuron you want to annotate. After entering the number N, all the pixels around the clicked pixel with higher values than the threshold will be labeled with N. You can change the threshold either by entering a new threshold value in the threshold box or by middle-clicking on a pixel. If you middle-click on a certain pixel, the value of that pixel will be used as the new threshold.\
-`Boxing Mode`: it adds new regions to the mask by defining a box with desirable dimensions. You can set the length, width, height, and the label of the box you want to add in the `Box details` box. After setting the dimensions and the label, you can left-click on the pixel where the bottom left corner of the box should be. If you choose 0 as the label of the box, it will work as an eraser for your masks.\
+This tab is used for annotating the volumes. It can be used for correcting the predictions of the neural network or the 
+results of the watershed segmentation method (implemented in `Processing` tab). There are two modes of annotating a region from scratch:
+- `Mask annotation mode`: it uses the value in the `Threshold for adding regions` box as the threshold. 
+If you right-click on any pixel, a box will ask you to enter the number of the neuron you want to annotate. After entering the number N, all the pixels around the clicked pixel with higher values than the threshold will be labeled with N. You can change the threshold either by entering a new threshold value in the threshold box or by middle-clicking on a pixel. If you middle-click on a certain pixel, the value of that pixel will be used as the new threshold.\
+- `Boxing Mode`: it adds new regions to the mask by defining a box with desirable dimensions. You can set the length, width, 
+height, and the label of the box you want to add in the `Box details` box. After setting the dimensions and the label, you 
+can left-click on the pixel where the bottom left corner of the box should be. If you choose 0 as the label of the box, it will work as an eraser for your masks.
 
 The actions of `Boxing Mode` and `Mask annotation mode` can be reversed by pressing the key `z`.
 
 In addition to annotating from scratch, you can also change the labels of existing masks or delete them using the following buttons:\
 `Renumber`: You first click on the number of the neuron you want to relabel on the neuron bar and highlight it. This will activate the `Renumber` button. Upon pressing the `Renumber` button, you get asked to enter the new label you want to use for the neuron. After entering the new label, if the neuron you chose has only one connected component, it will be relabeled immediately. If it has multiple disjoint components, you are asked to relabel all those components or only one of them. If you choose `cancel`, all the components will be renumbered. If you choose `Ok`, you have to right-click on a pixel inside the region you want to renumber to only relabel that component and not the others.\
-If you want to renumber a neuron in more than one frame, you can check the `Change within` checkbox and set the interval of the frames you want use for renumbering.\
+If you want to renumber a neuron in more than one frame, you can check the `Change within` checkbox and set the interval of the frames you want use for renumbering.
 
 `Delete`:You first click on the number of the neuron you want to relabel on the neuron bar and highlight it. This will activate the `Delete` button. Upon pressing the `Delete` button, the desired neuron will be deleted.
 The actions of Deleting and renumbering can be reversed by pressing the key `z` if they are only applied on one frame.
@@ -104,7 +111,8 @@ The actions of Deleting and renumbering can be reversed by pressing the key `z` 
 
 ### NN tab
 This tab is designed to train the neural network (NN) directly from the GUI. The GUI will copy of the `.h5` file in the `data/data_temp` folder and save the result of the NN in that file.
-To train the neural network, enter the number of validation set, training set, and the epochs for training in the corresponding boxes and press the `Train Mask Prediction Neural network` button. Note that the sum of validation and tratining set should not exceed the total number of annotated frames.
+To train the neural network, enter the number of validation set, training set, and the epochs for training in the corresponding 
+boxes and press the `Train Mask Prediction Neural network` button. Note that the sum of validation and training set should not exceed the total number of annotated frames.
 #### Generating target frames
 This can be done only after one successful run of the neural network. To generate the deformed frames, check the `Add deformation` checkbox and enter the number of deformed frames you want to generate in the `Number of target frames` box.
 #### Checking NN results
