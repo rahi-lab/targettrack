@@ -148,7 +148,12 @@ class h5Data(DataSet):
             self.dataset.create_dataset(key, (self.frame_num, self.nb_neurons + 1), dtype=bool,
                                         maxshape=(None, None))
         elif self.dataset[key].shape != value.shape:
-            self.dataset[key].resize(value.shape)
+            try:
+                self.dataset[key].resize(value.shape)
+            except RuntimeError:   # cannot resize because maxshape was given at creation (can happen with older datasets)
+                del self.dataset[key]
+                self.dataset.create_dataset(key, (self.frame_num, self.nb_neurons + 1), dtype=bool,
+                                            maxshape=(None, None))
         self.dataset[key][...] = value
 
     @property
