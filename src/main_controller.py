@@ -629,14 +629,16 @@ class Controller():
 
             # SJR: User left clicks (arg[0]==1) to select which cell to delete
             elif button == 1 and not self.options["boxing_mode"]:
+                if self.mask is None:
+                    print("Cannot delete a cell from a non-existing or not shown mask.")
+                    return
                 if not (0 <= coord[0] < self.frame_shape[0] and 0 <= coord[1] < self.frame_shape[1] and 0 <= coord[2] < self.frame_shape[2]):
                     return
                 sel = self.mask[coord[0], coord[1], coord[2]]
-                if sel != 0:
-                    # SJR: simulate clicking on the neuron bar button for selected neuron
+                if sel != 0:   # highlight/unhighlight the clicked neuonr
                     self.highlight_neuron(sel)
-                else:
-                    self.highlight_neuron(0)
+                else:   # unhighlight all
+                    self.highlight_neuron(self.highlighted)
         #MB: to ba able to draw boxes around objects of interest
         if self.options["boxing_mode"]:
             w,h,d,box_id = self.box_details
