@@ -17,25 +17,26 @@ where `[dataset name]` is the name of your file.
 
 # Running demo
 We guide you step-by-step through the demo:
-1. Open the sample file using `python3 gui_launcher.py epfl10_CZANet_Final.h5`
+1. Downlowd the sample `.h5` file from https://drive.google.com/drive/folders/1-El9nexOvwNGAJw6uFFENGY1DqQ7tvxH?usp=sharing . This file is a denoised, aligned, and cropped movie of a freely moving worm in red channel. It has around 150 annotated frames and results of training the neural network on 5 of those frames.
+2. Open the sample file using `python3 gui_launcher.py epfl10_CZANet_Final.h5`
   <p align="center"> 
   <img src="src/Images/start.png" width=600> 
   </p>
-2. Check the `Overlay mask` checkbox to see the annotated frames' masks. Notice that the present neurons in each frame are marked with blue in the neuron bar on top and absent ones by red. 
+3. Check the `Overlay mask` checkbox to see the annotated frames' masks. Notice that the present neurons in each frame are marked with blue in the neuron bar on top and absent ones by red. 
   <p align="center"> 
   <img src="src/Images/OverlayMask.png" width=600> 
   </p>
-3. Highlight the masks by pressing on their corresponding key in the neuron bar. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). 
+4. Highlight the masks by pressing on their corresponding key in the neuron bar. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). 
 You can change the label of the highlighted neurons by pressing the `Renumber` button in the `Annotate` tab.
 <p align="center"> 
 <img src="src/Images/Highlight10.png" width=600> 
 </p> 
-4. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural Network` button. 
+5. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural Network` button. 
 Once you enter the name of the run, the program will copy the file in the `data/data_temp` folder and train the neural network on the new file.
 <p align="center"> 
 <img src="src/Images/NNtrain.png" width=600> 
 </p> 
-5. To check the performance of the neural network, open the file in `data/data_temp`. Choose the run name under `Select NN masks`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
+6. To check the performance of the neural network, open the file in `data/data_temp`. Choose the run name under `Select NN masks`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame.png" width=400> 
 <img src="src/Images/SeeNNresults.png" width=400> 
@@ -54,19 +55,19 @@ The `.h5` file should also contain the following attributes:\
 "D" = depth of each volume\
 "T" = number of volumes in the movie\
 "N_neurons" = number of neurons which is set to zero before annotation.
-You can use the script `nd22h5.py` to convert the `.nd2` files obtained by Nikon Eclipse Ti2 spinning disc confocal microscope into proper `.h5` file format for the Targettrack GUI.
+You can use the script `nd22h5.py` to convert the `.nd2` files obtained by a Nikon Eclipse Ti2 spinning disc confocal microscope into proper `.h5` file format for the Targettrack GUI.
 The program will save segmentation masks for each frame t as the member "mask" of the group t in the '.h5' file.
 
 For example, if `ds` is the `h5` file opened in python, `ds["3/frame"]` contains the 3D video image of time 3 (which is the fourth time of the video).
 
 ### The interface
-After opening the '.h5' file, you will see the first volume of the movie as the main part of the window. Then, using the wheel of the mouse, you can go through different Z-stacks of your volume.
+After opening the '.h5' file, you will see the first volume of the movie as the main part of the window. Then, using the wheel of the mouse, you can scroll through different Z-stacks of your volume.
 If the movie already contains masks for some frames, there will be a bar of neuron numbers on the top of the window. The neurons present in each frame are colored blue, and the absent ones are colored red.\
 On the bottom of the window, you see a slider for going through different volumes. You can also use the keys `m` and `n` on your keyboard to go to the next or previous volume respectively.\
 There are multiple tabs on the bottom right side of the window for viewing, editing, or exporting the movie. 
 
 ### The neuron bar
-If you are in the `overlay mask` mode, you can highlight each neuron by clicking on its corresponding number. The key of the highlighted neuron becomes green in the frames when the neuron is present and yellow when it is absent. You can also assign one of the keys `q`,`w`,`e`,`r`,`t`,`y`,`u`,`i`, and`o` to any of the annotated neurons by clicking on the white button on top of the neuron number. After assigning the key, it will show up in the `track` tab on top right side of the window. There, you can see list of volumes where the neuron is present (marked by color blue).
+If you are in the `overlay mask` mode, you can highlight each neuron by clicking on its corresponding number. The key of the highlighted neuron becomes green in the frames when the neuron is present and yellow when it is absent. You can also assign one of the keys `q`,`w`,`e`,`r`,`t`,`y`,`u`,`i`, and`o` to any of the annotated neurons by clicking on the white button on top of the neuron number. After assigning the key, it will show up in the `track` tab on top right side of the window. There, you can see list of volumes where the neuron is present (marked by the color blue).
 
 ### View tab
 This tab is used for improving the visualization of the movie. You can view different aspects of the volume using the following checkboxes:\
@@ -77,7 +78,7 @@ This tab is used for improving the visualization of the movie. You can view diff
 `Only NN mask`: displays the neural network's predictions (if available) even for the ground truth images.\
 `Aligned`: if rotation matrices have already been computed in the `Processing` tab, this option shows the aligned volume. We used the method introduced in  https://github.com/bing-jian/gmmreg-python for the alignment of 3D volume images to have the worm's neurons aligned as much as possible across frames.\
 `Cropped`: if the alignment has already been done and the cropping region is determined through `Processing` tab, this option displays the cropped image.\
-`Blur image`: it applies blurring using the difference of Gaussians method on the first channel of the image by default. If you choose `Show only second channel` checkbox, the second channel will be blurred. The parameters used for applying blurring are set from the slide bars below the checkbox.
+`Blur image`: it applies blurring using the difference of Gaussians method on the first channel of the image by default. If you choose `Show only second channel` checkbox, the second channel will be blurred. The parameters used for blurring (standard deviations of the Gaussians) are set from the slide bars below the checkbox.
 <p align="center"> 
 <img src="src/Images/ViewTab.png" width=300> 
 </p>
@@ -95,22 +96,22 @@ can left-click on the pixel where the bottom left corner of the box should be. I
 The actions of `Boxing Mode` and `Mask annotation mode` can be reversed by pressing the key `z`.
 
 In addition to annotating from scratch, you can also change the labels of existing masks or delete them using the following buttons:\
-`Renumber`: You first click on the number of the neuron you want to relabel on the neuron bar and highlight it. This will activate the `Renumber` button. Upon pressing the `Renumber` button, you get asked to enter the new label you want to use for the neuron. After entering the new label, if the neuron you chose has only one connected component, it will be relabeled immediately. If it has multiple disjoint components, you are asked to relabel all those components or only one of them. If you choose `cancel`, all the components will be renumbered. If you choose `Ok`, you have to right-click on a pixel inside the region you want to renumber to only relabel that component and not the others.\
+- `Renumber`: You first click on the number of the neuron you want to relabel on the neuron bar and highlight it. This will activate the `Renumber` button. Upon pressing the `Renumber` button, you get asked to enter the new label you want to use for the neuron. After entering the new label, if the neuron you chose has only one connected component, it will be relabeled immediately. If it has multiple disjoint components, you are asked to relabel all those components or only one of them. If you choose `cancel`, all the components will be renumbered. If you choose `Ok`, you have to right-click on a pixel inside the region you want to renumber to only relabel that component and not the others.\
 If you want to renumber a neuron in more than one frame, you can check the `Change within` checkbox and set the interval of the frames you want use for renumbering.
 
-`Delete`:You first click on the number of the neuron you want to relabel on the neuron bar and highlight it. This will activate the `Delete` button. Upon pressing the `Delete` button, the desired neuron will be deleted.
+- `Delete`:You first click on the number of the neuron you want to relabel on the neuron bar and highlight it. This will activate the `Delete` button. Upon pressing the `Delete` button, the desired neuron will be deleted.
 The actions of Deleting and renumbering can be reversed by pressing the key `z` if they are only applied on one frame.
 
-`Permute`: You permute labels of more than one neuron at once. If you enter the list of neurons separated by "," then the label of each neuron wil change to the label of the one after it. For example if you enter `1,2,3` in the permute box, the label of neuron 1 changes to 2, 2 changes to 3 and 3 changes to 1.
+- `Permute`: You permute labels of more than one neuron at once. If you enter the list of neurons separated by "," then the label of each neuron wil change to the label of the one after it. For example if you enter `1,2,3` in the permute box, the label of neuron 1 changes to 2, 2 changes to 3 and 3 changes to 1.
 
 <p align="center"> 
 <img src="src/Images/annotateTab.png" width=300> 
 </p>
 
 ### NN tab
-This tab is designed to train the neural network (NN) directly from the GUI. The GUI will copy of the `.h5` file in the `data/data_temp` folder and save the result of the NN in that file.
+This tab is designed to train the neural network (NN) directly from the GUI. The GUI will make a copy of the `.h5` file in the `data/data_temp` folder and save the result of the NN in that file.
 #### Training neural network
-To train the neural network, enter the number of validation set, training set, and the epochs for training in the corresponding 
+To train the neural network, enter the number of validation set images, training set images, and the epochs for training in the corresponding 
 boxes and press the `Train Mask Prediction Neural Network` button. Note that the sum of validation and training set should not exceed the total number of annotated frames.
 #### Generating target frames
 This can be done only after one successful run of the neural network. To generate the deformed frames, check the `Add deformation` checkbox and enter the number of deformed frames you want to generate in the `Number of target frames` box.
@@ -147,16 +148,17 @@ You can also use the reference frame for alignment in this tab. If you push `Use
 ### Export/Import tab
 
 This tab is designed for modifying the movie file. The tab can be used to transfer masks from one movie to another. To import mask from another `.h5` file (source file) to the current file (target file), the address of the source file should be entered in the `Address of the imported masks` box. If the source file is rotated w.r.t. the current file (rotation function derived in the Processing tab), you should check the `reverse transform` checkbox to reverse the rotation. By pressing `import` button, the masks from the source file will replace any existing masks in the target file. If instead, you press `import as green mask`, only regions that are not already labeled will be labeled based on the source files masks.\
-In addition to importing masks, you can also export edited version of the current movie as a new `.h5` file using this tab. The exported movie will only contain the frames selected in the `Frame selection`. There are multiple options for editing the movie before exporting it.\
-`Rotate and crop`: this option applies the rotation and translation derived in `Processing tab` on the frames and then crops the frames based on the region you selected in `Processing tab`. The resulting frames, which will have a smaller size than the current frames, will be saved as an external file.\
-`auto delete`: This option is useful for recordings of the freely moving worm where the worm gets out of the field of view (FOV) in some time points. This option detects the frames where the worm is substantially outside of the FOV by using coarse segmentation from `Processing tab`. If the coarse segmentation results in less than 3 objects in one frame, autodelete mode will exclude that frame while exporting.\
-`save red channel` and `save green channel`: if the movie has more than 1 channel, this option saves only the first or the second channel respectively.\
-`Blur`: it blurs the frames using the difference of Gaussians method with parameters set in the `background factor` and `sigma` box.\
-`Subtract bg`: it will set all the pixels with a value less than a threshold to zero. This can be used to reduce the background noise. The threshold is set in the background box.\
-`Resize image`: Resizes the movie in X and Y direction using nearest neighbor or bicubic interpolation for masks and images respectively (https://docs.opencv.org/4.x/da/d6e/tutorial_py_geometric_transformations.html).
-`Choose frames from`: if you want to export only a subset of the frames, you can enter the desired interval in the boxes of this section.\
-`Delete frames and intervals`: if you want to exclude certain frames or intervals in the exported movie, you can enter them in this section.\
-`Choose x/y/z from ... to`: if you want to crop the movie in any of the X, Y, or Z directions, you can enter the cropped regions coordinates in this section. The cropping performed in this tab is different from the one performed in `Processing` tab, which applies cropping only on the rotated and aligned frames. If the X coordinate you start from has a negative value, you will have zero paddings at the left side of your frames. Similarly, if the X coordinates you end at are larger than the frames' width, you will have zero paddings on the right side. The same goes for Y and Z directions.
+In addition to importing masks, you can also export an edited version of the current movie as a new `.h5` file using this tab. The exported movie will only contain the frames selected in the `Frame selection`. There are multiple options for editing the movie before exporting it:\
+- `Rotate and crop`: this option applies the rotation and translation derived in `Processing tab` on the frames and then crops the frames based on the region you selected in `Processing tab`. The resulting frames, which will have a smaller size than the current frames, will be saved as an external file.\
+- `auto delete`: This option is useful for recordings of the freely moving worm where the worm gets out of the field of view (FOV) in some time points. This option detects the frames where the worm is substantially outside of the FOV by using coarse segmentation from `Processing tab`. If the coarse segmentation results in less than 3 objects in one frame, autodelete mode will exclude that frame while exporting.\
+- `save red channel` and `save green channel`: if the movie has more than 1 channel, this option saves only the first or the second channel respectively.\
+- `Blur`: it blurs the frames using the difference of Gaussians method with parameters set in the `background factor` and `sigma` box.\
+- `Subtract bg`: it will set all the pixels with a value less than a threshold to zero. This can be used to reduce the background noise. The threshold is set in the background box.\
+- `Resize image`: Resizes the movie in X and Y direction using nearest neighbor or bicubic interpolation for masks and images respectively (https://docs.opencv.org/4.x/da/d6e/tutorial_py_geometric_transformations.html).
+
+- `Choose frames from`: if you want to export only a subset of the frames, you can enter the desired interval in the boxes of this section.\
+- `Delete frames and intervals`: if you want to exclude certain frames or intervals in the exported movie, you can enter them in this section.\
+- `Choose x/y/z from ... to`: if you want to crop the movie in any of the X, Y, or Z directions, you can enter the cropped regions coordinates in this section. The cropping performed in this tab is different from the one performed in `Processing` tab, which applies cropping only on the rotated and aligned frames. If the X coordinate you start from has a negative value, you will have zero padding at the left side of your frames. Similarly, if the X coordinates you end at are larger than the frames' width, you will have zero padding on the right side. The same goes for the Y and Z directions.
 
 
 
@@ -165,13 +167,19 @@ In addition to importing masks, you can also export edited version of the curren
 This tab is used mainly for segmenting the frames and aligning them.
 #### Segmentation
 1. First, select the frames you want to segment using `Frame selection` tab. 
-2. After that, you can tune the segmentation parameters using the `segmentation parameter` collapsible box.
+2. After that, you can tune the segmentation parameters using the `segmentation parameter` collapsible box. Here is the description of each parameter:
+- `sigm`: the first step for segmenting is smoothing the image. This is done by a Gaussian filter with a standard deviation of `sigm`
+- `bg_factor`: In order to be able to capture the
+- `perc`: After subtraction of the background intensity, we threshold the image. The threshold
+used for this is determined by a user-defined percentile `perc` of the image intensity distribution.
+neuron shapes in both bright and dark areas with a single threshold, we subtract a background intensity image from the previously calculated smoothed image. The
+background intensity image is obtained by applying a Gaussian blur with large standard deviation to the original image. The standard deviations used for the initial smoothing are multiplied with the (large) parameter bg_factor in order to get extreme smoothing.
 3. Push the `Test segmentation on current frame` button to check the result of each parameter set.
 4. If the results look good, press the `segmentation` button to segment all the selected frames.
 
 #### Alignment
 1. Check the coarse segmentation checkbox
-2. Set the `perc` parameter high enough such that only a few objects are segmented in each frame (To check if the threshold set by `perc` i good enough, use the `Test segmentation on current frame`)
+2. Set the `perc` parameter high enough such that only a few objects are segmented in each frame (To check if the threshold set by `perc` is good enough, use the `Test segmentation on current frame`)
 3. If the threshold is good enough, press the `segmentation` button to coarse-segment all the frames.
 4. Find a frame that you want to use as the reference to align all other frames. Go to that frame and push the `Use this frame as reference` button in the `Frame selection` tab to save that frame as the reference.
 5. Push the `Compute rotation` button to compute the rotation and translation for each frame to align it to the reference frame. When the computation is finished, you can check the results using the `Aligned` checkbox in the `View` tab.
