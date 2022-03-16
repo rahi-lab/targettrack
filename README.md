@@ -1,5 +1,3 @@
-The tutorial of this GUI is currently being written. To be finished by 16.03.2022.
-
 # Targettrack
 This is the user manual for the graphical interface for segmenting and editing *C. elegans* 3D images.
 
@@ -13,7 +11,7 @@ This is the user manual for the graphical interface for segmenting and editing *
 2. If you don't have conda or miniconda installed, download it from https://docs.conda.io/en/latest/miniconda.html.
 3. In your command line, run each of the commands in install.txt (except the first, if you have already cloned the repository).
 This will create a virtual environment and install the necessary packages.
-4. Place your `.h5` data file in the folder called "data" then run the program from your command line with `python3 gui_launcher.py [dataset name]`,
+4. Place your `.h5` data file in the "targettrack" folder then run the program from your command line with `python3 gui_launcher.py [dataset name]`,
 where `[dataset name]` is the name of your file.
 
 
@@ -32,7 +30,7 @@ You can change the label of the highlighted neurons by pressing the `Renumber` b
 <p align="center"> 
 <img src="src/Images/Highlight10.png" width=600> 
 </p> 
-4. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural network` button. 
+4. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural Network` button. 
 Once you enter the name of the run, the program will copy the file in the `data/data_temp` folder and train the neural network on the new file.
 <p align="center"> 
 <img src="src/Images/NNtrain.png" width=600> 
@@ -111,8 +109,9 @@ The actions of Deleting and renumbering can be reversed by pressing the key `z` 
 
 ### NN tab
 This tab is designed to train the neural network (NN) directly from the GUI. The GUI will copy of the `.h5` file in the `data/data_temp` folder and save the result of the NN in that file.
+#### Training neural network
 To train the neural network, enter the number of validation set, training set, and the epochs for training in the corresponding 
-boxes and press the `Train Mask Prediction Neural network` button. Note that the sum of validation and training set should not exceed the total number of annotated frames.
+boxes and press the `Train Mask Prediction Neural Network` button. Note that the sum of validation and training set should not exceed the total number of annotated frames.
 #### Generating target frames
 This can be done only after one successful run of the neural network. To generate the deformed frames, check the `Add deformation` checkbox and enter the number of deformed frames you want to generate in the `Number of target frames` box.
 #### Checking NN results
