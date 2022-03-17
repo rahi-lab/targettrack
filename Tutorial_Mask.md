@@ -43,14 +43,16 @@ This tab is used for improving the visualization of the movie. You can view diff
 This tab is used for annotating the volumes. It can be used for correcting the predictions of the neural network or the 
 results of the watershed segmentation method (implemented in `Processing` tab). There are two modes of annotating a region from scratch:
 - `Mask annotation mode`: it uses the value in the `Threshold for adding regions` box as the threshold. 
-If you right-click on any pixel, a box will ask you to enter the number of the neuron you want to annotate. After entering the number N, all the pixels around the clicked pixel with higher values than the threshold will be labeled with N. You can change the threshold either by entering a new threshold value in the threshold box or by middle-clicking on a pixel. If you middle-click on a certain pixel, the value of that pixel will be used as the new threshold.\
+If you right-click on any pixel, a box will ask you to enter the number of the neuron you want to annotate. After entering the number N, 
+all the pixels around the clicked pixel with higher values than the threshold will be labeled with N. You can change the threshold 
+either by entering a new threshold value in the threshold box or by middle-clicking on a pixel. If you middle-click on a certain pixel, the value of that pixel will be used as the new threshold.
 - `Boxing Mode`: it adds new regions to the mask by defining a box with desirable dimensions. You can set the length, width, 
 height, and the label of the box you want to add in the `Box details` box. After setting the dimensions and the label, you 
 can left-click on the pixel where the bottom left corner of the box should be. If you choose 0 as the label of the box, it will work as an eraser for your masks.
 
 The actions of `Boxing Mode` and `Mask annotation mode` can be reversed by pressing the key `z`.
 
-In addition to annotating from scratch, you can also change the labels of existing masks or delete them using the following buttons:\
+In addition to annotating from scratch, you can also change the labels of existing masks or delete them using the following buttons:
 - `Renumber`: You first click on the number of the neuron you want to relabel on the neuron bar and highlight it. This will activate the `Renumber` button. Upon pressing the `Renumber` button, you get asked to enter the new label you want to use for the neuron. After entering the new label, if the neuron you chose has only one connected component, it will be relabeled immediately. If it has multiple disjoint components, you are asked to relabel all those components or only one of them. If you choose `cancel`, all the components will be renumbered. If you choose `Ok`, you have to right-click on a pixel inside the region you want to renumber to only relabel that component and not the others.\
 If you want to renumber a neuron in more than one frame, you can check the `Change within` checkbox and set the interval of the frames you want use for renumbering.
 

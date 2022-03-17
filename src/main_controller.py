@@ -1666,15 +1666,6 @@ class Controller():
             post_process_NN_masks5(self.selected_frames, neurons, load_fun, save_fun)
         self.update()
 
-    def check_NN_run(self):
-        # this is used only for masks
-        # checks the subprocess running status
-        rundata = self.subprocmanager.check()
-        # rundata={"NNtest":[["maskgen",0.1],["train",0.45],["pred",0.58]]}
-        dialog = QtHelpers.Dialog(rundata, self)   # Todo AD: I think the controller should not import PyQt5 stuff
-        dialog.exec_()
-        dialog.deleteLater()
-
     def run_NN_masks(self, modelname, instancename, fol, epoch, train, validation, targetframes):
         # Todo AD could this be factorized in some way?
         # run a mask prediction neural network

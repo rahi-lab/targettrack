@@ -78,64 +78,6 @@ class CollapsibleBox(QtWidgets.QWidget):
         content_animation.setEndValue(content_height)
 
 
-class Dialog(QDialog):
-    def __init__(self, rundata, controller=None):
-        # this is used only for masks
-        super().__init__()
-        self.buttonOk = QtGui.QPushButton('Ok',self)
-        self.buttonOk.clicked.connect(self.accept)
-        self.controller = controller
-        layout = QtGui.QGridLayout(self)
-        row=0
-        if len(rundata)==0:
-            layout.addWidget(QLabel("No Neural Networks Running"),row,0)
-            row+=1
-        else:
-            for key,val in rundata.items():
-                col=0
-                layout.addWidget(QLabel(key), row, col,2,1)
-                col+=1
-                for el in val[:-1]:
-                    proc,percent=el
-                    percent=float(percent)
-                    layout.addWidget(QLabel(proc), row, col)
-                    layout.addWidget(QLabel(str(np.round(percent*100,2))+"%"), row+1, col)
-                    col+=1
-                st,sts=val[-1]
-                layout.addWidget(QLabel(st), row, col)
-                layout.addWidget(QLabel(sts), row+1, col)
-                col+=1
-                if val[-1][1]=="Success":
-                    pullbutton=QPushButton("Pull",self)
-                    pullbutton.setStyleSheet("background-color: green")
-                    pullbutton.clicked.connect(self.make_pullfunc(key,True))
-                elif val[-1][1]=="Failed":
-                    pullbutton=QPushButton("Delete",self)
-                    pullbutton.setStyleSheet("background-color: red")
-                    pullbutton.clicked.connect(self.make_pullfunc(key,False))
-                else:
-                    pullbutton=QPushButton("Waiting...",self)
-                    pullbutton.setEnabled(False)
-
-                layout.addWidget(pullbutton, row, col,2,1)
-                row+=2
-        layout.addWidget(self.buttonOk, row, 0)
-
-    def make_pullfunc(self,key,success):
-        def pullfunc():
-            res,msg=self.controller.pull_NN_res(key,success)
-            if res:
-                dial=QMessageBox()
-                dial.setText(msg)
-                dial.exec_()
-                self.close()
-            else:
-                errdial=QErrorMessage()
-                errdial.showMessage('Pull Failed:\n'+msg)
-                errdial.exec_()
-        return pullfunc
-
-
 class DataTypeChoice:
 
     @staticmethod

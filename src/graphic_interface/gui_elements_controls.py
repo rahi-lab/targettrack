@@ -899,21 +899,7 @@ class NNControlTab(QScrollArea):
             val_frame_box.setContentLayout(lay)
             main_layout.addWidget(val_frame_box, row, 0, 1, 2)
             row += 1
-            '''
-            main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
-            row += 1
 
-            #CFP made this conditional
-            #MB: just removed this.
-
-            NN_Check = QPushButton("Check NN progress")
-            NN_Check.clicked.connect(self.controller.check_NN_run)
-            main_layout.addWidget(NN_Check, row, 0, 1, 2)
-            row += 1
-
-            main_layout.addWidget(QLabel("--------"), row, 0, 1, 2)
-            row += 1
-            '''
             old_train_checkbox = QCheckBox("Use old train set")
             old_train_checkbox.toggled.connect(self.controller.toggle_old_trainset)
             main_layout.addWidget(old_train_checkbox, row, 0)
