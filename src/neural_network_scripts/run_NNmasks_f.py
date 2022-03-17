@@ -220,7 +220,7 @@ try:
     #MB: if not already done, this part saves all the frames and all the masks (which are less than the number of frames.)
 
     DeforemeFrames = int(sys.argv[6])#whether or not add the deformed frames?
-    if reusedirec is None or not os.path.exists(reusedirec):
+    if reusedirec is None or not os.path.exists(reusedirec):   # TODO: is this correct?
         os.mkdir(datadir)
         os.mkdir(os.path.join(datadir,"frames"))
         os.mkdir(os.path.join(datadir,"highs"))
@@ -230,7 +230,7 @@ try:
         print("unpacking frames")#MB check
         for i in range(T):# I think this unpacks all the segmented/mask frames -MB
             write_log(logform.format(min(i/T,0.8),0.,0.,0.))
-            fr=np.array(h5[str(i)+"/frame"]).astype(np.int16)
+            fr=np.array(h5[str(i)+"/frame"]).astype(np.int16)   # TODO: access to dataset with methods?
             np.save(os.path.join(datadir,"frames","frame_"+str(i)+".npy"),fr)
             Ntot+=1
 

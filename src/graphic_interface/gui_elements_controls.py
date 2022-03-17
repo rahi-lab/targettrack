@@ -949,7 +949,7 @@ class NNControlTab(QScrollArea):
             row += 1
 
             NN_train = QPushButton("Train Mask Prediction Neural Network")
-            NN_train.clicked.connect(lambda: self._run_mask_NN())
+            NN_train.clicked.connect(self._run_mask_NN)
             NN_train_fol = QPushButton("Output Train NNmasks folder")
             NN_train_fol.clicked.connect(lambda: self._run_mask_NN(fol=True))
             main_layout.addWidget(NN_train, row, 0, 1, 2)

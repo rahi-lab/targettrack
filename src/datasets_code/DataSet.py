@@ -108,8 +108,13 @@ class DataSet:
         raise NotImplementedError
 
     @abc.abstractmethod
-    def segmented_times(self):
-        """Gets the list of times for which a segmentation is defined"""
+    def segmented_times(self, force_regular_seg=False):
+        """
+        Gets the list of times for which a segmentation is defined.
+        Respects self.coarse_seg_mode, unless force_regular_seg is True
+        :param force_regular_seg: If True, will return the regular- (as opposed to coarse-) segmented frames, regardless of self.coarse_seg_mode
+        :return: list of time frames for which a segmentation is defined.
+        """
         raise NotImplementedError
 
     @abc.abstractmethod

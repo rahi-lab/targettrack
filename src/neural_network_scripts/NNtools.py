@@ -25,7 +25,7 @@ class TrainDataset(Dataset):
         self.maskdirname=maskdirname
         self.shape=shape
         self.filelist=glob.glob(os.path.join(self.dirname,self.maskdirname,"*"))
-        self.indlist=[int(name.strip().split("/")[-1].split("_")[-1].split(".")[0]) for name in self.filelist]
+        self.indlist=[int(name.strip().split("/")[-1].split("_")[-1].split(".")[0]) for name in self.filelist]   # Todo cleaner with path.??
         self.indlist=np.array(self.indlist)
         self.num_frames_tot=len(self.indlist)
         self.meansub=meansub

@@ -188,9 +188,9 @@ class h5Data(DataSet):
                 continue
             self.dataset.attrs[key] = source_ds.attrs[key]
 
-    def segmented_times(self):
+    def segmented_times(self, force_regular_seg=False):
         # Todo: for Harvard lab data, should it filter and return only frames with pointdat?
-        if self.coarse_seg_mode:
+        if self.coarse_seg_mode and not force_regular_seg:
             mask_key = "coarse_mask"
         else:
             mask_key = "mask"

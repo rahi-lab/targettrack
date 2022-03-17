@@ -640,7 +640,7 @@ class Controller():
                 else:   # unhighlight all
                     self.highlight_neuron(self.highlighted)
         #MB: to ba able to draw boxes around objects of interest
-        if self.options["boxing_mode"]:
+        if self.options["boxing_mode"]:   # Todo: make different cases clearer
             w,h,d,box_id = self.box_details
             coord = np.array(coords).astype(np.int16)
             if button == 1 and not self.options["RenumberComp"]:#left clicks are only accepted
@@ -1659,15 +1659,20 @@ class Controller():
         dialog.exec_()
         dialog.deleteLater()
 
-    def run_NN_masks(self, modelname, instancename, fol,epoch,train,validation,targetframes):
+    def run_NN_masks(self, modelname, instancename, fol, epoch, train, validation, targetframes):
         # Todo AD could this be factorized in some way?
         # run a mask prediction neural network
         self.save_status()
         if modelname == "RGN":
             return False, "RGN cannot be used for masks"
 
-        dset_path = self.data.dset_path_from_GUI
+        dset_path = self.data.path_from_GUI
         name = self.data.name
+
+        # Check that the number of train/validation frames fits into the available number of frames
+        nb_available_frames = len(self.data.segmented_times(force_regular_seg=True))
+        if train + validation > nb_available_frames:
+            return False, f"The sum of the number of train and validation frames cannot be greater than the number of annotated frames ({nb_available_frames})"
 
         # temporary close
         if "_" in name:
