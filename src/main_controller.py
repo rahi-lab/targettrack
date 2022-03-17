@@ -565,8 +565,8 @@ class Controller():
             """
             SJR: add new neuron / object
             """
-            coord = np.array(coords).astype(np.int16)
-            # SJR: User pressed the middle button (wheel) = 4, which sets a threshold
+            coord = np.round(coords).astype(np.int16)
+            # SJR: User pressed the middle button (wheel) = 4, which sets a thresholdim_rraw
             if button == 4:
                 # SJR: find the coordinates from the click
                 # SJR: I don't know why it is necessary to make sure click is in the image but won't test this
@@ -592,6 +592,11 @@ class Controller():
 
                     if not (coord[0] >= 0 and coord[0] < self.frame_shape[0] and coord[1] >= 0 and coord[1] < self.frame_shape[1] and coord[
                         2] >= 0 and coord[2] < self.frame_shape[2]):
+                        return
+                    if self.mask_thres is None:
+                        errdial = QErrorMessage()  # Todo AD: I think the controller should not import PyQt5 stuff
+                        errdial.showMessage("Please enter a correct threshold value.")
+                        errdial.exec_()
                         return
                     # SJR: presumably, this is where the pixels with values above the threshold will be selected
                     regs = sim.label(self.im_rraw >= self.mask_thres)  # SJR: Not sure what regs is
@@ -640,7 +645,13 @@ class Controller():
                 else:   # unhighlight all
                     self.highlight_neuron(self.highlighted)
         #MB: to ba able to draw boxes around objects of interest
-        if self.options["boxing_mode"]:   # Todo: make different cases clearer
+        if self.options["boxing_mode"]:   # Todo make cases clearer (esp for points)
+            if self.box_details is None:
+                errdial = QErrorMessage()  # Todo AD: I think the controller should not import PyQt5 stuff
+                errdial.showMessage("Please enter the box details in the correct format.")
+                errdial.exec_()
+                return
+
             w,h,d,box_id = self.box_details
             coord = np.array(coords).astype(np.int16)
             if button == 1 and not self.options["RenumberComp"]:#left clicks are only accepted
@@ -1401,7 +1412,8 @@ class Controller():
 
     def toggle_box_mode(self): #MB
         self.options["boxing_mode"] = not self.options["boxing_mode"]
-        print("Left click on the lower left corner of the box you like to insert")
+        if self.options["boxing_mode"]:
+            print("Left click on the lower left corner of the box you like to insert")
         self.update()
 
     def toggle_mask_annotation_mode(self):
@@ -1415,19 +1427,23 @@ class Controller():
 
     def set_mask_annotation_threshold(self, value):   # SJR
         """Set mask threshold"""
-        self.mask_thres = int(value)
-        for client in self.mask_thres_registered_clients:
-            client.change_mask_thresh(self.mask_thres)
+        try:
+            self.mask_thres = int(value)
+        except ValueError:   # "" for instance, before writing the correct number
+            self.mask_thres = None
+        else:
+            for client in self.mask_thres_registered_clients:   # Todo is this useful?
+                client.change_mask_thresh(self.mask_thres)
 
     def set_box_dimensions(self, info): #MB
         """ To help annotation with boxes. updates the dimensions of the box and the cell id we want to assign to it"""
-        print(info)
-        box_info=info.split('-')
-        dimensions = box_info[0].split(',')
-        box_id = box_info[1]
-        print(dimensions)
-        assert len(dimensions)==3, "Dimensions of the box is not correct"
-        self.box_details = [int(dimensions[0]), int(dimensions[1]), int(dimensions[2]), int(box_id)]
+        try:
+            box_info = info.split('-')
+            dimensions = box_info[0].split(',')
+            box_id = box_info[1]
+            self.box_details = [int(dimensions[0]), int(dimensions[1]), int(dimensions[2]), int(box_id)]
+        except:
+            self.box_details = None
 
     def renumber_mask_obj(self):
         if self.highlighted == 0:
@@ -1759,7 +1775,6 @@ class Controller():
         Only used for initialization.
         """
         for key in self.data.available_NNdats():   # Todo AD why for pointdat only? is it just the name?
-            print("instances")
             NetName, instance = key.split("_")
             if NetName not in self.NNinstances:
                 self.NNinstances[NetName] = []
