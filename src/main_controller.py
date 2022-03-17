@@ -14,8 +14,6 @@ import scipy.spatial as spat
 import scipy.ndimage as sim
 import cv2
 
-from PyQt5.QtWidgets import QErrorMessage
-
 #Internal classes
 from .helpers import SubProcManager, QtHelpers, misc
 from . import h5utils
@@ -594,9 +592,7 @@ class Controller():
                         2] >= 0 and coord[2] < self.frame_shape[2]):
                         return
                     if self.mask_thres is None:
-                        errdial = QErrorMessage()  # Todo AD: I think the controller should not import PyQt5 stuff
-                        errdial.showMessage("Please enter a correct threshold value.")
-                        errdial.exec_()
+                        QtHelpers.ErrorMessage("Please enter a correct threshold value.")
                         return
                     # SJR: presumably, this is where the pixels with values above the threshold will be selected
                     regs = sim.label(self.im_rraw >= self.mask_thres)  # SJR: Not sure what regs is
@@ -647,9 +643,7 @@ class Controller():
         #MB: to ba able to draw boxes around objects of interest
         if self.options["boxing_mode"]:   # Todo make cases clearer (esp for points)
             if self.box_details is None:
-                errdial = QErrorMessage()  # Todo AD: I think the controller should not import PyQt5 stuff
-                errdial.showMessage("Please enter the box details in the correct format.")
-                errdial.exec_()
+                QtHelpers.ErrorMessage("Please enter the box details in the correct format.")
                 return
 
             w,h,d,box_id = self.box_details
@@ -700,9 +694,11 @@ class Controller():
         # user hits keyboard. annotates or deletes neuron
         if (None in coords) or (np.isnan(np.sum(coords))):
             return
+        if not self.point_data:
+            QtHelpers.ErrorMessage("Pressing a key is not available for masks.")   # Todo: could be implemented?
+            return
         coords = np.array(coords)
         if key == "d":
-            assert self.point_data, "Not available in absence of point data."
             indarr = np.where(np.logical_not(np.isnan(self.NN_or_GT[self.i][:, 0])))[0]
             if len(indarr) == 0:
                 return
@@ -718,10 +714,7 @@ class Controller():
             return
         if self.options["autocenter"] and not key.isupper():
             coords = self.do_autocenter(coords)
-        if self.options["mask_annotation_mode"]:
-            pass
-        else:
-            self.registerpointdat(self.button_keys[key.lower()], coords)
+        self.registerpointdat(self.button_keys[key.lower()], coords)
 
     def rotate_frame(self, angle: float):
         """Rotates current frame around its center and replaces frame by rotated version in data"""
@@ -1099,9 +1092,7 @@ class Controller():
             self.button_keys.pop(key_prev)
 
         if len(self.button_keys) == int(self.settings["max_sim_tracks"]):
-            errdial = QErrorMessage()   # Todo AD: I think the controller should not import PyQt5 stuff
-            errdial.showMessage("Too many keys set(>" + str(len(self.button_keys)) + "). Update settings if needed")
-            errdial.exec_()
+            QtHelpers.ErrorMessage("Too many keys set(>" + str(len(self.button_keys)) + "). Update settings if needed")
             return
 
         self.button_keys[key] = i_from1

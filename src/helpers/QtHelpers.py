@@ -91,3 +91,14 @@ class DataTypeChoice:
             return "points"
         if ret == 1:
             return "masks"
+
+
+class ErrorMessage:
+    """
+    This class is just to show a simple error message in a box with a single "Ok" button.
+    It could be personalized.
+    """
+    def __init__(self, msg):
+        errdial = QErrorMessage()
+        errdial.showMessage(msg)
+        errdial.exec_()
