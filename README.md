@@ -49,21 +49,16 @@ We guide you step-by-step through the demo:
   <p align="center"> 
   <img src="src/Images/start-point.png" width=600> 
   </p>
-3. From the 'NN' tab, select 'NN' from 'Select helper data' to see the annotated frames' points. Notice that the present neurons in each frame are marked with blue in the neuron bar on top and absent ones by red. 
-  <p align="center"> 
-  <img src="src/Images/OverlayPoints.png" width=600> 
-  </p>
-4. Highlight the points by pressing on their corresponding key in the neuron bar or by clicking on it. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). 
-You can change the label of the highlighted neurons by pressing the `Renumber` button in the `Annotate` tab.
+3. Highlight the points by pressing on their corresponding key in the neuron bar or by clicking on it. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). The Tracks tab also displays the presence of neurons.
+You can change the label of the highlighted neurons by pressing the `Renumber` button in the `Annotate` tab. Press down the corresponding key to annotate a neuron.
 <p align="center"> 
-<img src="src/Images/Highlight10-points.png" width=600> 
+<img src="src/Images/Highlight-points.png" width=600> 
 </p> 
-5. In order to train the neural network, open the `NN` tab. Select 'NN' as the method Set the number of minimal annotations to be a GT frame, steps to take, deformation parameters in the corresponding boxes and press the `Run` button. 
-Once you enter the name of the run, the program make temporary files in `data/data_temp` and train a neural network.
+4. In order to train the neural network, open the `NN` tab. Select 'NN' as the method. Set the number of minimal annotations to be a GT frame, steps to take, deformation parameters, etc (See documentation for more details) with the format "key=value;key=value;" and press the `Run` button. The program then makes temporary files in `data/data_temp` and train a neural network. Other pipelines can be integrated here.
 <p align="center"> 
 <img src="src/Images/NNtrain-points.png" width=600> 
 </p> 
-6. To check the performance of the neural network, choose 'NN' under `Select helper data`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions (left) which was trained on 5 frames (right).
+5. To check the performance of the neural network, choose 'NN' under `Select helper data`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions (left) which was trained on 5 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame-points.png" width=400> 
 <img src="src/Images/SeeNNresults-points.png" width=400> 
