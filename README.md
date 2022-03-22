@@ -58,7 +58,7 @@ You can change the label of the highlighted neurons by pressing the `Renumber` b
 <p align="center"> 
 <img src="src/Images/NNtrain-points.png" width=600> 
 </p> 
-5. To check the performance of the neural network, choose 'NN' under `Select helper data`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions (left) which was trained on 5 frames (right).
+5. To check the performance of the neural network, choose 'NN' under `Select helper data`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions (left) which was trained on 15 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame-points.png" width=400> 
 <img src="src/Images/SeeNNresults-points.png" width=400> 
