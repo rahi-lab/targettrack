@@ -113,10 +113,10 @@ class gui(QMainWindow):
                 tracking_panel.addTab(export_import_tab, "Export/Import")
                 tracking_panel.tabBar().setTabTextColor(4,QtGui.QColor(0,0,0))
 
-            # this is the mask processes
-            processing_tab = controls.MaskProcessingTab(self.controller)
-            tracking_panel.addTab(processing_tab, "Processing")
-            tracking_panel.tabBar().setTabTextColor(5,QtGui.QColor(0,0,0))
+                # this is the mask processes
+                processing_tab = controls.MaskProcessingTab(self.controller)
+                tracking_panel.addTab(processing_tab, "Processing")
+                tracking_panel.tabBar().setTabTextColor(5,QtGui.QColor(0,0,0))
 
             # this is for saving
             IO_tab = controls.SavingTab(self.controller)
