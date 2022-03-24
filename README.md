@@ -22,20 +22,25 @@ We guide you step-by-step through the demo:
   <p align="center"> 
   <img src="src/Images/start.png" width=600> 
   </p>
+  
 3. Check the `Overlay mask` checkbox to see the annotated frames' masks. Notice that the present neurons in each frame are marked with blue in the neuron bar on top and absent ones by red. 
   <p align="center"> 
   <img src="src/Images/OverlayMask.png" width=600> 
   </p>
+  
 4. Highlight the masks by pressing on their corresponding key in the neuron bar. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). 
 You can change the label of the highlighted neurons by pressing the `Renumber` button in the `Annotate` tab.
 <p align="center"> 
 <img src="src/Images/Highlight10.png" width=600> 
 </p> 
+
 5. In order to train the neural network, open the `NN` tab. Set the number of training set, validation set, and epochs in the corresponding boxes and press the `Train Mask Prediction Neural Network` button. 
-Once you enter the name of the run, the program will copy the file in the `data/data_temp` folder and train the neural network on the new file.
+Once you enter the name of the run, the program will copy the file in the `data/data_temp` folder and train the neural network on the new file. The neural network needs to be trained on a GPU with at least 6GB capacity. It takes around 10 minutes to train the neural network for 100 epochs with 6 training frames and 1 validation frame on Ubuntu 18.04.6 with GeForce RTX 2080 Ti graphics. 
+
 <p align="center"> 
-<img src="src/Images/NNtrain.png" width=600> 
+<img src="src/Images/NNTrain2.png" width=600> 
 </p> 
+
 6. To check the performance of the neural network, open the file in `data/data_temp`. Choose the run name under `Select NN masks`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame.png" width=400> 
@@ -49,15 +54,18 @@ We guide you step-by-step through the demo:
   <p align="center"> 
   <img src="src/Images/start-point.png" width=600> 
   </p>
+  
 3. Highlight the points by pressing on their corresponding key in the neuron bar or by clicking on it. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). The Tracks tab also displays the presence of neurons.
 You can change the label of the highlighted neurons by pressing the `Renumber` button in the `Annotate` tab. Press down the corresponding key to annotate a neuron.
 <p align="center"> 
 <img src="src/Images/Highlight-points.png" width=600> 
 </p> 
+
 4. In order to train the neural network, open the `NN` tab. Select 'NN' as the method. Set the number of minimal annotations to be a GT frame, steps to take, deformation parameters, etc (See documentation for more details) with the format "key=value;key=value;" and press the `Run` button. The program then makes temporary files in `data/data_temp` and train a neural network. Other pipelines can be integrated here.
 <p align="center"> 
 <img src="src/Images/NNtrain-points.png" width=600> 
 </p> 
+
 5. To check the performance of the neural network, choose 'NN' under `Select helper data`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions (left) which was trained on 15 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame-points.png" width=400> 
