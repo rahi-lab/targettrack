@@ -485,7 +485,7 @@ class Controller():
         for client in self.pointlinks_registered_clients:
             client.change_links(link_data)
 
-    def signal_present_all_times_changed(self):   # TODO use when opening NN results for instance... (instead of update, but it is not sufficient to replace update)
+    def signal_present_all_times_changed(self):
         for client in self.present_neurons_all_times_registered_clients:
             client.change_present_neurons_all_times(self.neuron_presence)
 
@@ -1598,6 +1598,7 @@ class Controller():
             self.NN_pointdat = out
             self.NN_pointdat[:, 0, :] = np.nan
         self.update()
+        self.signal_present_all_times_changed()
 
     def select_NN_instance_masks(self, NetName:str, instance:str):
         """Loads neural network mask predictions"""

@@ -1889,6 +1889,8 @@ class DashboardTab(QWidget):
         for idx_from1, column in self.button_columns.items():
             for i in range(self.chunksize):
                 t = self.chunknumber * self.chunksize + i
+                if t >= self.T:
+                    break
                 if neuron_presence[t, idx_from1]:
                     column[i+1].set_present()
                 else:
