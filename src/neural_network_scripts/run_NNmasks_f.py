@@ -202,18 +202,7 @@ else:
 if verbose:
     print("Preparing...")
 try:
-    #### get basic parameters
-    if from_points:
-        pointdat=np.array(h5["pointdat"])
-        existing=np.logical_not(np.isnan(pointdat[:,:,0]))
-        pointdat[np.sum(existing,axis=1)<min_num_for_mask,:,:]=np.nan
-        existing=np.logical_not(np.isnan(pointdat[:,:,0]))
-        existing_classes=np.any(existing,axis=0)
-        num_classes=np.max(np.nonzero(existing_classes)[0])+1
-        pointdat=pointdat[:,:num_classes,:]
-        pts_exists=np.any(np.logical_not(np.isnan(pointdat[:,:,0])),axis=1)
-    else:
-        num_classes=h5.attrs["N_neurons"]+1
+    num_classes=h5.attrs["N_neurons"]+1
 
 
     ####Unpack for fast, multiprocessed loading, unless already unpacked
@@ -239,12 +228,7 @@ try:
             else:
                 np.save(os.path.join(datadir,"highs","high_"+str(i)+".npy"),np.full((1,W,H),255).astype(np.int16))
 
-            if from_points:
-                if pts_exists[i]:
-                    mask=NNtools.get_mask(fr[0],pointdat[i],num_classes,grid,thres=thres,distthres=distthres).astype(np.int16)
-                    np.save(os.path.join(datadir,"masks","mask_"+str(i)+".npy"),mask)
-                    Nans+=1
-            elif GetTrain == 0:
+            if GetTrain == 0:
                 if str(i)+"/mask" in h5.keys():
                     np.save(os.path.join(datadir,"masks","mask_"+str(i)+".npy"),np.array(h5[str(i)+"/mask"]).astype(np.int16))
                     Nans+=1
@@ -1131,34 +1115,6 @@ try:
 
         log+="Prediction Complete\n\n"
         h5[identifier].attrs["log"]=log
-
-    #get points if needed
-    if get_points:
-        if verbose:
-            print("Start Point Extraction\n")
-        log+="Start Point Extraction\n\n"
-
-        ptss=np.full((T,h5.attrs["N_neurons"]+1,3),np.nan)
-        ious=np.full((T,num_classes,num_classes),np.nan)
-
-        pool=multiprocessing.Pool(multiprocessing.cpu_count())
-
-        result=pool.imap(NNtools.get_pts_iou,(NNtools.pack(h5,identifier,i,gridpts,num_classes,thres) for i in range(T)),chunksize=chunksize)
-
-        for idx,res in enumerate(result):
-            print(str(idx)+"/"+str(T))
-            pts,iou=res
-            ptss[idx][:num_classes]=pts
-            ious[idx]=iou
-            write_log(logform.format(1.,1.,1.,idx/T))
-        if "NN_pointdat" not in h5[identifier].keys():
-            h5[identifier].create_dataset("NN_pointdat",ptss.shape,dtype="f4")
-        h5[identifier]["NN_pointdat"][...]=ptss
-        if "ious" not in h5[identifier].keys():
-            h5[identifier].create_dataset("ious",ious.shape,dtype="i2")
-        h5[identifier]["ious"][...]=ious
-        write_log(logform.format(1.,1.,1.,.1))
-        log+="Point Extraction Done\n\n"
 
     if verbose:
         print("Run Fully Successful\n")
