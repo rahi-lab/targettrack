@@ -50,24 +50,15 @@ requeue=False
 if requeue:
     usenet="net"
 skiptrain=False
-from_points=False
-get_points=False
-if from_points:
-    thres=4
-if from_points or get_points:
-    distthres=4
+
 
 #Run detail
 channel_num=2
-if from_points:
-    min_num_for_mask=40
+
 
 ##directory handling
 reusedirec="data/data_temp/zmdir"
 
-#purely computational parameters
-if get_points:
-    chunksize=30#for pointdat
 
 #neural network training parameters
 batch_size=1
