@@ -49,7 +49,7 @@ Once you enter the name of the run, the program will copy the file in the `data/
 
 # Running demo for point annotations
 We guide you step-by-step through the demo:
-1. Download the sample `184-15GT.h5` file from [link to 184-15GT.h5], and move it to the data folder. This file is a difference of Gaussian filtered, rotated and centered movie of a freely moving worm in red/green. No non rigid image transformation was done. It has 15 ground truth annotated frames and 3002-15 frames with neural network predictions.
+1. Download the sample `Harvard_184-15GT.h5` file from https://drive.google.com/drive/folders/1-El9nexOvwNGAJw6uFFENGY1DqQ7tvxH?usp=sharing, and move it to the data folder. This file is a difference of Gaussian filtered, rotated and centered movie of a freely moving worm in red/green. No non rigid image transformation was done. It has 15 ground truth annotated frames and 3002-15 frames with neural network predictions.
 2. Open the sample file using `python3 gui_launcher.py data/184-15GT.h5`
   <p align="center"> 
   <img src="src/Images/start-point.png" width=600> 
