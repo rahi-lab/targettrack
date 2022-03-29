@@ -8,7 +8,6 @@ import torch
 import NNtools
 import shutil
 import time
-import multiprocessing
 import scipy.spatial as spat
 from scipy.ndimage import affine_transform
 import copy

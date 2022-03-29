@@ -935,7 +935,7 @@ class Controller():
         assert x_0 < Zcheck[0], "lower bound for x is too high"
         assert not x_1 > Zcheck[0], "upper bound for x is too high"
 
-        dset_path=self.data.dset_path_from_GUI
+        dset_path=self.data.path_from_GUI
         name = self.data_name
         dset_path_rev = dset_path[::-1]
         key=name+"_CroppedandRotated"

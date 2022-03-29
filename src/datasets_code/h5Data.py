@@ -448,8 +448,7 @@ class h5Data(DataSet):
         if nb_chans is None:
             self.dataset.attrs["C"] = 1 + int(has_green)
         elif nb_chans != 1 + int(has_green):
-            print("Warning, presence of green frame is inconsistent with the number of channels of the dataset!!")
-
+            self.dataset.attrs["C"] = 1 + int(has_green)
         # Now stack the channels and save
         SizeR = np.shape(frameR)
         if has_green:
