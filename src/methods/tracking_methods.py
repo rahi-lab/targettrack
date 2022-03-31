@@ -320,11 +320,11 @@ class NN():
                         loss.backward()
                         opt.step()
 
-                    stepcount+=1
-                    self.state[1]=int(100*(stepcount/n_steps))
-                    if stepcount==n_steps:
-                        traindone=True
-                        break
+                        stepcount+=1
+                        self.state[1]=int(100*(stepcount/n_steps))
+                        if stepcount==n_steps:
+                            traindone=True
+                            break
 
         #extract points and save
         if True:
