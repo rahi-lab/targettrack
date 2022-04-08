@@ -109,6 +109,17 @@ class h5Data(DataSet):
         Return the list of the  neurons
         :return: list
         '''
+        #the if condition is for making sure files processed by previous gui can be used
+        if self.dataset.attrs["N_neurons"]==0:
+            count=0
+            neuronsNum =0
+            for f in range(int(self.dataset.attrs["T"])):
+                if 'mask' in self.dataset[str(f)]:
+                    neuronsNum = np.max([len(np.unique(np.array(self.dataset[str(f)+'/mask']))),neuronsNum])
+                    count=count+1
+                    if count >4:
+                        break
+            self.dataset.attrs["N_neurons"] = neuronsNum
         return self.dataset.attrs["N_neurons"]
 
     @nb_neurons.setter

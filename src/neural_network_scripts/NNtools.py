@@ -353,14 +353,10 @@ def get_pts_from_masks2(mask,num_class):
         for j in range(1, len(Cells)):
             if j != i :
                 distvec = CoM[j]-CoM[i]
-                #gcd = math.gcd(int(distvec[0]),int(distvec[1]))
-                #gcd = math.gcd(gcd,int(distvec[2]))
-                print(np.max(abs(distvec)))
                 directionVec = 5*(distvec)/np.max(abs(distvec))
                 directionVec[0] = int(directionVec[0])
                 directionVec[1] = int(directionVec[1])
                 directionVec[2] = int(directionVec[2])
-                print(directionVec)
                 border = CoM[i]
                 border[0] = int(border[0])
                 border[1] = int(border[1])
@@ -376,7 +372,6 @@ def get_pts_from_masks2(mask,num_class):
                     border[1] = border[1]-directionVec[1]
                     border[2] = border[2]-directionVec[2]
                     ptsCoor[(num_class-1)*(C-1)+Cells[j]-1] = border
-    #print(ptsCoor)
     return ptsCoor
 
 def registration_JV(points, reference, ctrl_pts):
@@ -518,9 +513,6 @@ def load_single_contour_Mask(mask):
     for seg in segments_in_frame:
         if True:
             segdf = (np.array(frame_segment) == seg)#MB added np.array
-            print(seg)
-            print(np.shape(frame_segment))
-            print(np.shape(segdf[0]))
             segdf = contour_of_segment(segdf.astype(int))
             if len(points) == 0:
                 points = segdf
@@ -694,7 +686,6 @@ def get_deformation(ptfrom,ptto,sh,k_cut_dimless=2.5,lr=0.1,print_plot=False,ite
         gz=deformation[:,2,1:-1,1:-1,2:]-deformation[:,2,1:-1,1:-1,:-2]
         divergence=scale[0]*gx+scale[1]*gy+scale[2]*gz
         loss+=lambda_div*torch.mean(torch.abs(divergence))
-        #print(f.kgrid.shape)
         opt.zero_grad()
         loss.backward()
         opt.step()
