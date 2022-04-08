@@ -428,16 +428,21 @@ def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, ide
                             label_pts = np.array(label_pts).T
                             if len(label_pts) > 2:
                                 # Generate the alpha shape
-                                alpha_shape = alphashape.alphashape(label_pts, 1/5.0)
-                                # Construct a 2D mesh
-                                x = np.arange(0, mask_warped.shape[0])
-                                y = np.arange(0, mask_warped.shape[1])
-                                points = np.meshgrid(x, y)
-                                points = np.array(list(zip(*(dim.flat for dim in points))))
-                                # Check if each point falls inside the alpha shape
-                                in_shape = [alpha_shape.contains(Point(points[i])) for i in range(len(points))]
-                                valid_points = points[in_shape]
-                                mask_warped[valid_points[:, 0], valid_points[:, 1], z] = label
+                                for init_denom in range(5, 100, 5):
+                                    try:
+                                        alpha_shape = alphashape.alphashape(label_pts, 1/init_denom)
+                                        # Construct a 2D mesh
+                                        x = np.arange(0, mask_warped.shape[0])
+                                        y = np.arange(0, mask_warped.shape[1])
+                                        points = np.meshgrid(x, y)
+                                        points = np.array(list(zip(*(dim.flat for dim in points))))
+                                        # Check if each point falls inside the alpha shape
+                                        in_shape = [alpha_shape.contains(Point(points[i])) for i in range(len(points))]
+                                        valid_points = points[in_shape]
+                                        mask_warped[valid_points[:, 0], valid_points[:, 1], z] = label
+                                        break
+                                    except:
+                                        pass
                 else:
                     all_labels = sorted(np.unique(mask_warped))[1:]
                     for label in all_labels:
