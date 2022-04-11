@@ -521,17 +521,19 @@ class Controller():
         if len(new_present) != len(old_present) or np.any(new_present != old_present):
             # at least one neuron has appeared/disappeared from this frame
             # First, increase number of neurons if a new neuron exists
-            max_neu = max(new_present)
-            if max_neu > self.n_neurons:
-                self.n_neurons = max_neu
-                self.data.nb_neurons = self.n_neurons
-                old_presence = self.neuron_presence
-                self.neuron_presence = np.zeros((self.frame_num, self.n_neurons + 1), dtype=bool)
-                self.neuron_presence[:, :old_presence.shape[1]] = old_presence
-                self.signal_nb_neurons_changed()
-            # Second, update the presence
-            self.neuron_presence[t] = False
-            self.neuron_presence[t, new_present] = True
+            if int(len(new_present)):
+                max_neu = int(max(new_present))
+
+                if max_neu > self.n_neurons:
+                    self.n_neurons = max_neu
+                    self.data.nb_neurons = self.n_neurons
+                    old_presence = self.neuron_presence
+                    self.neuron_presence = np.zeros((self.frame_num, self.n_neurons + 1), dtype=bool)
+                    self.neuron_presence[:, :old_presence.shape[1]] = old_presence
+                    self.signal_nb_neurons_changed()
+                # Second, update the presence
+                self.neuron_presence[t] = False
+                self.neuron_presence[t, int(new_present)] = True
             # Third, reduce number of neurons if neurons have disappeared (from all frames)
             # Todo: that will not reduce the nb of neurons if the last n neurons are absent and already were absent. Is it ok?
             cumsum = np.cumsum(np.sum(self.neuron_presence, axis=0)[::-1])

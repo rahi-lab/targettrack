@@ -876,8 +876,10 @@ class NNControlTab(QScrollArea):
             main_layout.addWidget(PostProcess_mask,row, 1,1,1)
             self.PostProc_Mode = QComboBox()
             self.PostProc_Mode.addItem("Post-processing mode")
+            self.post_process_mode_name = ['merge neighbors','merge neighbors XY','merge selected cells',
+                                        'delete disjoint', 'relabel neighbors to 1st']
             for i in range(1,6):
-                self.PostProc_Mode.addItem(str(i))
+                self.PostProc_Mode.addItem(self.post_process_mode_name[i-1])
             self.PostProc_Mode.currentTextChanged.connect(self._select_pmode)
             main_layout.addWidget(self.PostProc_Mode,row,0, 1, 1)
             row += 1
@@ -988,7 +990,8 @@ class NNControlTab(QScrollArea):
         if txt == "":
             self.post_process_mode = 1
         else:
-            self.post_process_mode = int(txt)
+
+            self.post_process_mode = int(self.post_process_mode_name.index(txt)+1)
 
     def _run_script(self):
         pass

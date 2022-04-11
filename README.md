@@ -41,6 +41,8 @@ Once you enter the name of the run, the program will copy the file in the `data/
 <img src="src/Images/NNTrain2.png" width=600> 
 </p> 
 
+**Note**: if you had an unseccessful or unfinished run, delete the temporary files in the `data_temp` directory before starting the next run.
+
 6. To check the performance of the neural network, open the file in `data/data_temp`. Choose the run name under `Select NN masks`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame.png" width=400> 
