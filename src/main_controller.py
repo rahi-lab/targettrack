@@ -894,7 +894,7 @@ class Controller():
         self.update()
 
         frameCheck = self.data.get_frame(0, col="red")
-        Zcheck = np.shape(frameCheck)
+        fr_shape = np.shape(frameCheck)
 
         z_0 = int(Z_interval[0])
         z_1 = int(Z_interval[1])
@@ -903,7 +903,10 @@ class Controller():
         padXR = 0
         padYbottom = 0
         padYtop = 0
+        padZlow = 0
+        padZhigh = 0
 
+        ## Determine the padding pixels needed in direction of x
         if int(X_interval[0])<0:
             x_0 = 0
             padXL = 0-int(X_interval[0])
@@ -911,13 +914,14 @@ class Controller():
             x_0 = int(X_interval[0])
 
         if int(X_interval[1])==0:
-            x_1 = Zcheck[0]
-        elif int(X_interval[1])>Zcheck[0]:
-            x_1 = Zcheck[0]
-            padXR = int(X_interval[1])-Zcheck[0]
+            x_1 = fr_shape[0]
+        elif int(X_interval[1])>fr_shape[0]:
+            x_1 = fr_shape[0]
+            padXR = int(X_interval[1])-fr_shape[0]
         else:
             x_1 = int(X_interval[1])
 
+        ## Determine the padding pixels needed in direction of Y
         if int(Y_interval[0]) <0:
             y_0 = 0
             padYbottom = 0-int(Y_interval[0])
@@ -925,17 +929,28 @@ class Controller():
             y_0 = int(Y_interval[0])
 
         if int(Y_interval[1])==0:#doesn't change x and y coordinate if the upper bound is zero
-            y_1 = Zcheck[1]
-        elif int(Y_interval[1])>Zcheck[1]:
-            y_1 = Zcheck[1]
-            padYtop = int(Y_interval[1])-Zcheck[1]
+            y_1 = fr_shape[1]
+        elif int(Y_interval[1])>fr_shape[1]:
+            y_1 = fr_shape[1]
+            padYtop = int(Y_interval[1])-fr_shape[1]
         else:
             y_1 = int(Y_interval[1])
 
-        assert z_0 < Zcheck[2], "lower bound for z is too high"
-        assert not z_1 > Zcheck[2], "upper bound for z is too high"
-        assert x_0 < Zcheck[0], "lower bound for x is too high"
-        assert not x_1 > Zcheck[0], "upper bound for x is too high"
+        ## Determine the padding pixels needed in direction of Z
+        if int(Z_interval[0]) <0:
+            z_0 = 0
+            padZlow = 0-int(Z_interval[0])
+        else:
+            z_0 = int(Z_interval[0])
+
+        if int(Z_interval[1])==0:#doesn't change x and y coordinate if the upper bound is zero
+            z_1 = fr_shape[2]
+        elif int(Z_interval[1])>fr_shape[2]:
+            z_1 = fr_shape[2]
+            padZhigh = int(Z_interval[1])-fr_shape[2]
+        else:
+            z_1 = int(Z_interval[1])
+
 
         dset_path=self.data.path_from_GUI
         name = self.data_name
@@ -978,7 +993,9 @@ class Controller():
                         frameGr = self.data.get_frame(i, col= "green")
                         frameGr = frameGr[:x_1,:y_1,:z_1]
                         frameGr = frameGr[x_0:,y_0:,z_0:]
-                        frameGr = np.pad(frameGr, ((padXL, padXR),(padYtop, padYbottom), (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
+                        frmean = int(np.mean(frameGr,axis=(0, 1,2)))
+                        frameGr = np.pad(frameGr, ((padXL, padXR),(padYtop, padYbottom), (padZlow,padZhigh)),
+                                    'constant', constant_values=((frmean, frmean),(frmean,frmean), (frmean,frmean)))#((frmean, frmean),(frmean,frmean), (frmean,frmean)))
                         if self.options["save_resized"]:
                             frameGr = resize_frame(frameGr,width,height)
                 else:
@@ -994,7 +1011,9 @@ class Controller():
                     frameRd = blacken_background(frameRd, bg_subt)
                 frameRd = frameRd[:x_1,:y_1,:z_1]
                 frameRd = frameRd[x_0:,y_0:,z_0:]
-                frameRd = np.pad(frameRd, ((padXL, padXR),(padYtop, padYbottom),  (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
+                frmean = int(np.mean(frameRd,axis=(0, 1,2)))
+                frameRd = np.pad(frameRd, ((padXL, padXR),(padYtop, padYbottom),  (padZlow,padZhigh)),
+                            'constant', constant_values=((frmean, frmean),(frmean,frmean), (frmean,frmean)))#, constant_values=((frameRd, frameRd),(frameRd,frameRd), (frameRd,frameRd)))
                 if self.options["save_resized"]:
                     frameRd = resize_frame(frameRd,width,height)
 
@@ -1002,7 +1021,7 @@ class Controller():
                 if maskTemp is not False:
                     maskTemp = maskTemp[:x_1,:y_1,:z_1]
                     maskTemp = maskTemp[x_0:,y_0:,z_0:]
-                    maskTemp = np.pad(maskTemp, ( (padXL, padXR),(padYtop, padYbottom), (0,0)),'constant', constant_values=((0, 0),(0,0), (0,0)))
+                    maskTemp = np.pad(maskTemp, ( (padXL, padXR),(padYtop, padYbottom), (padZlow,padZhigh)),'constant', constant_values=((0, 0),(0,0), (0,0)))
                     hNew.nb_neurons = max(hNew.nb_neurons, len(np.unique(maskTemp)), np.max(maskTemp))
                     if self.options["save_resized"]:
                         maskTemp = resize_frame(maskTemp,width,height,mask=True)
@@ -1014,7 +1033,7 @@ class Controller():
                     CoarseSegTemp = self.data.dataset[kcoarse]
                     CoarseSegTemp = CoarseSegTemp[:x_1,:y_1,:z_1]
                     CoarseSegTemp = CoarseSegTemp[x_0:,y_0:,z_0:]
-                    CoarseSegTemp = np.pad(CoarseSegTemp, ((padXL, padXR),(padYtop, padYbottom), (0,0)),'constant', constant_values=((0, 0),(0,0),(0,0)))
+                    CoarseSegTemp = np.pad(CoarseSegTemp, ((padXL, padXR),(padYtop, padYbottom), (padZlow,padZhigh)),'constant', constant_values=((0, 0),(0,0),(0,0)))
                     kcoarsel=str(l)+"/coarse_mask"
                     kcoarseSegl=str(l)+"/coarse_seg"
                     hNew.dataset.create_dataset(kcoarsel, data=CoarseSegTemp)
@@ -1031,7 +1050,7 @@ class Controller():
                     hNew.save_real_time(l, real_time)
                 l = l+1
         if self.options["save_resized"]:
-            hNew.save_original_size(Zcheck)
+            hNew.save_original_size(fr_shape)
 
         hNew.save_original_intervals(X_interval, Y_interval, Z_interval)
 
