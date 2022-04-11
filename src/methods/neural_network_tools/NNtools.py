@@ -18,7 +18,7 @@ class TrainDataset(Dataset):
         self.indlist=[int(os.path.split(file)[1].split(".")[0]) for file in self.filelist]
         self.indlist=np.array(self.indlist)
         self.num_frames_tot=len(self.indlist)
-        
+
         inf={}
         inf["mask"]="mask"
 
@@ -35,11 +35,11 @@ class TrainDataset(Dataset):
             ],
             additional_targets=inf
             )
-            
+
         self.query={}
         for i,real_ind in enumerate(self.indlist):
             self.query[real_ind]=i
-        
+
         self.augment="comp_cut"
         self.grid2d=None
 
@@ -66,7 +66,7 @@ class TrainDataset(Dataset):
         mask=mask.numpy()
         feed={}
         feed["mask"]=mask #z is automatically channel
-        
+
         if mode=="comp_cut":
             fr=self.CD_to_end(fr)
             res=self.comp(image=fr,**feed)
@@ -74,7 +74,7 @@ class TrainDataset(Dataset):
             fr=self.CD_back(res["image"])
             mask=res["mask"]
             return torch.tensor(fr),torch.tensor(mask)
-            
+
         elif mode=="aff_cut":
             fr=self.CD_to_end(fr)
             res=self.aff(image=fr,**feed)
@@ -82,21 +82,21 @@ class TrainDataset(Dataset):
             fr=self.CD_back(res["image"])
             mask=res["mask"]
             return torch.tensor(fr),torch.tensor(mask)
-            
+
         elif mode=="comp":
             fr=self.CD_to_end(fr)
             res=self.comp(image=fr,**feed)
             fr=self.CD_back(res["image"])
             mask=res["mask"]
             return torch.tensor(fr),torch.tensor(mask)
-            
+
         elif mode=="aff":
             fr=self.CD_to_end(fr)
             res=self.aff(image=fr,**feed)
             fr=self.CD_back(res["image"])
             mask=res["mask"]
             return torch.tensor(fr),torch.tensor(mask)
-            
+
         else:
             assert False,"wrong trf(augmentation) mode"
 
@@ -137,7 +137,7 @@ class EvalDataset(Dataset):
         if self.mask:
             self.maskfolpath=os.path.join(self.folpath,"masks")
         self.num_frames_tot=T
-        
+
 
     def __getitem__(self,i):
         assert 0<=i<self.num_frames_tot
@@ -166,12 +166,12 @@ def get_mask(labels,coords,gridpts,radius=4):
     ds,iis=tree.query(gridpts,k=1)
     maskpts=labels[iis]
     return maskpts*(ds<=radius)
-    
+
 def get_pts_dict(mask,grid,weight=None):
     dim=len(mask.shape)
     assert dim==2 or dim==3
     labels_out,maxlab=cc3d.connected_components(mask, connectivity=4 if dim==2 else 6, return_N=True)
-    
+
     labels=[]
     sizes=[]
     cache_dict=[]
@@ -181,7 +181,7 @@ def get_pts_dict(mask,grid,weight=None):
         labels.append(mask[one][0])
         sizes.append(np.sum(one))
     args=np.argsort(sizes)[::-1]
-    
+
     pts_dict={0:None}
     if weight is None:
         weight=np.ones(grid.shape[1:])
@@ -206,7 +206,7 @@ def selective_ce(pred_raw,target_mask):
         mask=trf[target_mask]
         mask.requires_grad=False
     return torch.nn.functional.cross_entropy(pred_raw[:,existing],mask)
-    
+
 def get_additional_inds(traininds,distmat):
     T=distmat.shape[0]
     traininds_aug=np.array(traininds).copy()
@@ -220,5 +220,3 @@ def get_additional_inds(traininds,distmat):
         new=not_traininds[np.argmax(dists)]#index of a frameoutside of training set that has the maximum dist
         traininds_aug=np.append(traininds_aug,new)#MB:add the frame corresponding to index 'new' to the training set
     return traininds_aug[len(traininds):]
-    
-    

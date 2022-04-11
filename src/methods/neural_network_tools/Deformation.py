@@ -47,7 +47,7 @@ class FourierLowK(nn.Module):
         self.kgrid=np.array(np.meshgrid(*ks,indexing="ij"))#grids of the fourier space
         self.ksqabs=np.sum(self.kgrid**2,axis=0)
         arrs=[torch.arange(d) for d in self.shape]
-        unique_holders=torch.stack(torch.meshgrid(*arrs))#grids of the image
+        unique_holders=torch.stack(torch.meshgrid(*arrs,indexing="ij"))#grids of the image
         holders_hs=torch.stack([self.hermitian_symmetric(unique_holder.clone()) for unique_holder in unique_holders])
         same=torch.all(holders_hs==unique_holders,dim=0)
         rem=same*(self.ksqabs<=k_cut_dimless**2)
@@ -92,7 +92,7 @@ class FourierLowK(nn.Module):
     def to(self,**kwargs):
         self.feed_ind=self.feed_ind.to(**kwargs)
 
-def get_deformation(ptfrom,ptto,sh,k_cut_dimless=2.5,lr=0.1,iterations=200,lambda_div=1,scale=(1,1,1),at_least=5,device="cpu",verbose=False,return_losses=False):
+def get_deformation_lowk(ptfrom,ptto,sh,k_cut_dimless=2.5,lr=0.1,iterations=200,frac=0.5,lambda_div=1,scale=(1,1,1),at_least=8,device="cpu",verbose=False,return_losses=False,**kwargs):
     vecs=(ptto-ptfrom)
     valids=np.nonzero(np.all(np.isnan(vecs)==0,axis=1))[0]
     if len(valids)<at_least:
@@ -134,17 +134,76 @@ def get_deformation(ptfrom,ptto,sh,k_cut_dimless=2.5,lr=0.1,iterations=200,lambd
         if verbose:
             print(loss.item())
     if return_losses:
-        return deformation,losses,"success"
-    return deformation,"success"
+        return frac*deformation[0],losses,"success"
+    return frac*deformation[0],"success"
 
-def deform(sh,deformation,frame,mask=None):
-    W,H,D=sh
-    grid=torch.stack(torch.meshgrid(*[torch.arange(s) for s in (W,H,D)]),dim=0).to(dtype=torch.float32,device=deformation.device)
-    normten=(torch.tensor([W,H,D])[None,:,None,None,None]-1).to(dtype=torch.float32,device=deformation.device)
-    moved=(2*((grid[None]-deformation)/normten)-1).to(dtype=torch.float32,device=deformation.device)
-    moved=moved.permute(0,2,3,4,1)[...,[2,1,0]]
-    fr_aug=torch.nn.functional.grid_sample(frame.to(torch.float32),moved.repeat(frame.size(0),1,1,1,1), mode='bilinear', padding_mode="border",align_corners=True)
+
+def get_deformation_tps(ptfrom,ptto,grid,scale=(1,1,1),at_least=5,epsilon=1e-8,device="cpu"):
+    vecs=(ptto-ptfrom)
+    valids=np.nonzero(np.all(np.isnan(vecs)==0,axis=1))[0]
+    if len(valids)<at_least:
+        return None,"Not enough points"
+    vecs=vecs[valids][:,:]
+    locs=ptfrom[valids][:,:]
+    vecs=torch.tensor(vecs,device=device)
+    locs=torch.tensor(locs,device=device)
+    if not torch.is_tensor(grid):
+        grid=torch.tensor(grid,device=device)
+    gridpts=grid.reshape(-1,3)
+    weights=1/(torch.sqrt(torch.sum(( (gridpts[:,None,:2]-locs[None,:,:2])*torch.tensor(scale,dtype=locs.dtype,device=device)[None,None,:2]  )**2,axis=2))+epsilon)**2
+    norms=weights.sum(1)
+    deformation=(weights@vecs)/norms[:,None]
+    return deformation.reshape(grid.shape).movedim(-1,0),"success"
+
+def deform(image,deformation,mask=None):
+    C,W,H,D=image.shape
+    grid=torch.stack(torch.meshgrid(*[torch.arange(s) for s in (W,H,D)],indexing="ij"),dim=0)
+    grid=grid.to(dtype=deformation.dtype,device=deformation.device)
+    grid+=deformation
+    coords=grid.reshape(3,-1).T
+    image_def=get_at_coords(image,coords)
+    image_def=image_def.reshape(W,H,D,C).permute(3,0,1,2)
     if mask is not None:
-        mask_aug=torch.nn.functional.grid_sample(mask.unsqueeze(1).to(torch.float32),moved.repeat(mask.size(0),1,1,1,1), mode='nearest', padding_mode='zeros',align_corners=True)[:,0].to(torch.long)
-        return fr_aug,mask_aug
-    return fr_aug
+        mask_def=get_at_coords(mask,coords,ismask=True)
+        mask_def=mask_def.reshape(W,H,D)
+        return image_def,mask_def
+    return image_def
+
+def get_at_coords(image,coords,ismask=False):
+    if ismask:
+        image=image[None]
+    C,W,H,D=image.shape
+    coords=coords[:,None,None,:].clone()
+    coords[...,0]/=(W-1)/2
+    coords[...,0]-=1
+    coords[...,1]/=(H-1)/2
+    coords[...,1]-=1
+    coords[...,2]/=(D-1)/2
+    coords[...,2]-=1
+    coords=coords[...,[2,1,0]]
+    if ismask:
+        res=torch.nn.functional.grid_sample(image[None].to(torch.float32),coords[None], mode='bilinear', padding_mode="zeros",align_corners=True)[0].to(dtype=image.dtype)
+        return res[0,:,0,0]
+    else:
+        res=torch.nn.functional.grid_sample(image[None],coords[None], mode='bilinear', padding_mode="zeros",align_corners=True)[0]
+    return res[:,:,0,0].T
+
+
+def invert_deformation(deformation,n_iter=10):
+    dim,W,H,D=deformation.shape
+    inv_deformation=torch.zeros_like(deformation)
+    grid=torch.stack(torch.meshgrid(*[torch.arange(s) for s in (W,H,D)],indexing="ij"),dim=0)
+    grid=grid.to(dtype=deformation.dtype,device=deformation.device)
+    coords=grid.reshape(3,-1).T
+    for i in range(n_iter):
+        inv_deformation=-get_at_coords(deformation,coords+get_at_coords(inv_deformation,coords))
+        inv_deformation=inv_deformation.reshape(W,H,D,dim).permute(3,0,1,2)
+    return inv_deformation
+
+
+
+
+
+
+def no():
+    pass
