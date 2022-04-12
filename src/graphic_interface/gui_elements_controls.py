@@ -686,7 +686,7 @@ class AnnotationTab(QScrollArea):
             mask_buttons.addWidget(self.renumber_mask_obj, subrow, 0)
             self.delete_mask_obj = QPushButton("Delete")
             self.delete_mask_obj.setStyleSheet("background-color: red")
-            self.delete_mask_obj.clicked.connect(self.controller.delete_mask_obj)
+            self.delete_mask_obj.clicked.connect(self._selective_mask_delete)
             self.delete_mask_obj.setEnabled(False)
             mask_buttons.addWidget(self.delete_mask_obj, subrow, 1)
             main_layout.addLayout(mask_buttons, row, 0)
@@ -724,6 +724,13 @@ class AnnotationTab(QScrollArea):
             self.controller.renumber_All_mask_instances(fro,to)
         else:
             self.controller.renumber_mask_obj()
+
+    def _selective_mask_delete(self):
+        fro, to = int(self.mask_change_from.text()), int(self.mask_change_to.text())
+        if self.change_within_checkbox.checkState():
+            self.controller.delete_All_mask_instances(fro,to)
+        else:
+            self.controller.delete_mask_obj()
 
     def _Permutation_fun(self):
         cells = self.cell_permutation_entry.text()

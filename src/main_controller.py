@@ -523,7 +523,6 @@ class Controller():
             # First, increase number of neurons if a new neuron exists
             if int(len(new_present)):
                 max_neu = int(max(new_present))
-
                 if max_neu > self.n_neurons:
                     self.n_neurons = max_neu
                     self.data.nb_neurons = self.n_neurons
@@ -531,9 +530,14 @@ class Controller():
                     self.neuron_presence = np.zeros((self.frame_num, self.n_neurons + 1), dtype=bool)
                     self.neuron_presence[:, :old_presence.shape[1]] = old_presence
                     self.signal_nb_neurons_changed()
+                elif np.shape(self.neuron_presence)[1] < self.n_neurons:
+                    old_presence = self.neuron_presence
+                    self.neuron_presence = np.zeros((self.frame_num, self.n_neurons + 1), dtype=bool)
+                    self.neuron_presence[:, :old_presence.shape[1]] = old_presence
+                    self.signal_nb_neurons_changed()
                 # Second, update the presence
                 self.neuron_presence[t] = False
-                self.neuron_presence[t, int(new_present)] = True
+                self.neuron_presence[t, new_present] = True
             # Third, reduce number of neurons if neurons have disappeared (from all frames)
             # Todo: that will not reduce the nb of neurons if the last n neurons are absent and already were absent. Is it ok?
             cumsum = np.cumsum(np.sum(self.neuron_presence, axis=0)[::-1])
@@ -1535,6 +1539,25 @@ class Controller():
         self.highlight_neuron(self.highlighted)
         print("SJR: self.mask.max() in delete_mask_obj", self.mask.max())
         print("SJR: self.data.nb_neurons in delete_mask_obj", self.n_neurons)
+
+    def delete_All_mask_instances(self, fro, to):
+        if self.highlighted == 0:
+            return
+        if fro > to:
+            print("Invalid times")
+            return
+
+        if not self.point_data:#MB added this to use this feature for epfl data
+            for k in range(fro,to):
+                mask_k = self.data.get_mask(k, force_original=False)  # MB added
+                if mask_k is not False:
+                    mask_k[mask_k == self.highlighted] = 0
+                    self.data.save_mask(k, mask_k, False)
+                    self.mask_change(k)
+
+        print("uccessfully deleted "+ str(self.highlighted) + " in all selected frames")
+        # unhighlight and turn off neuron_bar button, careful!! does an update, which resets self.mask
+        self.highlight_neuron(self.highlighted)
 
     def undo_mask(self):
         if self.options["mask_annotation_mode"] or self.options["boxing_mode"]:

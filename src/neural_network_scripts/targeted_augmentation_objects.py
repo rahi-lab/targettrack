@@ -391,7 +391,8 @@ def targeted_augmentation(h5, num_additional, datadir, allset, traininds, T, ide
                 # moved.
                 pts_train_warped = fr_trans_rigid.copy()
                 mask_warped = mask_trans_rigid.copy()
-                for z_idx in range(z_start, z_end+1):
+                z_end_f = np.max([z_end+1,np.shape(mask_trans_rigid)[2]])
+                for z_idx in range(z_start, z_end_f):
                     # Compute the optical flow
                     z_idx_trans = int(z_idx - z_target_minus_trans)
                     v, u = optical_flow_tvl1(target_fr_i[:, :, z_idx], fr_trans_rigid[:, :, z_idx_trans])
