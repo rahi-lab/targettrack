@@ -152,7 +152,6 @@ def post_process_NN_masks4(times, neurons, load_fun, save_fun):
                     MaxInd = np.argmax(Vol[0,:])
                     for k1 in range(numFtr):
                         if not k1==MaxInd:
-                            print(k1+1)
                             k1_comp = (labelArray==(k1+1))
                             mask[k1_comp] = 0
             save_fun(t, mask)
