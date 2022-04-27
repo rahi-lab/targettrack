@@ -141,6 +141,7 @@ class Controller():
         self.options["save_resized"] =  False
         self.options["AutoDelete"] = False
         self.options["save_after_reversing"] = False
+        self.options["save_after_reversing_Cuts"] = False
         self.options["generate_deformation"] = False
         self.options["use_old_trainset"] = False
         self.options["boxing_mode"] = False
@@ -776,6 +777,10 @@ class Controller():
         self.options["save_after_reversing"] = not self.options["save_after_reversing"]
         self.update()
 
+    def toggle_undo_cuts(self):
+        self.options["save_after_reversing_Cuts"] = not self.options["save_after_reversing_Cuts"]
+        self.update()
+
     def toggle_save_crop_rotate(self):
         self.options["save_crop_rotate"] = not self.options["save_crop_rotate"]
         self.update()
@@ -815,6 +820,7 @@ class Controller():
         frameCheck = self.data.get_frame(0, col= "red")#We compare this with dimensions of the uploaded masks
         shapeCheck = np.shape(frameCheck)
         transformBack = self.options["save_after_reversing"]
+        UndoCuts = self.options["save_after_reversing_Cuts"]
         for t in range(ExtFile.dataset.attrs["T"]):
             #Assuming the imported file was a derivative of the current file after cropping, rotating and other preprocesses,
             #fr t of imported file corresponds to frame "orig_index" of the current file
@@ -844,7 +850,18 @@ class Controller():
                 self.data.crop = True   # so that the save_mask function applies the reverse transformations
                 self.data.align = True
 
-                if not np.shape(img)[2] == shapeCheck[2]:
+                if UndoCuts:
+                    Zvec = ExtFile.original_intervals("z")
+                    Yvec = ExtFile.original_intervals("y")
+                    Xvec = ExtFile.original_intervals("x")
+                    imgT = np.zeros((shapeCheck[0],shapeCheck[1],shapeCheck[2]))
+                    imgT[int(Xvec[0]):int(Xvec[1]),int(Yvec[0]):int(Yvec[1]),int(Zvec[0]):int(Zvec[1])] = img#np.shape(img)[2]] = img
+                    if green:
+                        self.data.save_green_mask(origIndex, imgT, False)
+                    else:
+                        self.data.save_mask(origIndex, imgT, False)
+
+                elif not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
                     Zvec = ExtFile.original_intervals("z")
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
@@ -866,7 +883,18 @@ class Controller():
                 self.mask_change(origIndex)
             elif maskTemp is not False and origIndex < self.frame_num:
                 img = maskTemp
-                if not np.shape(img)[2] == shapeCheck[2]:
+
+                if UndoCuts:
+                    Zvec = ExtFile.original_intervals("z")
+                    Yvec = ExtFile.original_intervals("y")
+                    Xvec = ExtFile.original_intervals("x")
+                    imgT = np.zeros((shapeCheck[0],shapeCheck[1],shapeCheck[2]))
+                    imgT[int(Xvec[0]):int(Xvec[1]),int(Yvec[0]):int(Yvec[1]),int(Zvec[0]):int(Zvec[1])] = img#np.shape(img)[2]] = img
+                    if green:
+                        self.data.save_green_mask(origIndex, imgT, False)
+                    else:
+                        self.data.save_mask(origIndex, imgT, False)
+                elif not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
                     Zvec = ExtFile.original_intervals("z")
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
@@ -1056,6 +1084,18 @@ class Controller():
         if self.options["save_resized"]:
             hNew.save_original_size(fr_shape)
 
+        X_interval0 = self.data.original_intervals("x")
+        Y_interval0 = self.data.original_intervals("y")
+        Z_interval0 = self.data.original_intervals("z")
+        if X_interval is not None:
+            if Y_interval[1]==0:
+                Y_interval[1]=Y_interval0[1]
+            if Y_interval[0]==0 and not Y_interval0[0]==0:
+                Y_interval[0]=Y_interval0[0]
+            if X_interval[1]==0:
+                X_interval[1]=X_interval0[1]
+            if X_interval[0]==0 and not X_interval0[0]==0:
+                X_interval[0]=X_interval0[0]
         hNew.save_original_intervals(X_interval, Y_interval, Z_interval)
 
         assert hNew.frame_num == l
