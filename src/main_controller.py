@@ -864,8 +864,10 @@ class Controller():
                 elif not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
                     Zvec = ExtFile.original_intervals("z")
+                    print(Zvec)
+                    Zvec = [0,31]
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
-                    imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img#np.shape(img)[2]] = img
+                    imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img[:,:,int(Zvec[0]):int(Zvec[1])]
                     if green:
                         self.data.save_green_mask(origIndex, imgT, False)
                     else:
@@ -1809,6 +1811,7 @@ class Controller():
                     Totstring = "0 " + str(epoch)+" 1 1 0"
                 f.write("python3 run_NNmasks_f.py" + " " + nnewpath + " " + nnewlogpath + " " +Totstring)
             return True, ""
+
         return self.subprocmanager.run(key, args, newlogpath)
 
     def _scan_NN_models(self):
