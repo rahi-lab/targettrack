@@ -154,7 +154,8 @@ def plot_masks(train_mask, target_pred_mask, save_dir):
         labels = mask[np.where(mask > 0)]
         title = 'Training ground-truth mask' if i == 0 else 'Target predicted mask'
         save_file = os.path.join(save_dir, 'train_mask.svg') if i == 0 else os.path.join(save_dir, 'target_mask.svg')
-        plot_all_objects(coords, labels, title, markers=True, figsize=(20, 20), xlim=(0, 300),
+        if len(labels) > 0:
+            plot_all_objects(coords, labels, title, markers=True, figsize=(20, 20), xlim=(0, 300),
                                   ylim=(0, 300), legend=True, title_fontsize=32, legend_fontsize=24,
                                   legend_pointsize=300, tick_fontsize=22, alphas=None, save_file=save_file)
 

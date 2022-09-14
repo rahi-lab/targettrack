@@ -1780,11 +1780,12 @@ class Controller():
         #4:number of training epochs. 5:whether or not train on previous training set
         #6:whether or not add the deformed frames?
         #7:based on the previous choices: a.number of deformed frames that are added  to the training set_title b.which deformation trick to use. c.training set number
-        #8: validation frames number
+        #8: validation frames number or number of targeet Frames
+        #9: the deformation method used
         if not self.options["use_old_trainset"] and not self.options["generate_deformation"]:
             args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"0","0",str(train),str(validation)]
         elif not self.options["use_old_trainset"] and self.options["generate_deformation"]:
-            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"1","1","1","0","3",str(targetframes)]
+            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"1","1","1","0","3",str(targetframes),"5"]
         elif self.options["use_old_trainset"] and not self.options["generate_deformation"]:
             args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"1","1","0"]
         else:

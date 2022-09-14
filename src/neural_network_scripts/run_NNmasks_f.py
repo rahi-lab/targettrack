@@ -16,7 +16,7 @@ from skimage.transform import warp
 from skimage.registration import optical_flow_tvl1, optical_flow_ilk
 import scipy.ndimage as sim
 
-import targeted_augmentation_objects
+import targeted_augmentation_objects3
 
 torch.autograd.set_detect_anomaly(True)
 #### This is the grammar to parse the command line parameters
@@ -762,14 +762,15 @@ try:
                 shutil.copyfile(name,os.path.join(datadir,"deformations","masks","mask_"+str(i)+".npy"))
 
             if defTrick == 3:
+                deformMethod =  int(sys.argv[9])
                 with torch.no_grad():
                     plots_dir = os.path.join(datadir, 'targeted_augmentation_plots')
                     if not os.path.exists(plots_dir):
                         os.makedirs(plots_dir)
                     plot_results = True
-                    targeted_augmentation_objects.targeted_augmentation(h5, num_additional, datadir, allset, traininds,
+                    targeted_augmentation_objects3.targeted_augmentation(h5, num_additional, datadir, allset, traininds,
                                                                         T, identifier, shape,num_classes, plot_results=plot_results,
-                                                                        plots_dir=plots_dir)
+                                                                        plots_dir=plots_dir,method = deformMethod)
             else:
                 distmat=np.array(h5["distmat"])
                 additional_inds=NNtools.select_additional(T,traininds,distmat,num_additional)[len(traininds):]#index of frames used for augmentation
