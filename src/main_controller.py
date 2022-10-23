@@ -809,7 +809,7 @@ class Controller():
         self.options["AutoDelete"] = not self.options["AutoDelete"]
         self.update()
 
-    def import_mask_from_external_file(self,Address,green=False):
+    def import_mask_from_external_file(self,Address,transformation_mode,green=False):
         """
         MB defined this to import from another file that contains another NN run
         on our current file or th ecropped and rotated version of the file.
@@ -835,7 +835,10 @@ class Controller():
 
                 img = maskTemp
 
-                origTrans = self.data.get_transformation(origIndex)
+                if transformation_mode:
+                    origTrans,offset = ExtFile.get_transfoAngle(origIndex)
+                else:
+                    origTrans = self.data.get_transformation(origIndex)
                 origROI = self.data.get_ROI_params()
                 #copy the cropping parameters of the imported file temporarily into the current file:
                 if origROI is not None and origTrans is not None:
@@ -844,7 +847,13 @@ class Controller():
                     TemptransParam = 0
                 self.data.save_ROI_params(*ExtFile.get_ROI_params())
 
-                self.data.save_transformation_matrix(origIndex, ExtFile.get_transformation(t))
+                if transformation_mode==0:
+                    self.data.save_transformation_matrix(origIndex, ExtFile.get_transformation(t))
+                else:
+                    centerRot=1
+                    mat = np.zeros(4)
+                    mat[0],mat[1:] = ExtFile.get_transfoAngle(t)
+                    self.data.save_transformation_matrix(origIndex,mat,1)
                 OrigCrop = self.data.crop
                 OrigAlign =self.data.align
                 self.data.crop = True   # so that the save_mask function applies the reverse transformations
@@ -857,9 +866,9 @@ class Controller():
                     imgT = np.zeros((shapeCheck[0],shapeCheck[1],shapeCheck[2]))
                     imgT[int(Xvec[0]):int(Xvec[1]),int(Yvec[0]):int(Yvec[1]),int(Zvec[0]):int(Zvec[1])] = img#np.shape(img)[2]] = img
                     if green:
-                        self.data.save_green_mask(origIndex, imgT, False)
+                        self.data.save_green_mask(origIndex, imgT, False,centerRot)
                     else:
-                        self.data.save_mask(origIndex, imgT, False)
+                        self.data.save_mask(origIndex, imgT, False,centerRot)
 
                 elif not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
@@ -869,16 +878,22 @@ class Controller():
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
                     imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img[:,:,int(Zvec[0]):int(Zvec[1])]
                     if green:
-                        self.data.save_green_mask(origIndex, imgT, False)
+                        self.data.save_green_mask(origIndex, imgT, False,centerRot)
                     else:
-                        self.data.save_mask(origIndex, imgT, False)
+                        self.data.save_mask(origIndex, imgT, False,centerRot)
                 else:
                     if green:
-                        self.data.save_green_mask(origIndex, img, False)
+                        self.data.save_green_mask(origIndex, img, False,centerRot)
                     else:
-                        self.data.save_mask(origIndex, img, False)
+                        self.data.save_mask(origIndex, img, False,centerRot)
                 if TemptransParam == 1:   # Todo I think this just saves what was loaded identically
-                    self.data.save_transformation_matrix(origIndex, origTrans)
+                    if transformation_mode==0:
+                        self.data.save_transformation_matrix(origIndex, origTrans)
+                    else:
+                        mat = np.zeros(4)
+                        mat[0],mat[1:] = ExtFile.get_transfoAngle(t)
+                        self.data.save_transformation_matrix(origIndex,mat,1)
+
                     self.data.save_ROI_params(*origROI)
                 self.data.align = OrigAlign
                 self.data.crop = OrigCrop
@@ -886,6 +901,9 @@ class Controller():
             elif maskTemp is not False and origIndex < self.frame_num:
                 img = maskTemp
 
+                if transformation_mode==1:
+                    centerRot=1
+                    
                 if UndoCuts:
                     Zvec = ExtFile.original_intervals("z")
                     Yvec = ExtFile.original_intervals("y")
@@ -893,24 +911,24 @@ class Controller():
                     imgT = np.zeros((shapeCheck[0],shapeCheck[1],shapeCheck[2]))
                     imgT[int(Xvec[0]):int(Xvec[1]),int(Yvec[0]):int(Yvec[1]),int(Zvec[0]):int(Zvec[1])] = img#np.shape(img)[2]] = img
                     if green:
-                        self.data.save_green_mask(origIndex, imgT, False)
+                        self.data.save_green_mask(origIndex, imgT, False,centerRot)
                     else:
-                        self.data.save_mask(origIndex, imgT, False)
+                        self.data.save_mask(origIndex, imgT, False,centerRot)
                 elif not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
                     Zvec = ExtFile.original_intervals("z")
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
                     imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img
                     if green:
-                        self.data.save_green_mask(origIndex, imgT, True)
+                        self.data.save_green_mask(origIndex, imgT, True,centerRot)
                     else:
-                        self.data.save_mask(origIndex, imgT, True)
+                        self.data.save_mask(origIndex, imgT, True,centerRot)
 
                 else:
                     if green:
-                        self.data.save_green_mask(origIndex, img, True)
+                        self.data.save_green_mask(origIndex, img, True,centerRot)
                     else:
-                        self.data.save_mask(origIndex, img, True)
+                        self.data.save_mask(origIndex, img, True,centerRot)
                 self.mask_change(origIndex)
         ExtFile.close()
         print("mask upload finished")

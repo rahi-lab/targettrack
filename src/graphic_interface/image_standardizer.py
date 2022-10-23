@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import ndimage
 from scipy.ndimage import affine_transform
 import matplotlib.pyplot as plt
 from ..helpers.helpers import project
@@ -31,17 +32,22 @@ class ImageAligner:
         new_image = self.apply_transform(img_frame, transform, mode='constant', cval=cval, order=order)
         return new_image
 
-    def dealign(self, image, t):
+    def dealign(self, image, t,centerRot):
         """
         Rotate the image back to its original position, inverting the rotation and translating.
         :param image: nparray
         :param t: Integer, time frame t
+        :param centerRot: 0 or 1. which python function is used for transformation
         :return: nparray, the de-aligned image
         """
         img_frame = image
-        transform = self.data.get_transformation(t)
-        # Image is always a mask in our use cases
-        new_image = self.apply_inverse_transform(img_frame, transform, mode='constant', cval=0, order=0)
+        if centerRot==0:
+            transform = self.data.get_transformation(t)
+            # Image is always a mask in our use cases
+            new_image = self.apply_inverse_transform(img_frame, transform, mode='constant', cval=0, order=0)
+        else:
+            Angle,offset = self.data.get_transfoAngle(t)
+            new_image = self.apply_inverse_transform(img_frame, transform=0, mode='constant', cval=0, order=0,centerRot=1,angleDeg=-Angle,offset=-offset)
         return new_image
 
     def apply_transform(self,image,transform, mode = 'wrap',cval = 0, order=3):
@@ -60,7 +66,7 @@ class ImageAligner:
         new_image = affine_transform(image,rot,offset,mode=mode,cval = cval, order=order)
         return new_image
 
-    def apply_inverse_transform(self,image,transform, mode = 'wrap',cval = 0, order=3):
+    def apply_inverse_transform(self,image,transform, mode = 'wrap',cval = 0, order=3,centerRot=0,angleDeg=0,offset=0):
         """
         Apply inverse transform to the image
         For last 3 parameters refer- https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.affine_transform.html
@@ -71,11 +77,16 @@ class ImageAligner:
         :param order: see reference above
         :return:
         """
-        rot = transform[:,:3]
-        offset = transform[:,3]
-        rot_inv = np.linalg.inv(rot)
-        offset_inv = np.dot(rot_inv,offset)*-1
-        new_image = affine_transform(image,rot_inv,offset_inv,mode=mode,cval = cval, order=order)
+        if centerRot == 1:
+            rot1 =  [[1,0,0],[0,1,0],[0,0,1]]
+            image = affine_transform(image,rot1,offset,mode=mode,cval = cval, order=order)
+            new_image = ndimage.rotate(image, angle=angleDeg, reshape=False,mode=mode,cval = cval, order=order)
+        else:
+            rot = transform[:,:3]
+            offset = transform[:,3]
+            rot_inv = np.linalg.inv(rot)
+            offset_inv = np.dot(rot_inv,offset)*-1
+            new_image = affine_transform(image,rot_inv,offset_inv,mode=mode,cval = cval, order=order)
         return new_image
 
     def plot_images(self,images,axis_names,fname = None):

@@ -222,6 +222,15 @@ class DataSet:
         raise NotImplementedError
 
     @abc.abstractmethod
+    def get_transfoAngle(self, t):
+        """
+        Gets the matrix of affine transformation to be applied to align given frame.
+        :param t: time frame
+        :return: linear transformation matrix as output by Register_rotate.composite_transform
+        """
+        raise NotImplementedError
+
+    @abc.abstractmethod
     def ref_frames(self):
         """Gets the set of frames used as rotation references."""
         raise NotImplementedError
@@ -354,7 +363,7 @@ class DataSet:
     def _save_mask(self, t, mask):
         raise NotImplementedError
 
-    def save_mask(self, t, mask, force_original=False):
+    def save_mask(self, t, mask, force_original=False,centerRot=0):
         """
         Stores (or replaces if existing?) the segmentation for time t.
         :param t: time frame
@@ -362,7 +371,10 @@ class DataSet:
         :param force_original: if True, does not apply inverse transform (otherwise, respects self.crop and self.align)
         """
         if not force_original:
-            mask = self._reverse_transform(t, mask)
+            if centerRot:
+                mask = self._reverse_transform(t, mask,centerRot)
+            else:
+                mask = self._reverse_transform(t, mask)
         self._save_mask(t, mask)
 
     def _save_green_mask(self, t, mask):
@@ -517,7 +529,7 @@ class DataSet:
         return img
 
 
-    def _reverse_transform(self, t, img):
+    def _reverse_transform(self, t, img,centerRot=0):
         """
         Depending on current transformation mode, applies the necessary reverse transformations to img which is assumed
         to be a mask.
@@ -525,5 +537,5 @@ class DataSet:
         if self.crop:
             img = self.cropper.inverse_crop(img)
         if self.align:
-            img = self.aligner.dealign(img, t)
+            img = self.aligner.dealign(img, t,centerRot)
         return img

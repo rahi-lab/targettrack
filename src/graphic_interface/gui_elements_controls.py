@@ -1000,6 +1000,7 @@ class NNControlTab(QScrollArea):
 
             self.post_process_mode = int(self.post_process_mode_name.index(txt)+1)
 
+
     def _run_script(self):
         pass
 
@@ -1377,6 +1378,15 @@ class ExportImportTab(QScrollArea):
             load_mask_lay.addWidget(self.import_address, subrow, 1)
             subrow += 1
 
+            self.transfo_Mode = QComboBox()
+            self.transfo_Mode.addItem("transformation mode")
+            self.transfo_mode_name = ['1','2']
+            for i in range(1,3):
+                self.transfo_Mode.addItem(self.transfo_mode_name[i-1])
+            self.transfo_Mode.currentTextChanged.connect(self._select_transfo_mode)
+            load_mask_lay.addWidget(self.transfo_Mode,subrow, 0)
+            subrow += 1
+
             reverse_transform_checkbox = QCheckBox("Reverse transform")
             reverse_transform_checkbox.toggled.connect(self.controller.toggle_reverse_transform)
             load_mask_lay.addWidget(reverse_transform_checkbox, subrow, 0)
@@ -1562,12 +1572,19 @@ class ExportImportTab(QScrollArea):
 
         def import_file(self):
             FileAddress = self.import_address.text()
-            self.controller.import_mask_from_external_file(FileAddress)
+            transformation_mode = self.transfo_mode
+            self.controller.import_mask_from_external_file(FileAddress,transformation_mode)
 
         def import_file_green(self):
             FileAddress = self.import_address.text()
             self.controller.import_mask_from_external_file(FileAddress,green=True)
 
+        def _select_transfo_mode(self, txt):
+            if txt == "":
+                self.transfo_mode = 0
+            else:
+                self.transfo_mode = int(self.transfo_mode_name.index(txt))
+            print(self.transfo_mode)
 
 class LabeledSlider(QWidget):
     def __init__(self, minimum, maximum, interval=1, orientation=Qt.Horizontal,
