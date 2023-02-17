@@ -37,7 +37,7 @@ We understand it could be exhaustive to install and run external code. If you en
 
 If these packages are installed, the GUI and neural network is supposed to run without further installation process. However, if you encounter a bug, please follow the steps below.
 
-# Installation Steps
+# Installation Steps (Estimated Time: <20 mins)
 
 1. Clone this repository ("git clone https://github.com/lpbsscientist/targettrack").
 2. If you don't have conda or miniconda installed, download it from https://docs.conda.io/en/latest/miniconda.html.
