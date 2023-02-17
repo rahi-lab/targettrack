@@ -42,12 +42,13 @@ where `[dataset name]` is the name of your file.
 
 ## Exporting to hdf5 files from a different system or language
 
-- The file must
-- All images should have the same (Channel,Width,Height,Depth) dimensions and should be saved as hdf5 datasets with name `0/frame` ~ 'N/frame'
-- The hdf5 attribute `N_neurons` should be set to a integer >1.
+- The file must end with the suffix .h5
+- All images should have the same (Channel,Width,Height,Depth) dimensions and should be saved as hdf5 datasets with name `0/frame` ~ `N-1/frame` for N images
+- The dimension information should be saved as hdf5 attributes as `C`=Channel, `W`=Width, `H`=Height, `D`=Depth
+- The hdf5 attribute `N_neurons` should be set to a integer >1 and the number of images should be saved as `T`=N 
 
 ## For python users
-Please refer to the 
+Please refer to the utilities
 
 # Running demo for mask annotations
 We guide you step-by-step through the demo:
