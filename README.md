@@ -3,7 +3,7 @@ This is the user manual for the graphical interface(GUI) for segmenting and edit
 
 # Requirements
 - python 3.8
-- ipython <span style="color:blue">test</span>
+- ipython :warning: Do we need this Mahsa? (not on our side)
 - matplotlib, numpy, pandas, scikit-image, scikit-learn, scipy, tqdm, sparse, nd2reader, PyQt5, pyqtgraph, opencv-python, opencv-python-headless
 - h5py=3.6.0, albumentations, connected-components-3d, torchvision, alphashape
 
