@@ -1,11 +1,33 @@
 # Targettrack
 This is the user manual for the graphical interface(GUI) for segmenting and editing *C. elegans* volumetric images.
 
+# From the authors
+We understand it could be exhaustive to install and run external code. If you encounter any problems, please do not hesitate to corefranciscopark@g.harvard.edu or :warning: Can you add your email Mahsa? :warning: for assistance, we will be happy to help even if it is a very simple problem.
+
 # Requirements
-- python 3.8
+- python=3.8.13  #3.9 and 3.10 works but hasn't been tested throughly
+- pytorch=1.11.0 # 1.8 ~ 1.12 all seems to work, but is not guaranteed
 - ipython :warning: Do we need this Mahsa? (not on our side)
-- matplotlib, numpy, pandas, scikit-image, scikit-learn, scipy, tqdm, sparse, nd2reader, PyQt5, pyqtgraph, opencv-python, opencv-python-headless
-- h5py=3.6.0, albumentations, connected-components-3d, torchvision, alphashape
+- matplotlib>=3.5.2
+- numpy>=1.23.4
+- pandas :warning: version needed.
+- scikit-image>=0.18.1
+- scikit-learn>=0.23.0
+- scipy>=1.9.1
+- tqdm>=4.59.0
+- sparse :warning: version needed
+- nd2reader :warning: version needed
+- PyQt5=5.12
+- pyqtgraph>=0.11.0
+- opencv-python>=4.5.1.48
+- opencv-python-headless>=4.5.1.48
+- h5py>=3.6.0
+- albumentations>=0.5.2
+- connected-components-3d>=3.2.0
+- torchvision>=0.12.0
+- alphashape :warning: version needed
+
+If these packages are installed, the GUI and neural network is supposed to run without further installation process. However, if you encounter a bug, please follow the steps below.
 
 # Installation Steps
 
@@ -16,6 +38,16 @@ This will create a virtual environment and install the necessary packages.
 4. Place your `.h5` data file in the "targettrack" folder then run the program from your command line with `python3 gui_launcher.py [dataset name]`,
 where `[dataset name]` is the name of your file.
 
+# Preparing your data into our `.h5` format
+
+## Exporting to hdf5 files from a different system or language
+
+- The file must
+- All images should have the same (Channel,Width,Height,Depth) dimensions and should be saved as hdf5 datasets with name `0/frame` ~ 'N/frame'
+- The hdf5 attribute `N_neurons` should be set to a integer >1.
+
+## For python users
+Please refer to the 
 
 # Running demo for mask annotations
 We guide you step-by-step through the demo:
