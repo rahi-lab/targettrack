@@ -48,7 +48,7 @@ where `[dataset name]` is the name of your file.
 - The hdf5 attribute `N_neurons` should be set to a integer >1 and the number of images should be saved as `T`=N 
 
 ## For python users
-Please refer to the script src/assemble_h5.py
+Please refer to the script src/assembleh5.py. (estimated reading time is 3 minutes) It is a very short script  generating a hdf5 file at `data/example.h5`
 
 # Running demo for mask annotations
 We guide you step-by-step through the demo:
