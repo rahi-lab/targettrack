@@ -1,9 +1,11 @@
 # Targettrack
-This is the user manual for the graphical interface for segmenting and editing *C. elegans* 3D images.
+This is the user manual for the graphical interface(GUI) for segmenting and editing *C. elegans* volumetric images.
 
 # Requirements
 - python 3.8
-- ipython, matplotlib, numpy, pandas, scikit-image, scikit-learn, scipy, tqdm, sparse, nd2reader, PyQt5, pyqtgraph, opencv-python, opencv-python-headless, h5py, albumentations, connected-components-3d, torchvision, alphashape
+- ipython <span style="color:blue">test</span>
+- matplotlib, numpy, pandas, scikit-image, scikit-learn, scipy, tqdm, sparse, nd2reader, PyQt5, pyqtgraph, opencv-python, opencv-python-headless
+- h5py=3.6.0, albumentations, connected-components-3d, torchvision, alphashape
 
 # Installation Steps
 
