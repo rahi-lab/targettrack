@@ -828,6 +828,7 @@ class Controller():
             if origIndex is False:
                 print("The map between the two files frame numbers is not found. It is taken to be identity")
                 origIndex = t
+
             maskTemp = ExtFile.get_mask(t, force_original=True)   # don't apply crop and rotate on the imported masks
             if maskTemp is not False and transformBack and origIndex < self.frame_num:
                 ExtFile.crop = True
@@ -848,6 +849,7 @@ class Controller():
                 self.data.save_ROI_params(*ExtFile.get_ROI_params())
 
                 if transformation_mode==0:
+                    centerRot=0
                     self.data.save_transformation_matrix(origIndex, ExtFile.get_transformation(t))
                 else:
                     centerRot=1
@@ -880,7 +882,7 @@ class Controller():
                     if green:
                         self.data.save_green_mask(origIndex, imgT, False,centerRot)
                     else:
-                        self.data.save_mask(origIndex, imgT, False,centerRot)
+                        self.data.save_mask(origIndex, imgT, False, centerRot)
                 else:
                     if green:
                         self.data.save_green_mask(origIndex, img, False,centerRot)
@@ -903,7 +905,9 @@ class Controller():
 
                 if transformation_mode==1:
                     centerRot=1
-                    
+                else:
+                    centerRot=0
+
                 if UndoCuts:
                     Zvec = ExtFile.original_intervals("z")
                     Yvec = ExtFile.original_intervals("y")
@@ -917,6 +921,8 @@ class Controller():
                 elif not np.shape(img)[2] == shapeCheck[2]:
                     print("Z dimensions doesn't match. Zero entries are added to mask for compensation")
                     Zvec = ExtFile.original_intervals("z")
+                    if Zvec is None:
+                        Zvec = [0,32]
                     imgT = np.zeros((np.shape(img)[0],np.shape(img)[1],shapeCheck[2]))
                     imgT[:,:,int(Zvec[0]):int(Zvec[1])] = img
                     if green:
@@ -1088,8 +1094,8 @@ class Controller():
                     CoarseSegTemp = np.pad(CoarseSegTemp, ((padXL, padXR),(padYtop, padYbottom), (padZlow,padZhigh)),'constant', constant_values=((0, 0),(0,0),(0,0)))
                     kcoarsel=str(l)+"/coarse_mask"
                     kcoarseSegl=str(l)+"/coarse_seg"
-                    hNew.dataset.create_dataset(kcoarsel, data=CoarseSegTemp)
-                    hNew.dataset.create_dataset(kcoarseSegl, data=CoarseSegTemp)
+                    hNew.dataset.create_dataset(kcoarsel, data=CoarseSegTemp.astype(np.int16), dtype="i2", compression="gzip")
+                    hNew.dataset.create_dataset(kcoarseSegl, data=CoarseSegTemp.astype(np.int16), dtype="i2", compression="gzip")
                     print(i)
                 #save the transformation functions for later retrieval
                 matrix = self.data.get_transformation(i)

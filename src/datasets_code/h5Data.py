@@ -369,9 +369,9 @@ class h5Data(DataSet):
     def get_transfoAngle(self, t):
         key1 = "{}/transform1/angle".format(t)
         key2 = "{}/transform1/offset".format(t)
-        if key1 in self.dataset:
+        if key1 in self.dataset.keys():
             return np.array(self.dataset[key1]),np.array(self.dataset[key2])
-        return None
+        return None,None
 
     def ref_frames(self):
         if "ref_frames" not in self.dataset:
@@ -635,12 +635,13 @@ class h5Data(DataSet):
                 self.dataset[key][...] = matrix
         else:
             key = "{}/transform1".format(t)
-            if key not in self.dataset:
-                self.dataset.create_dataset(key+'/angle', data=matrix[0])
-                self.dataset.create_dataset(key+'/offset', data=matrix[1:])
-            else:
-                self.dataset[key+'/angle'][...] = matrix[0]
-                self.dataset[key+'/offset'][...] = matrix[1:]
+            if key  in self.dataset.keys():
+                print(key+'/angle')
+                print(self.dataset[key+'/angle'])
+                del self.dataset[key+'/angle']
+                del self.dataset[key+'/offset']
+            self.dataset.create_dataset(key+'/angle', data=matrix[0])
+            self.dataset.create_dataset(key+'/offset', data=matrix[1:])
 
     def save_ref(self, t, ref):
         if "ref_frames" not in self.dataset:
