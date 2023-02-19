@@ -15,16 +15,15 @@ We understand it could be exhaustive to install and run external code. If you en
 ## Dependencies
 - python=3.8.13  #3.9 and 3.10 works but hasn't been tested throughly
 - pytorch=1.11.0 # 1.8 ~ 1.12 all seems to work, but is not guaranteed
-- ipython :warning: Do we need this Mahsa? (not on our side)
 - matplotlib>=3.5.2
 - numpy>=1.23.4
-- pandas :warning: version needed.
+- pandas=1.1.3
 - scikit-image>=0.18.1
 - scikit-learn>=0.23.0
 - scipy>=1.9.1
 - tqdm>=4.59.0
-- sparse :warning: version needed
-- nd2reader :warning: version needed
+- sparse=0.13.0
+- nd2reader=3.2.3
 - PyQt5=5.12
 - pyqtgraph>=0.11.0
 - opencv-python>=4.5.1.48
@@ -33,7 +32,7 @@ We understand it could be exhaustive to install and run external code. If you en
 - albumentations>=0.5.2
 - connected-components-3d>=3.2.0
 - torchvision>=0.12.0
-- alphashape=1.3.1
+- alphashape>=1.3.1
 
 If these packages are installed, the GUI and neural network is supposed to run without further installation process. However, if you encounter a bug, please follow the steps below.
 
