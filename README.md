@@ -20,6 +20,7 @@ We understand it could be exhaustive to install and run external code. If you en
 - pandas=1.1.3
 - scikit-image>=0.18.1
 - scikit-learn>=0.23.0
+- umap-learn=0.5.3
 - scipy>=1.9.1
 - tqdm>=4.59.0
 - sparse=0.13.0
