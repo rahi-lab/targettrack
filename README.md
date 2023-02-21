@@ -14,7 +14,7 @@ We understand it could be exhaustive to install and run external code. If you en
 
 ## Dependencies
 - python=3.8.13  #3.9 and 3.10 works but hasn't been tested throughly
-- pytorch=1.11.0 # 1.8 ~ 1.12 all seems to work, but is not guaranteed
+- pytorch=1.11.0 # 1.8 ~ 1.10 all seems to work, but is not guaranteed
 - matplotlib>=3.5.2
 - numpy>=1.23.4
 - pandas=1.1.3
