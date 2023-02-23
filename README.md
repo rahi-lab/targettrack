@@ -1,5 +1,5 @@
 # Targettrack
-This is the user manual for the graphical interface(GUI) for segmenting and editing *C. elegans* volumetric images.
+This is the user manual for the graphical interface(GUI) for segmenting and editing *C. elegans* volumetric images. The GUI and the method is designed for 3D tracking.
 
 # From the authors
 We understand it could be exhaustive to install and run external code. If you encounter any problems, please do not hesitate to corefranciscopark@g.harvard.edu or mahsa.barzegarkeshteli@epfl.ch for assistance, we will be happy to help even if it is a very simple problem :)
