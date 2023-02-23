@@ -98,7 +98,13 @@ Once you enter the name of the run, the program will copy the file in the `data/
 
 # Running demo for point annotations
 
-:warning: Youtube video coming soon
+## Basic commands:
+- "v","b","n","m",",","." respectively to move [-100,-10,-1,1,10,100] frames
+- Hit assigned keys (explained below) to place an annotation at the current mouse location
+- "d" to remove the point closest to the mouse
+- "c" to rotate the image (this operation changes the data)
+- "d" to remove the point closest to the mouse
+- "a" to enable/disable auto--centering (automatically finds the local maximum)
 
 We guide you step-by-step through the demo:
 1. Download the sample `Harvard_184-15GT.h5` file from https://drive.google.com/drive/folders/1-El9nexOvwNGAJw6uFFENGY1DqQ7tvxH?usp=sharing, and move it to the data folder. This file is a difference of Gaussian(DoG) filtered, rotated and centered movie of a freely moving worm in red/green. No non rigid image transformation applied to the images. It has 15 ground truth annotated frames and 3002-15=2987 frames with neural network predictions.
@@ -109,7 +115,7 @@ We guide you step-by-step through the demo:
   </p>
   
 3. Highlight the points by pressing on their corresponding key in the neuron bar or by clicking on it. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). The Tracks tab also displays the presence of neurons.
-You can change the label of the highlighted neurons by pressing the `Renumber` button in the `Annotate` tab. Press down the corresponding key to annotate a neuron.
+You can assign a key to a neurons by pressing the blank button on top of the top bar. Press down the corresponding key to annotate a neuron.
 <p align="center"> 
 <img src="src/Images/Highlight-points.png" width=600> 
 </p> 
