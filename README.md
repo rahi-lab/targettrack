@@ -7,7 +7,7 @@ We understand it could be exhaustive to install and run external code. If you en
 # Requirements
 ## System Requirements
 - Processor (CPU): Intel Core i5 or AMD Ryzen 5 or higher
-- Operating System: Aesthetically best on Linux(Tested on Ubuntu, Mint), but all functionalities available on Mac and Windows. However, since a Mac cannot have a CUDA compatible Nvidia GPU, the GUI can only be used for annotation and proofreadin.
+- Operating System: Aesthetically best on Linux(Tested on Ubuntu, Mint), but all functionalities available on Mac and Windows. However, since a Mac cannot have a CUDA compatible Nvidia GPU, the GUI can only be used for annotation and proofreading.
 - Memory (RAM): 16GB+ (32GB+ recommended)
 - Storage : SSD highly recommended for fast IO, please have at least 4x (size of your h5 data) available for smooth running
 - :red_circle: GPU: (optional but highly recommended if training a network) NVIDIA 2080 Ti or higher recommended, a large-memory GPU is preferred over a fast boost clock GPU. Especially, gaming GPUs are enough for this purpose.
@@ -107,9 +107,9 @@ Once you enter the name of the run, the program will copy the file in the `data/
 - "a" to enable/disable auto--centering (automatically finds the local maximum)
 
 We guide you step-by-step through the demo:
-1. Download the sample `Harvard_184-15GT.h5` file from https://drive.google.com/drive/folders/1-El9nexOvwNGAJw6uFFENGY1DqQ7tvxH?usp=sharing, and move it to the data folder. This file is a difference of Gaussian(DoG) filtered, rotated and centered movie of a freely moving worm in red/green. No non rigid image transformation applied to the images. It has 15 ground truth annotated frames and 3002-15=2987 frames with neural network predictions.
+1. Download the sample `184.h5` file from https://drive.google.com/drive/folders/1rsvVpegiDpHz3hpRChVn63XW8lm0K6xx?usp=share_link, and move it to the data folder. This file is a difference of Gaussian(DoG) filtered, rotated and centered movie of a freely moving worm in red/green. No non rigid image transformation was applied to the images.
 
-2. Open the sample file using `python3 gui_launcher.py data/184-15GT.h5`
+2. Open the sample file using `python3 gui_launcher.py data/184.h5`
   <p align="center"> 
   <img src="src/Images/start-point.png" width=600> 
   </p>
@@ -120,12 +120,12 @@ You can assign a key to a neurons by pressing the blank button on top of the top
 <img src="src/Images/Highlight-points.png" width=600> 
 </p> 
 
-4. In order to train the neural network, open the `NN` tab. Select 'NN' as the method. Set the number of minimal annotations to be a GT frame, steps to take, deformation parameters, etc (See documentation for more details) with the format "key=value;key=value;" and press the `Run` button. The program then makes temporary files in `data/data_temp` and train a neural network. Other pipelines can be integrated here.
+4. In order to train the neural network, open the `NNTA` tab. Select 'NNTA' as the method. Set the number of minimal annotations to be a GT frame, deformation parameters, etc with the format "key=value;key=value;". The `value` will be processed by `eval(value)` in python. Now press the `Run` button. The program then trains a neural network with a progress bar indicating which step it is on. Other pipelines can be integrated here.
 <p align="center"> 
 <img src="src/Images/NNtrain-points.png" width=600> 
 </p> 
 
-5. To check the performance of the neural network, choose 'NN' under `Select helper data`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions (left) which was trained on 15 frames (right).
+5. To check the performance of the neural network, choose 'NNTA' under `Select helper data`. Below you can see the NN predictions (left) which was trained on 15 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame-points.png" width=400> 
 <img src="src/Images/SeeNNresults-points.png" width=400> 
