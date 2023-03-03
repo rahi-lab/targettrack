@@ -34,6 +34,7 @@ We understand it could be exhaustive to install and run external code. If you en
 - connected-components-3d>=3.2.0
 - torchvision>=0.12.0
 - alphashape>=1.3.1
+- jupyter=1.0.0 # Only if you want to customizer your deformations
 
 If these packages are installed, the GUI and neural network is supposed to run without further installation process. However, if you encounter a bug, please follow the steps below.
 
