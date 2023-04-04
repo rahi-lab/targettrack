@@ -2,7 +2,25 @@ import torch
 import torch.nn as nn
 import torch.fft
 import numpy as np
+import sys
+this_mod = sys.modules[__name__]
+this_mod
 
+##### STEP1: Define your deformation function here, it should return a detached torch tensor and a boolean True:Success False:Failure
+
+def random_deformation(sh,device,scale=1,**kwargs):# returns a zero deformation
+    return torch.randn(3,*sh,dtype=torch.float32,device=device)*scale,True
+
+#### STEP2: Add your deformation function's ID and actual name here.
+deformations={"lowk2d":"get_deformation_lowk2d",#this one is ours
+              "rand":"random_deformation",
+             }
+
+def get_deformation(name,**kwargs):
+    func=getattr(this_mod,deformations[name])
+    return func(**kwargs)
+
+############# Our Functions ############
 class FourierLowK(nn.Module):
     def __init__(self,realshape,k_cut_dimless=4):
         super().__init__()
@@ -92,22 +110,30 @@ class FourierLowK(nn.Module):
     def to(self,**kwargs):
         self.feed_ind=self.feed_ind.to(**kwargs)
 
-def get_deformation_lowk(ptfrom,ptto,sh,k_cut_dimless=2.5,lr=0.1,iterations=200,frac=0.5,lambda_div=1,scale=(1,1,1),at_least=8,device="cpu",verbose=False,return_losses=False,**kwargs):
+def get_deformation_lowk2d(ptfrom,ptto,sh,k_cut_dimless=2.5,lr=0.1,iterations=1200,frac=0.3, lambda_div=1,at_least=20,device="cpu",return_losses=False):
+    ptfrom=ptfrom.copy()
+    ptto=ptto.copy()
+    ptfrom=ptfrom[:,:2]
+    ptto=ptto[:,:2]
+    D=sh[2]
+    sh=(sh[0],sh[1])
     vecs=(ptto-ptfrom)
     valids=np.nonzero(np.all(np.isnan(vecs)==0,axis=1))[0]
     if len(valids)<at_least:
-        return None,"Not enough points"
+        if return_losses:
+            return None,None,False
+        return None,False
     vecs=vecs[valids][:,:]
     locs=ptfrom[valids][:,:]
-    W,H,D=sh
+    W,H=sh
 
-    f=FourierLowK((W,H,D),k_cut_dimless=k_cut_dimless)
+    f=FourierLowK((W,H),k_cut_dimless=k_cut_dimless)
 
-    locs_gridded=2*(torch.tensor(locs)[:,None,None,None,:]/(np.array([W,H,D])[None,None,None,None,:]-1))-1#MB: I rhink with None we add unit axis
-    locs_gridded=locs_gridded[...,[2,1,0]].to(device=device,dtype=torch.float32)
+    locs_gridded=2*(torch.tensor(locs)[:,None,None,:]/(np.array([W,H])[None,None,None,:]-1))-1 #MB: I think with None we add unit axis
+    locs_gridded=locs_gridded[...,[1,0]].to(device=device,dtype=torch.float32)
     vecs_target=torch.tensor(vecs).to(device=device,dtype=torch.float32)
 
-    x=torch.zeros(1,3,f.dim)
+    x=torch.zeros(1,2,f.dim)
     #initialize the displacement field as the mean displacement
     x[0,:,0]=torch.tensor(np.mean(vecs,axis=0))
     x=x.to(device=device)
@@ -117,49 +143,29 @@ def get_deformation_lowk(ptfrom,ptto,sh,k_cut_dimless=2.5,lr=0.1,iterations=200,
         losses=[]
     for iters in range(iterations):
         deformation=f(x)
-        #deformation=torch.mean(deformation,dim=4,keepdim=True).repeat(1,1,1,1,deformation.size(4))#mean over z axis
-        vecs_sampled=torch.nn.functional.grid_sample(deformation.repeat(locs_gridded.size(0),1,1,1,1),locs_gridded, mode='bilinear', padding_mode='border',align_corners=True)[:,:,0,0,0]
-        loss=torch.nn.functional.l1_loss(vecs_sampled,vecs_target)#this is where the points that are mapped to each other are included
-        gx=deformation[:,0,2:,1:-1,1:-1]-deformation[:,0,:-2,1:-1,1:-1]#how far is each pixel from the previous one in the direction of x
-        gy=deformation[:,1,1:-1,2:,1:-1]-deformation[:,1,1:-1,:-2,1:-1]
-        gz=deformation[:,2,1:-1,1:-1,2:]-deformation[:,2,1:-1,1:-1,:-2]
-        divergence=scale[0]*gx+scale[1]*gy+scale[2]*gz
-        loss+=lambda_div*torch.mean(torch.abs(divergence))
-        #print(f.kgrid.shape)
+        vecs_sampled=torch.nn.functional.grid_sample(deformation.repeat(locs_gridded.size(0),1,1,1),locs_gridded, mode='bilinear', padding_mode='border',align_corners=True)[:,:,0,0]
+        loss=torch.nn.functional.l1_loss(vecs_sampled,vecs_target)
+        gx=deformation[:,0,2:,1:-1]-deformation[:,0,:-2,1:-1]
+        gy=deformation[:,1,1:-1,2:]-deformation[:,1,1:-1,:-2]
+        sqdivergence=gx**2+gy**2
+        loss+=lambda_div*len(valids)*torch.mean(sqdivergence)
         opt.zero_grad()
         loss.backward()
         opt.step()
         if return_losses:
             losses.append(loss.item())
-        if verbose:
-            print(loss.item())
+    deformation=deformation.detach()
+    deformation=frac*deformation[0]
+    deformation=updim_deformation(deformation,D)
     if return_losses:
-        return frac*deformation[0],losses,"success"
-    return frac*deformation[0],"success"
-
-
-def get_deformation_tps(ptfrom,ptto,grid,scale=(1,1,1),at_least=5,epsilon=1e-8,device="cpu"):
-    vecs=(ptto-ptfrom)
-    valids=np.nonzero(np.all(np.isnan(vecs)==0,axis=1))[0]
-    if len(valids)<at_least:
-        return None,"Not enough points"
-    vecs=vecs[valids][:,:]
-    locs=ptfrom[valids][:,:]
-    vecs=torch.tensor(vecs,device=device)
-    locs=torch.tensor(locs,device=device)
-    if not torch.is_tensor(grid):
-        grid=torch.tensor(grid,device=device)
-    gridpts=grid.reshape(-1,3)
-    weights=1/(torch.sqrt(torch.sum(( (gridpts[:,None,:2]-locs[None,:,:2])*torch.tensor(scale,dtype=locs.dtype,device=device)[None,None,:2]  )**2,axis=2))+epsilon)**2
-    norms=weights.sum(1)
-    deformation=(weights@vecs)/norms[:,None]
-    return deformation.reshape(grid.shape).movedim(-1,0),"success"
+        return deformation,losses,True
+    return deformation,True
 
 def deform(image,deformation,mask=None):
     C,W,H,D=image.shape
     grid=torch.stack(torch.meshgrid(*[torch.arange(s) for s in (W,H,D)],indexing="ij"),dim=0)
     grid=grid.to(dtype=deformation.dtype,device=deformation.device)
-    grid+=deformation
+    grid-=deformation
     coords=grid.reshape(3,-1).T
     image_def=get_at_coords(image,coords)
     image_def=image_def.reshape(W,H,D,C).permute(3,0,1,2)
@@ -182,28 +188,14 @@ def get_at_coords(image,coords,ismask=False):
     coords[...,2]-=1
     coords=coords[...,[2,1,0]]
     if ismask:
-        res=torch.nn.functional.grid_sample(image[None].to(torch.float32),coords[None], mode='bilinear', padding_mode="zeros",align_corners=True)[0].to(dtype=image.dtype)
+        res=torch.nn.functional.grid_sample(image[None].to(torch.float32),coords[None], mode='nearest', padding_mode="zeros",align_corners=True)[0].to(dtype=image.dtype)
         return res[0,:,0,0]
     else:
         res=torch.nn.functional.grid_sample(image[None],coords[None], mode='bilinear', padding_mode="zeros",align_corners=True)[0]
     return res[:,:,0,0].T
 
+def updim_deformation(deformation,D):
+    deformation=torch.cat([deformation,torch.zeros_like(deformation[[0]])],dim=0)#2,W,H and 1,W,H -> 3,W,H
+    deformation=deformation[...,None].repeat(1,1,1,D)#3,W,H->3,W,H,D
+    return deformation
 
-def invert_deformation(deformation,n_iter=10):
-    dim,W,H,D=deformation.shape
-    inv_deformation=torch.zeros_like(deformation)
-    grid=torch.stack(torch.meshgrid(*[torch.arange(s) for s in (W,H,D)],indexing="ij"),dim=0)
-    grid=grid.to(dtype=deformation.dtype,device=deformation.device)
-    coords=grid.reshape(3,-1).T
-    for i in range(n_iter):
-        inv_deformation=-get_at_coords(deformation,coords+get_at_coords(inv_deformation,coords))
-        inv_deformation=inv_deformation.reshape(W,H,D,dim).permute(3,0,1,2)
-    return inv_deformation
-
-
-
-
-
-
-def no():
-    pass

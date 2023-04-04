@@ -44,6 +44,16 @@ class Dataset:
             dsnew=ds
             del ds
 
+    def get_keys(self):
+        assert self.data is not None, "file not open"
+        if self.suffix=="h5":
+            return self.data.keys()
+
+    def get_shape(self,key):
+        assert self.data is not None, "file not open"
+        if self.suffix=="h5":
+            return self.data[key].shape
+
     def set_frame(self,time,frame,shape_change=False,compression="lzf"):
         assert self.data is not None, "file not open"
         if self.suffix=="h5":
@@ -79,13 +89,14 @@ class Dataset:
         assert self.data is not None, "file not open"
         if self.suffix=="h5":
             if "pointdat" not in self.data.keys():
-                points=np.full((self.data.attrs["T"],self.data.attrs["N_points"]+1,3),np.nan,dtype=np.float32)
-                self.set_points(points)
+                self.set_points()
             return np.array(self.data["pointdat"])
 
-    def set_points(self,points):
+    def set_points(self,points=None):
         assert self.data is not None, "file not open"
         if self.suffix=="h5":
+            if points is None:
+                points=np.full((self.data.attrs["T"],self.data.attrs["N_points"]+1,3),np.nan,dtype=np.float32)
             if "pointdat" not in self.data.keys():
                 ds=self.data.create_dataset("pointdat",shape=points.shape,dtype=points.dtype)
                 ds[...]=points
@@ -213,3 +224,17 @@ class Dataset:
         assert self.data is not None, "file not open"
         if self.suffix=="h5":
             return (name in self.data.keys())
+
+    def repack(self):
+        assert self.data is None, "file open"
+        if self.suffix=="h5":
+            h5=h5py.File(self.file_path,"r")
+            h5new=h5py.File(self.file_path+"_temp","w")
+            for key,val in h5.items():
+                h5.copy(key,h5new)
+            for key,val in h5.attrs.items():
+                h5new.attrs[key]=val
+            h5.close()
+            h5new.close()
+            os.remove(self.file_path)
+            os.rename(self.file_path+"_temp",self.file_path)
