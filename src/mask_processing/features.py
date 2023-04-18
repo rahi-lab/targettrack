@@ -160,7 +160,7 @@ def calculate_features(binary, im_red, dimensions, all_segs_info=None):
 
     # elongation
     all_dists = pdist(xyz)
-    diam = max(all_dists)
+    diam = np.max(all_dists)
     elongation = diam / vol
 
     # Image properties

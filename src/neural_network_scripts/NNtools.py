@@ -16,6 +16,9 @@ import scipy.ndimage as sim
 import sys
 from scipy.optimize import fmin_l_bfgs_b
 from skimage.measure import find_contours
+import conv_autoenc1
+import torch.nn as nn
+import umap.umap_ as umap
 
 class TrainDataset(Dataset):
     def __init__(self,dirname,shape,meansub=False,high=False,maskdirname="masks"):
@@ -812,3 +815,64 @@ num_trains,vnum=0,valdataloader=None,digits_v=None,num_vals=None,write_log=False
         #CRITICAL, emergency break
         if os.path.exists("STOP"):
             break
+
+
+def to_np(ten):
+    return ten.cpu().detach().numpy()
+def standardize(vecs):
+    m=np.mean(vecs,axis=0)
+    s=np.std(vecs,axis=0)
+    return (vecs-m)/(s+1e-8)
+
+def Compute_distmat(h5,T,W,H,batch_size=20,n_z=31,n_channels=1):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    class DS(torch.utils.data.Dataset):
+        def __init__(self):
+            super(DS,self).__init__()
+        def __getitem__(self,i):
+            return torch.tensor(np.max(np.array(h5[str(i)+"/frame"]),axis=3)/255)
+        def __len__(self):
+            return T
+    ds=DS()
+    dl=torch.utils.data.DataLoader(ds,batch_size=batch_size,shuffle=True,pin_memory=True)
+    net=conv_autoenc1.Net(n_channels=n_channels,n_z=n_z,sh_2d=(W,H))
+    net.to(device=device)
+    None
+    num_epochs=40
+    opt=torch.optim.Adam(net.parameters())
+    losses=[]
+    for epoch in range(num_epochs):
+        print("\r Epoch "+str(epoch+1)+"/"+str(num_epochs),end="")
+        for i,ims in enumerate(dl):
+            ims=ims.to(device=device,dtype=torch.float32)
+            res,latent=net(ims)
+            loss=nn.functional.mse_loss(res,ims)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
+            losses.append(loss.item())
+    net.eval()
+    vecs=[]
+    with torch.no_grad():
+        for i in range(T):
+            if (i+1)%100==0:
+                print("\r"+str(i)+"/"+str(T),end="")
+            _,latent=net(ds[i].unsqueeze(0).to(device=device,dtype=torch.float32))
+            vecs.append(to_np(latent[0]))
+    vecs=np.array(vecs)
+    key="vecs"
+    if key in h5.keys():
+        del h5[key]
+    ds=h5.create_dataset(key,shape=(T,n_z),dtype="f4")
+    ds[...]=vecs.astype(np.float32)
+    vecs=standardize(vecs)
+    u_map=umap.UMAP(n_components=2)
+    res=u_map.fit_transform(vecs)
+    distmat=spat.distance_matrix(res,res)
+    key="distmat"
+    if key in h5.keys():
+        del h5[key]
+    ds=h5.create_dataset(key,shape=(T,T),dtype="f4")
+    ds[...]=distmat.astype(np.float32)
+    print("distmat created")
+    return distmat.astype(np.float32)

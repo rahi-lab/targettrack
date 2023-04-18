@@ -25,7 +25,7 @@ st=time.time()
 #assert len(sys.argv)==3
 ## Don't change
 logfn=sys.argv[2]#MB :the address of the log file
-dataset_path=sys.argv[1]#MB: I think a copy of the whole data set is in this path
+dataset_path=sys.argv[1]# a copy of the whole data set is in this path
 dataset_name=os.path.split(dataset_path)[1].split(".")[0]#MB first split pathname into a pair.component [1] has no slash
 props=dataset_name.split("_")
 NetName=props[-2]
@@ -116,6 +116,9 @@ if "oldT" in h5.attrs.keys():
 else:
     origfrNum = h5.attrs["T"]
 C,W,H,D=h5.attrs["C"],h5.attrs["W"],h5.attrs["H"],h5.attrs["D"]#x,y,z ordering
+if deformation_trick:
+    if not "distmat" in h5.keys():
+        distmat=NNtools.Compute_distmat(h5,T,W,H,batch_size=20,n_z=31,n_channels=1)
 channel_num=min(channel_num,C)
 shape=(channel_num,W,H,D)#x,y,z ordering
 gridpts=np.moveaxis(np.array(np.meshgrid(np.arange(W),np.arange(H),np.arange(D),indexing="ij")),0,3)
