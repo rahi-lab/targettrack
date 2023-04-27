@@ -243,7 +243,6 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
     """
     def __init__(self, controller, max_sim_tracks:int, time_chunk_size):
         """
-        :param parent: instance of TimeDisplay in which self is embedded
         :param controller: instance of Controller
         :param max_sim_tracks: the maximum number of neurons displayed
         """
@@ -256,7 +255,7 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
         self.t = 0  # Todo good init
         self.nb_times = time_chunk_size
         self.nb_frames = self.controller.frame_num
-        self.times = list(range(self.nb_times))  # list of times in x-axis (for labels)   # TODO AD good init
+        self.times = np.arange(self.nb_times)  # list of times in x-axis (for labels)   # TODO AD good init
         self.neuron_plotidx = {}  # dict neuron_idx_from1 -> idx such that self.plots[idx] corresponds to neuron neuron_idx_from1 at time t
         # Todo I think self.neuron_plotidx could be deleted
 
@@ -277,17 +276,25 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
         self.timeline=pg.InfiniteLine(0,pen="r")
         self.addItem(self.timeline)
 
-    def change_ca_activity(self, neuron_id_from1, activity):
+    def change_ca_activity(self, activity, neuron_id_from1=None):
         """
-        Updates the activity plot of given neuron
+        Updates the activity plot of given neuron or of a given time.
         :param neuron_id_from1: standard neuron idx
-        :param activity: array of shape nb_frames * 2 with activity[t] is the activity value and error bars of neuron
-            neuron_id_from1 at time t
+        :param activity:
+            if neuron_id_from1 is given: array of shape nb_frames * 2 with activity[tp] is the activity value and error
+                bars of neuron neuron_id_from1 at time tp
+            else: array of shape nb_neurons * nb_frames * 2, same as above for each neuron
+            NOT in 1-indexing.
         """
-        if neuron_id_from1 not in self.neuron_plotidx:
-            return
-        self.neuron_activities[neuron_id_from1] = activity
-        self._update_neuron_plot(neuron_id_from1)
+        if neuron_id_from1 is not None:
+            if neuron_id_from1 not in self.neuron_plotidx:
+                return
+            self.neuron_activities[neuron_id_from1] = activity
+            self._update_neuron_plot(neuron_id_from1)
+        else:
+            for idx_from1 in self.neuron_activities:
+                self.neuron_activities[idx_from1] = activity[idx_from1-1]
+                self._update_neuron_plot(idx_from1)
         self.autoRange(items=self.plots)
 
     def _update_all_plots(self):
@@ -308,10 +315,11 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
             yvals = (activity[:, 0] / scale + ind)
             yerrs = activity[:, 1] / scale
             color = self.controller.neuron_color(neuron_id_from1)
-            pen = pg.mkPen(width=2, color=color)   # Todo: no need to create new pens all the time (esp when color has not changed)
             self.plots[ind].setData(x=self.times, y=yvals)
-            self.plots[ind].setPen(pen)
-            self.ebars[ind].setData(x=self.times, y=yvals, height=yerrs, pen=pen)
+            self.plots[ind].setPen(width=2, color=color)   # Todo: no need to change pens all the time (esp when color has not changed)
+            self.plots[ind].setSymbol("+")
+            self.plots[ind].setSymbolPen(width=1, color=color)
+            self.ebars[ind].setData(x=self.times, y=yvals, height=yerrs, pen={'color': color})
 
     def _remove_old_plots(self):
         """
@@ -330,7 +338,7 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
         # first recompute times to display
         self.t = t
         box_ind = self.t // self.nb_times
-        self.times = [lab for lab in range(box_ind * self.nb_times, min((box_ind + 1) * self.nb_times, self.nb_frames))]
+        self.times = np.array([lab for lab in range(box_ind * self.nb_times, min((box_ind + 1) * self.nb_times, self.nb_frames))])
 
         # then update all plots...
         self.timeline.setValue(t)

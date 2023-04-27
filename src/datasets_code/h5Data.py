@@ -179,6 +179,12 @@ class h5Data(DataSet):
     def real_neurites(self):
         return list(range(1, self.nb_neurons+1))   # Todo: nb_neurons must be up-to-date
 
+    @property
+    def ca_act(self):
+        if "ci_int" not in self.dataset:
+            return None
+        return np.array(self.dataset["ci_int"])
+
     def close(self):
         self.dataset.close()
 
@@ -432,9 +438,6 @@ class h5Data(DataSet):
         if key not in self.dataset:
             return None
         return np.array(self.dataset[key])
-
-    def ci_int(self):
-        return self.dataset["ci_int"][:,:,:]
 
     ####################################################################################
     # editing the data
@@ -749,12 +752,15 @@ class h5Data(DataSet):
                 ret.append(key[7:])
         return ret
 
-    def set_calcium(self, ci_int):
+    @ca_act.setter
+    def ca_act(self, ca_activity):
         """
         this sets the ci_int data
+        WARNING, the array of calcium intensities values is NOT in 1-indexing for neurons, and the first dimension is
+        neurons, the second is frames.
         """
-        assert (self.nb_neurons==ci_int.shape[0]) and (len(self.frames)==ci_int.shape[1]),"ci_int Shape mismatch"
+        assert (self.nb_neurons==ca_activity.shape[0]) and (len(self.frames)==ca_activity.shape[1]),"ci_int Shape mismatch"
         if "ci_int" in self.dataset:
             del self.dataset["ci_int"]
-        self.dataset.create_dataset("ci_int", shape=ci_int.shape, dtype="f4", compression="gzip")
-        self.dataset["ci_int"][...] = ci_int
+        self.dataset.create_dataset("ci_int", shape=ca_activity.shape, dtype="f4", compression="gzip")
+        self.dataset["ci_int"][...] = ca_activity
