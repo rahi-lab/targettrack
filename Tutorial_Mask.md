@@ -18,7 +18,7 @@ For example, if `ds` is the `h5` file opened in python, `ds["3/frame"]` contains
 ### The interface
 After opening the '.h5' file, you will see the first volume of the movie as the main part of the window. Then, using the wheel of the mouse, you can scroll through different Z-stacks of your volume.
 If the movie already contains masks for some frames, there will be a bar of neuron numbers on the top of the window. The neurons present in each frame are colored blue, and the absent ones are colored red.\
-On the bottom of the window, you see a slider for going through different volumes. You can also use the keys `m` and `n` on your keyboard to go to the next or previous volume respectively.\
+On the bottom of the window, you see a slider for going through different volumes. You can also use the keys `m` and `n` on your keyboard to go to the next or previous volume respectively. TODO add bv,. shortcuts\
 There are multiple tabs on the bottom right side of the window for viewing, editing, or exporting the movie. 
 
 ### The neuron bar

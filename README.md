@@ -40,7 +40,7 @@ If these packages are installed, the GUI and neural network is supposed to run w
 
 # Installation Steps (Estimated Time: <20 mins)
 
-1. Clone this repository ("git clone https://github.com/lpbsscientist/targettrack").
+1. Clone this repository ("git clone https://github.com/lpbsscientist/targettrack").   # TODO wrong address??
 2. If you don't have conda or miniconda installed, download it from https://docs.conda.io/en/latest/miniconda.html.
 3. In your command line, run each of the commands in install.txt (except the first, if you have already cloned the repository).
 This will create a virtual environment and install the necessary packages.
@@ -89,13 +89,15 @@ Once you enter the name of the run, the program will copy the file in the `data/
 <img src="src/Images/NNTrain2.png" width=600> 
 </p> 
 
-**Note**: if you had an unseccessful or unfinished run, delete the temporary files in the `data_temp` directory before starting the next run.
+**Note**: if you had an unsuccessful or unfinished run, delete the temporary files in the `data_temp` directory before starting the next run.
 
 6. To check the performance of the neural network, open the file in `data/data_temp`. Choose the run name under `Select NN masks`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame.png" width=400> 
 <img src="src/Images/SeeNNresults.png" width=400> 
 </p>
+
+More instructions and useful commands can be found in `Tutorial_Mask.md`.
 
 # Running demo for point annotations
 
@@ -104,7 +106,6 @@ Once you enter the name of the run, the program will copy the file in the `data/
 - Hit assigned keys (explained below) to place an annotation at the current mouse location
 - "d" to remove the point closest to the mouse
 - "c" to rotate the image (this operation changes the data)
-- "d" to remove the point closest to the mouse
 - "a" to enable/disable auto--centering (automatically finds the local maximum)
 
 We guide you step-by-step through the demo:
