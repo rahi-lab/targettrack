@@ -40,7 +40,7 @@ If these packages are installed, the GUI and neural network is supposed to run w
 
 # Installation Steps (Estimated Time: <20 mins)
 
-1. Clone this repository ("git clone https://github.com/lpbsscientist/targettrack").
+1. Clone this repository: ```git clone https://github.com/lpbsscientist/targettrack```
 2. If you don't have conda or miniconda installed, download it from https://docs.conda.io/en/latest/miniconda.html.
 3. In your command line, run each of the commands in install.txt (except the first, if you have already cloned the repository).
 This will create a virtual environment and install the necessary packages.
@@ -89,13 +89,15 @@ Once you enter the name of the run, the program will copy the file in the `data/
 <img src="src/Images/NNTrain2.png" width=600> 
 </p> 
 
-**Note**: if you had an unseccessful or unfinished run, delete the temporary files in the `data_temp` directory before starting the next run.
+**Note**: if you had an unsuccessful or unfinished run, delete the temporary files in the `data_temp` directory before starting the next run.
 
 6. To check the performance of the neural network, open the file in `data/data_temp`. Choose the run name under `Select NN masks`. You can see the predictions for all frames if you check the `Overlay mask` checkbox. Below you can see the NN predictions for frame 115 (left) by the run `CZANet_Final`, which was trained on 5 frames (right).
 <p align="center"> 
 <img src="src/Images/unannotatedFrame.png" width=400> 
 <img src="src/Images/SeeNNresults.png" width=400> 
 </p>
+
+More instructions and useful commands can be found in `Tutorial_Mask.md`.
 
 # Running demo for point annotations
 
@@ -104,19 +106,18 @@ Once you enter the name of the run, the program will copy the file in the `data/
 - Hit assigned keys (explained below) to place an annotation at the current mouse location
 - "d" to remove the point closest to the mouse
 - "c" to rotate the image (this operation changes the data)
-- "d" to remove the point closest to the mouse
 - "a" to enable/disable auto--centering (automatically finds the local maximum)
 
 We guide you step-by-step through the demo:
-1. Download the sample `184.h5` file from https://drive.google.com/drive/folders/1rsvVpegiDpHz3hpRChVn63XW8lm0K6xx?usp=share_link, and move it to the data folder. This file is a difference of Gaussian(DoG) filtered, rotated and centered movie of a freely moving worm in red/green. No non rigid image transformation was applied to the images.
+1. Download the sample `184_15GT.h5` file from https://drive.google.com/drive/folders/1rsvVpegiDpHz3hpRChVn63XW8lm0K6xx?usp=share_link, and move it to the ```data``` folder. This file is a difference of Gaussian(DoG) filtered, rotated and centered movie of a freely moving worm in red/green. No non rigid image transformation was applied to the images.
 
-2. Open the sample file using `python3 gui_launcher.py data/184.h5`
+2. Open the sample file using ```python3 gui_launcher.py data/184_15GT.h5```. Time ``266,  358,  653,  855, 1172, 1466, 1479, 1492, 1773, 2064, 2095,
+       2465, 2601, 2738, 2913`` has points in this dataset.
   <p align="center"> 
   <img src="src/Images/start-point.png" width=600> 
   </p>
   
-3. Highlight the points by pressing on their corresponding key in the neuron bar or by clicking on it. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). The Tracks tab also displays the presence of neurons.
-You can assign a key to a neurons by pressing the blank button on top of the top bar. Press down the corresponding key to annotate a neuron.
+3. You can assign a key to a neurons by pressing the blank button on top of the top bar. Press down the corresponding key to annotate a neuron. You can highlight the points by pressing on their corresponding key in the neuron bar or by clicking on it. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). The Tracks tab also displays the presence of neurons.
 <p align="center"> 
 <img src="src/Images/Highlight-points.png" width=600> 
 </p> 

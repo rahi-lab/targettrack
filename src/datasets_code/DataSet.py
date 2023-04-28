@@ -35,10 +35,13 @@ class DataSet:
         # self.pointdat = None   # Todo: get rid of calls in nd2??
         # self.pointdat is a self.frame_num * (self.nb_neurons+1) * 3 array with:
         # self.pointdat[t][n] = [x,y,z] where x,y,z are the coordinates of neuron n in time frame t (neurons start
-        # at n>=1, 0 is for background and contains np.nans)
-        # self.NN_pointdat = None
+        #  at n>=1, 0 is for background and contains np.nans)
+        #  self.NN_pointdat = None
         # self.neuron_presence = None a self.frame_num * (self.nb_neurons+1) array of booleans indicating presence of
-        # each neuron at each time frame
+        #  each neuron at each time frame
+        # self.ca_act = self.frame_num * (self.nb_neurons+1) * 2 array with:
+        #  self.ca_act[t][n] = [a, e] where a and e are the calcium activity value and error bar of neuron n in time
+        #  frame t (neurons start at n>=1, 0 is for background and contains np.nans)
 
     @classmethod
     def load_dataset(cls, dataset_path):
@@ -315,11 +318,6 @@ class DataSet:
                 existing_neurons = np.full(self.nb_neurons + 1, False)
         return existing_neurons
 
-    @abc.abstractmethod
-    def ci_int(self):
-        """Raise KeyError if they are not defined."""  # Todo: in what conditions?? useful to have KeyError?
-        raise NotImplementedError
-
     ####################################################################################
     # editing the data
 
@@ -514,9 +512,6 @@ class DataSet:
         """
         raise NotImplementedError
 
-    @abc.abstractmethod
-    def set_calcium(self, ci_int):
-        raise NotImplementedError
 
     ####################################################################################
     # defining the transformations
