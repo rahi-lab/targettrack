@@ -40,8 +40,7 @@ If these packages are installed, the GUI and neural network is supposed to run w
 
 # Installation Steps (Estimated Time: <20 mins)
 
-1. Clone this repository:
-    git clone https://github.com/lpbsscientist/targettrack
+1. Clone this repository: ```git clone https://github.com/lpbsscientist/targettrack```
 2. Enter the targettrack directory :
     cd targettrack
 3. If you don't have conda or miniconda installed, download it from https://docs.conda.io/en/latest/miniconda.html.
