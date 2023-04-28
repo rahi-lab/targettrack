@@ -42,19 +42,19 @@ class DataSet:
 
     @classmethod
     def load_dataset(cls, dataset_path):
-        if dataset_path.endswith(".nd2"):
-            from .nd2Data import nd2Data
-            return nd2Data(dataset_path)
-        else:
+        #if dataset_path.endswith(".nd2"):
+        #    from .nd2Data import nd2Data
+        #    return nd2Data(dataset_path)
+        if True:#else:
             from .h5Data import h5Data
             return h5Data(dataset_path)
 
     @classmethod
     def create_dataset(cls, dataset_path):
-        if dataset_path.endswith(".nd2"):
-            from .nd2Data import nd2Data
-            return nd2Data._create_dataset(dataset_path)
-        else:
+        #if dataset_path.endswith(".nd2"):
+        #    from .nd2Data import nd2Data
+        #    return nd2Data._create_dataset(dataset_path)
+        if True:#else:
             from .h5Data import h5Data
             return h5Data._create_dataset(dataset_path)
 
