@@ -109,15 +109,15 @@ More instructions and useful commands can be found in `Tutorial_Mask.md`.
 - "a" to enable/disable auto--centering (automatically finds the local maximum)
 
 We guide you step-by-step through the demo:
-1. Download the sample `184.h5` file from https://drive.google.com/drive/folders/1rsvVpegiDpHz3hpRChVn63XW8lm0K6xx?usp=share_link, and move it to the data folder. This file is a difference of Gaussian(DoG) filtered, rotated and centered movie of a freely moving worm in red/green. No non rigid image transformation was applied to the images.
+1. Download the sample `184_15GT.h5` file from https://drive.google.com/drive/folders/1rsvVpegiDpHz3hpRChVn63XW8lm0K6xx?usp=share_link, and move it to the ```data``` folder. This file is a difference of Gaussian(DoG) filtered, rotated and centered movie of a freely moving worm in red/green. No non rigid image transformation was applied to the images.
 
-2. Open the sample file using `python3 gui_launcher.py data/184.h5`
+2. Open the sample file using ```python3 gui_launcher.py data/184_15GT.h5```. Time ``266,  358,  653,  855, 1172, 1466, 1479, 1492, 1773, 2064, 2095,
+       2465, 2601, 2738, 2913`` has points in this dataset.
   <p align="center"> 
   <img src="src/Images/start-point.png" width=600> 
   </p>
   
-3. Highlight the points by pressing on their corresponding key in the neuron bar or by clicking on it. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). The Tracks tab also displays the presence of neurons.
-You can assign a key to a neurons by pressing the blank button on top of the top bar. Press down the corresponding key to annotate a neuron.
+3. You can assign a key to a neurons by pressing the blank button on top of the top bar. Press down the corresponding key to annotate a neuron. You can highlight the points by pressing on their corresponding key in the neuron bar or by clicking on it. The highlighted neurons' key becomes green as you can see in the figure below (orange when the highlighted neuron is absent). The Tracks tab also displays the presence of neurons.
 <p align="center"> 
 <img src="src/Images/Highlight-points.png" width=600> 
 </p> 
