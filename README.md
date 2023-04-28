@@ -40,11 +40,14 @@ If these packages are installed, the GUI and neural network is supposed to run w
 
 # Installation Steps (Estimated Time: <20 mins)
 
-1. Clone this repository ("git clone https://github.com/lpbsscientist/targettrack").
-2. If you don't have conda or miniconda installed, download it from https://docs.conda.io/en/latest/miniconda.html.
-3. In your command line, run each of the commands in install.txt (except the first, if you have already cloned the repository).
+1. Clone this repository:
+    git clone https://github.com/lpbsscientist/targettrack
+2. Enter the targettrack directory :
+    cd targettrack
+3. If you don't have conda or miniconda installed, download it from https://docs.conda.io/en/latest/miniconda.html.
+4. In your command line, run each of the commands in install.txt (except the first, if you have already cloned the repository).
 This will create a virtual environment and install the necessary packages.
-4. Place your `.h5` data file in the "targettrack" folder then run the program from your command line with `python3 gui_launcher.py [dataset name]`,
+5. Place your `.h5` data file in the "targettrack" folder then run the program from your command line with `python3 gui_launcher.py [dataset name]`,
 where `[dataset name]` is the name of your file.
 
 ## Common installation errors
