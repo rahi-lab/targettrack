@@ -50,7 +50,6 @@ class Controller():
     -pointdat: ground truth annotations
     -NN_pointdat: neural network predictions
     """
-    # TODO AD: update hlab calcium when changing masks?? (not sure we really use it)
     def __init__(self,dataset: DataSet,settings,i_init=0):
         """
         Initializes the tracking setup.
@@ -229,7 +228,7 @@ class Controller():
         # calcium activities
         self.hlab = HarvardLab.HarvardLab(self, self.data, self.settings)
 
-        if self.data.ca_act is None:
+        if not self.hlab.correct_existed:
             self.update_ci()
             self.data.ca_act = self.hlab.ci_int
 
@@ -274,8 +273,6 @@ class Controller():
 
         if not self.timer.update_allowed(t_change):
             return
-
-        # print("updating")
 
         # save at update if autosave
         if self.options["autosave"]:
@@ -1658,6 +1655,9 @@ class Controller():
         self.pointdat[self.i] = np.nan
         self.NN_pointdat[self.i] = np.nan
         # self.neuron_presence[self.i] = False   # now useless due to recompute_point_presence in update()
+        self.hlab.update_ci(self.data, t=self.i)
+        for client in self.calcium_registered_clients:
+            client.change_ca_activity(self.hlab.ci_int)
         self.update()
 
     def clear_NN_selective(self, fro, to):
@@ -1676,6 +1676,10 @@ class Controller():
             self.pointdat[fro:to + 1, self.highlighted, :] = np.nan
             self.NN_pointdat[fro:to + 1, self.highlighted, :] = np.nan
             # self.neuron_presence[fro:to + 1, self.highlighted] = False   # now useless due to recompute_point_presence in signal_pts_changed in update
+            for t in range(fro, to+1):
+                self.hlab.update_ci(self.data, t=t)
+            for client in self.calcium_registered_clients:
+                client.change_ca_activity(self.hlab.ci_int)
             self.update()
         else:   # MB added this to use this feature for epfl data
             for k in range(fro,to):
@@ -1701,6 +1705,10 @@ class Controller():
         self.pointdat[fro:to + 1, self.highlighted, :] = np.where(
             np.isnan(self.pointdat[fro:to + 1, self.highlighted, :]), self.NN_pointdat[fro:to + 1, self.highlighted, :],
             self.pointdat[fro:to + 1, self.highlighted, :])
+        for t in range(fro, to + 1):
+            self.hlab.update_ci(self.data, t=t)
+        for client in self.calcium_registered_clients:
+            client.change_ca_activity(self.hlab.ci_int)
         self.update()
 
     def select_NN_instance_points(self, helper_name:str):

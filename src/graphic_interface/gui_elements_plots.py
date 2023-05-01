@@ -307,11 +307,11 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
         """Updates the plot for neuron neuron_id_from1, given that data and plot indices are correct."""
         ind = self.neuron_plotidx[neuron_id_from1]
         activity = self.neuron_activities[neuron_id_from1][self.times]
-        if np.sum(~np.isnan(activity[:, 0])) == 0:  # if all activities are nan, empty plots
+        if np.all(np.isnan(activity[:, 0])):  # if all activities are nan, empty plots
             self.plots[ind].setData()
-            self.ebars[ind].setData()
+            self.ebars[ind].setData(x=None)
         else:
-            scale = np.nanmax(activity[:, 0])
+            scale = np.nanmax(activity[:, 0]) + 1e-10
             yvals = (activity[:, 0] / scale + ind)
             yerrs = activity[:, 1] / scale
             color = self.controller.neuron_color(neuron_id_from1)
@@ -328,7 +328,7 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
         n_plots = len(self.neuron_plotidx)
         for ind in range(n_plots, len(self.plots)):
             self.plots[ind].setData()
-            self.ebars[ind].setData()
+            self.ebars[ind].setData(x=None)
 
     def change_t(self, t):
         """
