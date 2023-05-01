@@ -54,8 +54,7 @@ class HarvardLab:
         is not valid).
         """
         if loc is None or valid is False or any(np.isnan(loc)):
-            self.ci_int[ind-1][i][0]=np.nan
-            self.ci_int[ind-1][i][1]=np.nan
+            self.ci_int[ind-1][i] = np.nan
             return
 
         loc = loc.astype(np.int32)
@@ -64,28 +63,21 @@ class HarvardLab:
             if not valid:   # now True or False
                 self.ci_int[ind - 1][i] = np.nan
                 return
-        
-        if self.channel_num==2:
-            loc_ker=loc[:,None]+self.calcium_intensity_fullkernel
-            int_gs=np.sum(self.calcium_intensity_kernel_selectors*(im_g[loc_ker[0],loc_ker[1],loc_ker[2]][None,:]),axis=1)/self.cikernelnorm
-            int_rs=np.sum(self.calcium_intensity_kernel_selectors*(im_r[loc_ker[0],loc_ker[1],loc_ker[2]][None,:]),axis=1)/self.cikernelnorm
-            self.ci_int[ind-1][i][2:7]=int_rs
-            self.ci_int[ind-1][i][7:]=int_gs
-            ci_int_sing=int_gs/(int_rs+1e-8)
-            self.ci_int[ind-1][i][0]=ci_int_sing[0]
-            if np.sum(np.isnan(ci_int_sing)==1)>1:#if more than 1 is nan
-                self.ci_int[ind-1][i][1]=np.nan
-            else:
-                self.ci_int[ind-1][i][1]=np.nanstd(ci_int_sing)#elsewise we take it
+
+        loc_ker = loc[:, None] + self.calcium_intensity_fullkernel
+        int_rs = np.sum(self.calcium_intensity_kernel_selectors * (im_r[loc_ker[0], loc_ker[1], loc_ker[2]][None, :]),
+                        axis=1) / self.cikernelnorm
+        if self.channel_num == 2:
+            int_gs = np.sum(self.calcium_intensity_kernel_selectors*(im_g[loc_ker[0], loc_ker[1], loc_ker[2]][None,:]),
+                            axis=1) / self.cikernelnorm
+            ci_int_sing = int_gs / (int_rs+1e-8)
         else:
-            loc_ker=loc[:,None]+self.calcium_intensity_fullkernel
-            int_rs=np.sum(self.calcium_intensity_kernel_selectors*(im_r[loc_ker[0],loc_ker[1],loc_ker[2]][None,:]),axis=1)/self.cikernelnorm
-            ci_int_sing=int_rs/255
-            self.ci_int[ind-1][i][0]=ci_int_sing[0]
-            if np.sum(np.isnan(ci_int_sing)==1)>1:
-                self.ci_int[ind-1][i][1]=np.nan
-            else:
-                self.ci_int[ind-1][i][1]=np.nanstd(ci_int_sing)
+            ci_int_sing = int_rs / 255
+        self.ci_int[ind - 1][i][0] = ci_int_sing[0]
+        if np.sum(np.isnan(ci_int_sing)) > 1:   # if more than 1 value is nan
+            self.ci_int[ind - 1][i][1] = np.nan
+        else:
+            self.ci_int[ind - 1][i][1] = np.nanstd(ci_int_sing)
 
     def _update_single_ci_from_mask(self, i, ind, present, mask, im_g):
         if not present:
@@ -126,8 +118,6 @@ class HarvardLab:
                 for j, (loc, valid) in enumerate(zip(locs, valids)):
                     self._update_single_ci_from_poindat(i, j, loc, valid=valid, im_r=im_r, im_g=im_g)
 
-        print()
-        print("Done.")
 
     def _update_ci_from_masks(self, dataset, t, i_from1):
         """
@@ -154,8 +144,6 @@ class HarvardLab:
                 self.ci_int[:, i] = np.nan
                 for neu in self.controller.present_neurons_at_time(i):
                     self._update_single_ci_from_mask(i, neu, True, mask=(mask == neu), im_g=im_g)
-        print()
-        print("Done.")
 
     def change_nb_neurons(self, nb_neurons):
         current_nb_neurons = self.ci_int.shape[0]
