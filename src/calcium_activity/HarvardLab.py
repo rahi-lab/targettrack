@@ -105,7 +105,8 @@ class HarvardLab:
 
         pointdat = self.controller.pointdat
 
-        for i in tqdm(times):
+        iterator = tqdm(times) if t is None and i_from1 is None else times
+        for i in iterator:
             if all(np.isnan(pointdat[i][:,0])):
                 self.ci_int[:, i] = np.nan
                 continue
@@ -136,7 +137,8 @@ class HarvardLab:
             times = [t]
         else:
             times = list(range(dataset.frame_num))
-        for i in tqdm(times):
+        iterator = tqdm(times) if t is None and i_from1 is None else times
+        for i in iterator:
             mask = dataset.get_mask(i, force_original=True)
             if mask is False:
                 self.ci_int[:, i] = np.nan
