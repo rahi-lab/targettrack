@@ -39,8 +39,14 @@ class HarvardLab:
         ci_int = dataset.ca_act
         if ci_int is None:
             self.ci_int = np.full((self.controller.n_neurons, self.controller.frame_num, 2), np.nan, dtype=np.float32)
+            self.correct_existed = False
+        elif ci_int.shape[0] != self.controller.n_neurons or ci_int.shape[1] != self.controller.frame_num:
+            self.ci_int = np.full((self.controller.n_neurons, self.controller.frame_num, 2), np.nan, dtype=np.float32)
+            self.correct_existed = False
+            print("WARNING: existing calcium intensities have incorrect shape; must recompute.")
         else:
-            self.ci_int = ci_int.astype(np.float32)
+            self.ci_int = ci_int[:, :, :2].astype(np.float32)   # some older saved values may have more than 2 in the last dimension
+            self.correct_existed = True
 
     def update_ci(self, dataset, t=None, i_from1=None):
         if dataset.point_data:
@@ -117,7 +123,6 @@ class HarvardLab:
                              np.logical_not(np.isnan(np.sum(pointdat[i], axis=1))))
                 for j, (loc, valid) in enumerate(zip(locs, valids)):
                     self._update_single_ci_from_poindat(i, j, loc, valid=valid, im_r=im_r, im_g=im_g)
-
 
     def _update_ci_from_masks(self, dataset, t, i_from1):
         """

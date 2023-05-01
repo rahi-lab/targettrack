@@ -228,7 +228,7 @@ class Controller():
         # calcium activities
         self.hlab = HarvardLab.HarvardLab(self, self.data, self.settings)
 
-        if self.data.ca_act is None:
+        if not self.hlab.correct_existed:
             self.update_ci()
             self.data.ca_act = self.hlab.ci_int
 

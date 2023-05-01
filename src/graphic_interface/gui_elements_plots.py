@@ -311,7 +311,7 @@ class ActivityPlotWidget(pg.PlotWidget,QGraphicsItem):
             self.plots[ind].setData()
             self.ebars[ind].setData()
         else:
-            scale = np.nanmax(activity[:, 0])
+            scale = np.nanmax(activity[:, 0]) + 1e-10
             yvals = (activity[:, 0] / scale + ind)
             yerrs = activity[:, 1] / scale
             color = self.controller.neuron_color(neuron_id_from1)
