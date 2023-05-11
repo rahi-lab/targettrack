@@ -80,7 +80,7 @@ class NNTA():
         #make files
         if True:
             self.state=["Making Files",0]
-            T,N_points,C,W,H,D=self.data_info["T"],self.data_info["N_points"],self.data_info["C"],self.data_info["W"],self.data_info["H"],self.data_info["D"]
+            T,N_points,C,W,H,D=self.data_info["T"],self.data_info["N_neurons"],self.data_info["C"],self.data_info["W"],self.data_info["H"],self.data_info["D"]
 
             points=self.dataset.get_points()
             min_points=self.params["min_points"]
