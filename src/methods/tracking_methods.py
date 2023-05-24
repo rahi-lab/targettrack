@@ -367,5 +367,14 @@ methodhelps={}
 for name in methodnames:
     methodhelps[name]=getattr(currmod,name).help
 
+if __name__=="__main__":
+    import sys
+    fp=sys.argv[1]
+    params=";".join(sys.argv[2:])
+    print("Running with:")
+    print(params)
+    print()
+    method=NNTA(params)
+    method.run(fp)
 
 
