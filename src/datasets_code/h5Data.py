@@ -420,7 +420,8 @@ class h5Data(DataSet):
         group_key = "original_match"
         key = "intervals"
         if group_key not in self.dataset or key not in self.dataset[group_key]:
-            return None
+            intervs = [[0,self.dataset.attrs['W']],[0,self.dataset.attrs['H']],[0,self.dataset.attrs['D']]]
+            self.dataset.create_dataset(group_key+"/"+key,data=intervs)
         shape = self.dataset[f"{group_key}/{key}"]
         if which_dim is None:
             return tuple(shape)   # shape is a 3*2 array

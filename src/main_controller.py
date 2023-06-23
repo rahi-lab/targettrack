@@ -1040,6 +1040,22 @@ class Controller():
             ds = hNew.dataset.create_dataset(key,shape=np.shape(distmat),dtype="f4")
             ds[...]=distmat
             print("distmat saved")
+        #change the point annotation in accordance with resized dimensions.
+        if 'pointdat' in self.data.dataset.keys() or 'pointdat_old' in self.data.dataset.keys():
+            import copy
+            if 'pointdat' in self.data.dataset.keys():
+                pointkey0 = 'pointdat'
+            else:
+                pointkey0 = 'pointdat_old'
+            S =  np.array(self.data.dataset[pointkey0])
+            S_f = copy.deepcopy(S)
+            if self.options["save_resized"]:
+                x00,y00,z00 =np.nonzero(~np.isnan(S))
+                for p in range(len(x00)):
+                    S_f[x00[p],y00[p],0]=(S[x00[p],y00[p],0] * width/fr_shape[0])
+                    S_f[x00[p],y00[p],1]=(S[x00[p],y00[p],1] * height/fr_shape[1])
+                print("resized points saved")
+            hNew.dataset.create_dataset(pointkey0,data = S_f)
 
         for i in frame_int:
             if i not in frame_deleted and i in self.selected_frames:
@@ -1092,7 +1108,7 @@ class Controller():
                 else:
                     hNew.save_frame(l,frameRd, frameGr ,force_original=True)
                 kcoarse=str(i)+"/coarse_mask"
-                if False:#kcoarse in self.data.dataset.keys() and not self.options["save_crop_rotate"]:#TODO : check for compatibility with rotation and cropping modes
+                if kcoarse in self.data.dataset.keys() and not self.options["save_crop_rotate"]:#TODO : check for compatibility with rotation and cropping modes
                     CoarseSegTemp = self.data.dataset[kcoarse]
                     CoarseSegTemp = CoarseSegTemp[:x_1,:y_1,:z_1]
                     CoarseSegTemp = CoarseSegTemp[x_0:,y_0:,z_0:]
