@@ -573,6 +573,16 @@ class h5Data(DataSet):
             self.dataset.create_dataset(knn, mask.shape, dtype="i2", compression="gzip")
         self.dataset[knn][...] = mask.astype(np.int16)
 
+    def import_external_NN(self,Extfile,name):
+        if not 'net' in self.dataset:
+            group = self.dataset.create_group('net')
+        else:
+            group  = self.dataset['net']
+        if name in self.dataset:
+            del self.dataset[name]    
+        Extfile.dataset.copy(name, group)
+
+
     def flag_as_gt(self, frames):
         if "ground_truth" not in self.dataset.attrs:
             self.dataset.attrs["ground_truth"] = list(frames)

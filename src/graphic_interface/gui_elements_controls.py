@@ -857,6 +857,24 @@ class NNControlTab(QScrollArea):
             main_layout.addWidget(self.NN_pt_select)
 
         else:
+            #Import a trained NN from another file
+            self.importNN_address = QLineEdit("0")
+            self.importNN_address.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
+            main_layout.addWidget(QLabel("External NN directory"), row, 0)
+            main_layout.addWidget(self.importNN_address, row, 1)
+            row += 1
+            importNN = QPushButton("Import NN")
+            importNN.setStyleSheet("background-color: green")
+
+            importNN.clicked.connect(self._import_NN)
+            main_layout.addWidget(importNN,row, 0)
+
+            run_predict = QPushButton("Run predictions")
+            run_predict.setStyleSheet("background-color: green")
+            run_predict.clicked.connect(self._run_pred)
+            main_layout.addWidget(run_predict,row, 1)
+
+            row += 1
             # and this is to select NN from which to load masks
             lab = QLabel("Select NN masks")
             main_layout.addWidget(lab, row, 0, 1, 2)
@@ -870,8 +888,6 @@ class NNControlTab(QScrollArea):
 
             self.Exempt_Neurons = QLineEdit("0")
             self.Exempt_Neurons.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
-            #self.PostProc_Mode = QLineEdit("1")
-            #self.PostProc_Mode.setStyleSheet("height: 15px; width: 5px;min-width: 5px;")
             main_layout.addWidget(QLabel("Neurons exempt from postprocessing:"),row,0,1, 1)   # TODO MB: exempt for modes 1-2, but target for modes 3-4-5, right? I think we can change the label. Possibly we can even change the label depending on which mode is selected.
             main_layout.addWidget(self.Exempt_Neurons,row,1, 1, 1)
             row += 1
@@ -1034,6 +1050,28 @@ class NNControlTab(QScrollArea):
                 dial.setText('Run Success\n'+msg)
                 dial.exec_()
 
+    def _run_pred(self, fol=False):
+        'run prediction on all the frames based on the current'
+        NNmask_name = self.NN_mask_select.currentText()
+        modelname,instancename = NNmask_name.split(" ")
+
+        msgBox = QMessageBox()
+        msgBox.setText("Confirm predictions by NN:\n"+modelname+"_"+instancename+" on "+self.data_name)
+        msgBox.setStandardButtons(QMessageBox.Ok | QMessageBox.Cancel)
+        confirmation = msgBox.exec()
+        if confirmation == QMessageBox.Ok:
+            runres, msg = self.controller.run_NN_masks(modelname, instancename, fol, int(self.epochs.text()),
+                                                       int(self.trainset.text()), int(self.valset.text()),
+                                                       int(self.targset.text()),pred_mode=True)
+            if not runres:
+                errdial=QErrorMessage()
+                errdial.showMessage('Run Failed:\n'+msg)
+                errdial.exec_()
+            else:
+                dial=QMessageBox()
+                dial.setText('prediction started\n'+msg)
+                dial.exec_()
+
     def setup_mask_NNmodels(self):
         """
         Populates the list of NN models with models existing in self.controller.
@@ -1091,6 +1129,11 @@ class NNControlTab(QScrollArea):
         Modes = set([1,2,3,4,5])
         assert Mode in Modes, "Acceptable modes are 1, 2, 3, 4, and 5"
         self.controller.post_process_NN_masks(Mode, ExNeu)
+
+    def _import_NN(self):
+        addr = self.importNN_address.text()
+        self.controller.import_NN(addr)
+
 
 
 class SelectionTab(QScrollArea):

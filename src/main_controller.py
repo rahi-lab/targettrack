@@ -1006,7 +1006,7 @@ class Controller():
         else:
             z_0 = int(Z_interval[0])
 
-        if int(Z_interval[1])==0:#doesn't change x and y coordinate if the upper bound is zero
+        if int(Z_interval[1])==0:#doesn't change z coordinate if the upper bound is zero
             z_1 = fr_shape[2]
         elif int(Z_interval[1])>fr_shape[2]:
             z_1 = fr_shape[2]
@@ -1047,7 +1047,14 @@ class Controller():
                 pointkey0 = 'pointdat'
             else:
                 pointkey0 = 'pointdat_old'
-            S =  np.array(self.data.dataset[pointkey0])
+            S0 =  np.array(self.data.dataset[pointkey0])
+            S = copy.deepcopy(S0)
+            x00,y00,z00 =np.nonzero(~np.isnan(S0))
+            for p in range(len(x00)):
+                S[x00[p],y00[p],0]=(S0[x00[p],y00[p],0]-x_0)
+                S[x00[p],y00[p],1]=(S0[x00[p],y00[p],1]-y_0)
+                S[x00[p],y00[p],2]=(S0[x00[p],y00[p],2]-z_0)
+            print("point coordinate aligned")
             S_f = copy.deepcopy(S)
             if self.options["save_resized"]:
                 x00,y00,z00 =np.nonzero(~np.isnan(S))
@@ -1772,6 +1779,16 @@ class Controller():
                         self.mask_change(t)
                     else:
                         print("There are no predictions for this frame")
+    def import_NN(self,Address):
+        "save the parameters of NN trained on ExtFile for predicting the masks of the current file"
+        ExtFile = DataSet.load_dataset(Address)
+        for key in ExtFile.dataset['net']:
+            netkey="net/"+key
+            self.data.import_external_NN(ExtFile,netkey)
+        self.update()
+        ExtFile.close()
+        print("NN parameters imported successfully")
+
 
     def post_process_NN_masks(self, mode, neurons):
         """
@@ -1803,7 +1820,7 @@ class Controller():
             post_process_NN_masks5(self.selected_frames, neurons, load_fun, save_fun)
         self.update()
 
-    def run_NN_masks(self, modelname, instancename, fol, epoch, train, validation, targetframes):
+    def run_NN_masks(self, modelname, instancename, fol, epoch, train, validation, targetframes,pred_mode=False):
         # Todo AD could this be factorized in some way?
         # run a mask prediction neural network
         self.save_status()
@@ -1815,8 +1832,9 @@ class Controller():
 
         # Check that the number of train/validation frames fits into the available number of frames
         nb_available_frames = len(self.data.segmented_times(force_regular_seg=True))
-        if train + validation > nb_available_frames:
-            return False, f"The sum of the number of train and validation frames cannot be greater than the number of annotated frames ({nb_available_frames})"
+        if not pred_mode:
+            if train + validation > nb_available_frames:
+                return False, f"The sum of the number of train and validation frames cannot be greater than the number of annotated frames ({nb_available_frames})"
 
         # temporary close
         if "_" in name:
@@ -1834,14 +1852,16 @@ class Controller():
         self.data.close()  # close
         shutil.copyfile(dset_path, newpath)  # whole data set is copied in newpath
         self.data = DataSet.load_dataset(dset_path)
+        if pred_mode:
+            args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"2",str(epoch),"0","0",str(train),str(validation)]
         #setting the arguments of NN script.
-        # the ordeer of arguments are: path to dataset, path to log file,3:whether or not generate defrmed frames,
+        # the ordeer of arguments are: path to dataset, path to log file,3:whether or not generate defrmed frames-orgo to prediction mode,
         #4:number of training epochs. 5:whether or not train on previous training set
         #6:whether or not add the deformed frames?
         #7:based on the previous choices: a.number of deformed frames that are added  to the training set_title b.which deformation trick to use. c.training set number
         #8: validation frames number or number of targeet Frames
         #9: the deformation method used
-        if not self.options["use_old_trainset"] and not self.options["generate_deformation"]:
+        elif not self.options["use_old_trainset"] and not self.options["generate_deformation"]:
             args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"0",str(epoch),"0","0",str(train),str(validation)]
         elif not self.options["use_old_trainset"] and self.options["generate_deformation"]:
             args = ["python3", "./src/neural_network_scripts/run_NNmasks_f.py", newpath, newlogpath,"1","1","1","0","3",str(targetframes),"5"]

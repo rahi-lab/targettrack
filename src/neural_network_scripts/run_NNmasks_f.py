@@ -45,10 +45,15 @@ else:
     deformation_trick=False
 adiabatic_trick=False
 verbose=True
-requeue=False
+if deformInput==2:
+    requeue=True
+    skiptrain=True
+else:
+    requeue=False
+    skiptrain=False
 if requeue:
     usenet="net"
-skiptrain=False
+
 
 
 #Run detail
@@ -77,30 +82,6 @@ if deformation_trick:
     deformation_num_epochs=2
     deformation_augdict={0:"aff_cut"}
 
-if adiabatic_trick:
-    tnum="all"
-    k_by_func=True
-    if k_by_func:
-        def k_func():
-            k=list(np.linspace(3,25,150).astype(np.int16))
-            while np.sum(k)<T:
-                k.append(25)
-            return np.array(k)
-    else:
-        k=6#number or numbers to feed in at once, can be array or int
-
-
-    short_memory=4 #nearby memory to train in
-    num_random_memory=10 #randomly added memory
-    num_random_memory_train=5 #randomly added memory from original training data(potential overlap with above)
-
-    #dset size will be k*short_memory+num_random_memory+num_random_memory_train except for edge cases
-    def adiabatic_epoch_func(iters):#function giving epochs for adiabatic trick
-        min_adia_epochs=7
-        return max(100//iters,min_adia_epochs)
-    adiabatic_ep_augoff=2
-    lr_adia=0.0003
-    patience_adia=2
 ########################################################################
 
 ####Check the dependencies
@@ -121,38 +102,8 @@ if deformation_trick:
         distmat=NNtools.Compute_distmat(h5,T,W,H,batch_size=20,n_z=31,n_channels=1)
 channel_num=min(channel_num,C)
 shape=(channel_num,W,H,D)#x,y,z ordering
-gridpts=np.moveaxis(np.array(np.meshgrid(np.arange(W),np.arange(H),np.arange(D),indexing="ij")),0,3)
-grid=gridpts.reshape(-1,3)
 
-#### Extra parameters for adiabatic_trick
-if adiabatic_trick:
-    if k_by_func:
-        k=k_func()
-    elif type(k)==int:
-        nums=(T//k+1)
-        k=np.full(nums,k)
-    assert np.sum(k)>=T
 
-    def get_lineup_def():
-        ts=np.arange(T)
-        ds=np.min(np.abs(ts[:,None]-np.array(traininds)[None,:]),axis=1)
-        return np.argsort(ds)
-
-    def get_pts(i):
-        pts,_=NNtools.get_pts_iou(NNtools.pack(h5,identifier,i,gridpts,num_classes,thres=thres))
-        pts=pts.astype(np.float32)
-        return pts
-
-    def updatemask(i,pts):
-        key=identifier+"/"+str(i)+"/pts"
-        if key in h5.keys():
-            del h5[key]
-        dset=h5.create_dataset(key,(num_classes,3),dtype="f4")
-        dset[...]=pts
-
-        fr=np.array(h5[str(i)+"/frame"])
-        mask=NNtools.get_mask(fr[0],pts,num_classes,grid,thres=thres,distthres=distthres).astype(np.int16)
-        h5[identifier+"/"+str(i)+"/predmask"][...]=mask
 
 #### logging file function, this is the runtime log
 def write_log(txt,end="\n"):
@@ -257,7 +208,7 @@ try:
     num_classes = len(U)#MB added
 
     #### Initialize the network ####
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    device = torch.device('cpu')#torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     log+="device= "+str(device)+"\n"
     NetMod = importlib.import_module(NetName)
     net=NetMod.Net(n_channels=shape[0],num_classes=num_classes)
@@ -281,7 +232,7 @@ try:
 
     if True:#GetTrain == 0 :
         '''
-        MB: partition the dataset from scratch to training set and validation set
+        partition the dataset from scratch to training set and validation set
         '''
         if GetTrain == 0:
             tnum = int(sys.argv[7])
@@ -383,223 +334,6 @@ try:
     #    skiptrain=True
     if skiptrain:
         print("Skipping Training")
-    elif adiabatic_trick:
-        if verbose:
-            print("Starting Train")
-        ts=[]
-        st=time.time()
-        eplosses=[]
-        gc=0#global count
-        #typical neural network training script
-        for epoch in range(num_epochs):
-            ts.append(time.time()-st)
-            if epoch==ep_augoff:
-                text="augment is now:"+allset.change_augment("aff")
-                log+=text
-                if verbose:
-                    print(text)
-            log+="Epoch: "+str(epoch)+" lr: "+str(optimizer.param_groups[0]['lr'])+"\n"
-            if verbose:
-                print("Epoch: "+str(epoch)+" lr: "+str(optimizer.param_groups[0]['lr']))
-            net.train()
-            eploss=0
-            count=0
-            for i,(fr,mask) in enumerate(traindataloader):
-                fr = fr.to(device=device, dtype=torch.float32)
-                mask= mask.to(device=device, dtype=torch.long)
-                preds=net(fr)
-                loss=criterion(preds,mask)
-                optimizer.zero_grad()
-                loss.backward()
-                optimizer.step()
-
-                eploss+=loss.item()
-                count+=1
-                losses.append(loss.item())
-                ious=get_ious(preds,mask,((gc%print_iou_every)!=0))
-                iouss.append(ious)
-                inds.append(0)
-
-                if verbose:
-                    print("    train"+str(i+1).zfill(digits)+"/"+str(num_trains)+" loss: "+str(loss.item())+" nanmeaniou: "+str("nan" if np.all(np.isnan(ious)) else np.nanmean(ious)))
-                log+="    train"+str(i+1).zfill(digits)+"/"+str(num_trains)+" loss: "+str(loss.item())+" nanmeaniou: "+str("nan" if np.all(np.isnan(ious)) else np.nanmean(ious))+"\n"
-                gc+=1
-            eploss=eploss/count
-            if allset.augment=="aff":
-                scheduler.step(eploss)#step scheduler by epoch loss
-            log+="Epoch Loss: "+str(eploss)+"\n"+"\n"
-            eplosses.append(eploss)
-
-            #save net in h5
-            if "net" in h5[identifier].keys():
-                del h5[identifier]["net"]
-            h5.create_group(identifier+"/net")
-            NNtools.save_into_h5(h5[identifier+"/net"],net.state_dict())
-
-            #save loss and iou
-            if "loss_iou" in h5[identifier].keys():
-                del h5[identifier]["loss_iou"]
-            dset=h5[identifier].create_dataset("loss_iou",(len(losses),2+len(ious)),dtype="f4",compression="gzip")
-            dset[...]=np.concatenate((np.array(inds)[:,None],np.array(losses)[:,None],np.array(iouss)),axis=1).astype(np.float32)
-
-            log+="Results saved."+"\n"+"\n"
-            h5[identifier].attrs["log"]=log
-
-            #CRITICAL, emergency break
-            if os.path.exists("STOP"):
-                break
-
-        #save net in h5
-        if "basenet" in h5[identifier].keys():
-            del h5[identifier]["basenet"]
-        h5.create_group(identifier+"/basenet")
-        NNtools.save_into_h5(h5[identifier+"/basenet"],net.state_dict())
-        repack()
-        save_backup()#make h5 backup
-
-        #now call lineup of the frames
-        if "lineup" in h5.keys():
-            lineup=np.array(h5["lineup"])
-        else:#if non existing, make the default lineup
-            lineup=get_lineup_def()
-            dset=h5.create_dataset("lineup",shape=(T,),dtype="i2")
-            dset[...]=np.array(lineup).astype(np.int16)
-        assert all((np.sort(np.array(traininds))==np.sort(lineup[:len(traininds)]))), "The first lineup elements should be traininds"
-        repack()
-        save_backup()#make h5 backup
-
-        evalset=NNtools.EvalDataset(datadir,shape)#we need the evalutation set for aligned indices for all frames
-        lineup=list(lineup)[len(traininds):]#traininds should be at the begining
-        added=[list(traininds)]#traininds are already added
-        c=0
-        while True:
-            # regen optimizers
-            optimizer=torch.optim.Adam(net.parameters(),lr=lr_adia)
-            scheduler=torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,mode="min",factor=0.3,patience=patience_adia,min_lr=5e-5)
-            #add mask
-            ichilds=[]
-            breaker=False
-            #pop k[c] elemets from lineup
-            k_one=k[c]
-            for _ in range(k_one):
-                if len(lineup)==0:
-                    break
-                ichilds.append(lineup.pop(0))
-            added.append(ichilds)
-            if verbose:
-                print(len(lineup)," left")
-            #make predictions
-            net.eval()
-            for ichild in ichilds:
-                with torch.no_grad():
-                    fr,mask=evalset[ichild]
-                    fr=fr.unsqueeze(0).to(device=device, dtype=torch.float32)
-                    pred=net(fr)
-                    predmask=torch.argmax(pred[0],dim=0).cpu().detach().numpy().astype(np.int16)
-                    del fr,pred
-                if identifier+"/"+str(ichild)+"/predmask" in h5.keys():
-                    del h5[identifier+"/"+str(ichild)+"/predmask"]
-                h5[identifier].create_dataset(str(ichild)+"/predmask",(predmask.shape),dtype="i2",compression="gzip")
-                h5[identifier][str(ichild)+"/predmask"][...]=predmask
-
-                #This re-masks the data
-                ptschild=get_pts(ichild)
-                updatemask(ichild,ptschild)
-                np.save(os.path.join(datadir,"masks","mask_"+str(ichild)+".npy"),np.array(h5[identifier+"/"+str(ichild)+"/predmask"]).astype(np.int16))
-
-            #update dataset
-            allset=NNtools.TrainDataset(datadir,shape)
-            # break if we are done: case if np.cumsum(k) exactly ends at lT
-            if len(allset)==T:
-                break
-
-            # training phase
-            #all available training indices
-            t_inds_all=[el for els in added for el in els]
-            #those in memory
-            t_inds_memory=[el for els in added[-short_memory:] for el in els]#last in memory
-            t_inds_memory_dict=dict(zip(t_inds_memory,[True for _ in range(len(t_inds_memory))]))
-            #those not in memory
-            buff=[]
-            for t in t_inds_all:
-                if t not in t_inds_memory_dict.keys():
-                    buff.append(t)
-
-            #get epochs
-            ad_epochs=adiabatic_epoch_func(len(t_inds_memory))
-            for epoch in range(ad_epochs):
-                ts.append(time.time()-st)
-                # random select random memory
-                t_inds_random_memory=list(np.random.choice(buff,min(num_random_memory,len(buff)),replace=False))
-                # random select random memory train
-                t_inds_random_memory_train=list(np.random.choice(traininds,min(num_random_memory_train,len(traininds)),replace=False))
-
-                #all tinds
-                tinds=[*t_inds_memory,*t_inds_random_memory,*t_inds_random_memory_train]
-                tset=torch.utils.data.Subset(allset,allset.real_ind_to_dset_ind(tinds))
-                traindataloader= torch.utils.data.DataLoader(tset, batch_size=batch_size,shuffle=True, num_workers=num_workers,pin_memory=True)
-                num_trains=len(traindataloader)
-                if epoch==adiabatic_ep_augoff:
-                    text="augment is now:"+allset.change_augment("aff")
-                    log+=text
-                    if verbose:
-                        print(text)
-                log+="Epoch: "+str(epoch)+" lr: "+str(optimizer.param_groups[0]['lr'])+"\n"
-                if verbose:
-                    print("Epoch: "+str(epoch)+"/"+str(ad_epochs)+" lr: "+str(optimizer.param_groups[0]['lr']))
-                net.train()
-                eploss=0
-                count=0
-                for i,(fr,mask) in enumerate(traindataloader):
-                    fr = fr.to(device=device, dtype=torch.float32)
-                    mask= mask.to(device=device, dtype=torch.long)
-                    preds=net(fr)
-                    loss=criterion(preds,mask)
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-
-                    eploss+=loss.item()
-                    count+=1
-                    losses.append(loss.item())
-                    ious=get_ious(preds,mask,((gc%print_iou_every)!=0))
-                    iouss.append(ious)
-                    inds.append(0)
-                    if verbose:
-                        print("    train"+str(i+1).zfill(digits)+"/"+str(num_trains)+" loss: "+str(loss.item())+" nanmeaniou: "+str("nan" if np.all(np.isnan(ious)) else np.nanmean(ious)))
-                    log+="    train"+str(i+1).zfill(digits)+"/"+str(num_trains)+" loss: "+str(loss.item())+" nanmeaniou: "+str("nan" if np.all(np.isnan(ious)) else np.nanmean(ious))+"\n"
-                    gc+=1
-                eploss=eploss/count
-                if allset.augment=="aff":
-                    scheduler.step(eploss)
-                log+="Epoch Loss: "+str(eploss)+"\n"+"\n"
-                eplosses.append(eploss)
-
-                #save net in h5
-                if "net" in h5[identifier].keys():
-                    del h5[identifier]["net"]
-                h5.create_group(identifier+"/net")
-                NNtools.save_into_h5(h5[identifier+"/net"],net.state_dict())
-
-                #save loss and iou
-                if "loss_iou" in h5[identifier].keys():
-                    del h5[identifier]["loss_iou"]
-                dset=h5[identifier].create_dataset("loss_iou",(len(losses),2+len(ious)),dtype="f4",compression="gzip")
-                dset[...]=np.concatenate((np.array(inds)[:,None],np.array(losses)[:,None],np.array(iouss)),axis=1).astype(np.float32)
-
-                log+="Results saved."+"\n"+"\n"
-                h5[identifier].attrs["log"]=log
-
-                #CRITICAL
-                if os.path.exists("STOP"):
-                    break
-
-            if os.path.exists("STOP"):
-                break
-            c+=1
-            if c%20==0:
-                repack()
-                save_backup()#save backup, harvard rc cluster
     else:# not defTrick:#usual neural network train
         if verbose:
             print("Starting Train")
@@ -1068,7 +802,7 @@ try:
 
     #save log
     h5[identifier].attrs["log"]=log
-    if not int(sys.argv[3]):
+    if not int(sys.argv[3])==1:
         print("predictions running:")
         ##Prediction phase
         evalset=NNtools.EvalDataset(datadir,shape)
