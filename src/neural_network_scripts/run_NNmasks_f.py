@@ -208,7 +208,10 @@ try:
     num_classes = len(U)#MB added
 
     #### Initialize the network ####
-    device = torch.device('cpu')#torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    if (W+H)>600:
+        device = torch.device('cpu')#torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    else:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     log+="device= "+str(device)+"\n"
     NetMod = importlib.import_module(NetName)
     net=NetMod.Net(n_channels=shape[0],num_classes=num_classes)
@@ -237,6 +240,9 @@ try:
         if GetTrain == 0:
             tnum = int(sys.argv[7])
             vnum = int(sys.argv[8])
+        if deformInput==2:
+            tnum=1
+            vnum=1    
         if tnum=="all" or vnum==0:
             traindataloader= torch.utils.data.DataLoader(allset, batch_size=batch_size,shuffle=True, num_workers=num_workers,pin_memory=True)
             traininds=allset.indlist
