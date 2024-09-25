@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 def getpad(ten,minshape):
     sh=ten.shape
@@ -85,8 +86,53 @@ class ASPP2D(nn.Module):
         res = torch.cat(res, dim=1)
         return self.relu(self.compressionnorm(self.compressionconv(res)))
 
+
+# Define your chunked_upsample function
+def chunked_upsample(input_tensor, scale_factor, chunk_size=1, mode='nearest'):
+    # chunk_size = input_tensor.size(0)
+    # print("input_tensor.size(0)",input_tensor.size(0),input_tensor.size())
+    # if chunk_size >= batch_size:
+    #     return F.interpolate(input_tensor, scale_factor=scale_factor, mode=mode)
+
+    chunks = torch.chunk(input_tensor, chunks=chunk_size, dim=0)
+    upsampled_chunks = [F.interpolate(chunk, scale_factor=scale_factor, mode=mode) for chunk in chunks]
+    output_tensor = torch.cat(upsampled_chunks, dim=0)
+
+    return output_tensor
+
+def chunked_interpolate(input_tensor, target_size, chunk_size=1, mode='nearest'):
+    """
+    Applies F.interpolate to the input tensor in chunks to avoid memory issues.
+    
+    Args:
+        input_tensor (torch.Tensor): The input tensor to upsample.
+        target_size (tuple): The target size to interpolate to (must match ori.shape[2:]).
+        chunk_size (int): The number of chunks to split the tensor into along the batch dimension.
+        mode (str): The upsampling algorithm to use ('nearest', 'bilinear', etc.).
+    
+    Returns:
+        torch.Tensor: The upsampled tensor.
+    """
+    batch_size = input_tensor.size(0)
+
+    # If batch size is smaller than chunk size, avoid chunking
+    if chunk_size >= batch_size:
+        return F.interpolate(input_tensor, size=target_size, mode=mode)
+
+    # Split the input tensor into chunks along the batch dimension
+    chunks = torch.chunk(input_tensor, chunks=chunk_size, dim=0)
+
+    # Apply interpolation to each chunk
+    upsampled_chunks = [F.interpolate(chunk, size=target_size, mode=mode) for chunk in chunks]
+
+    # Concatenate the upsampled chunks back together along the batch dimension
+    output_tensor = torch.cat(upsampled_chunks, dim=0)
+
+    return output_tensor
+
+
 class ThreeDCN(nn.Module):
-    def __init__(self, n_channels=3,n_filt_init=16,growth=24,kernel_size=3,compress_targ=32,num_classes=10):
+    def __init__(self, n_channels=3,n_filt_init=16,growth=8,kernel_size=3,compress_targ=8,num_classes=10):
         super().__init__()
 
         self.relu=nn.ReLU(inplace=True)
@@ -108,7 +154,7 @@ class ThreeDCN(nn.Module):
         self.norm3=nn.BatchNorm3d(n_filt)
         self.conv4=nn.Conv3d(n_filt, n_filt, kernel_size=3, stride=1,padding=1,bias=False)
         self.norm4=nn.BatchNorm3d(n_filt)
-        self.up1=nn.Upsample(scale_factor=2)
+        self.up1=nn.Upsample(scale_factor=(1,2,2))
 
         #We skip one downsample in z for 2 down samples
         #two down samples are done, 64x40x8 for us
@@ -120,7 +166,7 @@ class ThreeDCN(nn.Module):
         self.norm6=nn.BatchNorm3d(n_filt)
         self.compression2conv=nn.Conv3d(n_filt, compress_targ, kernel_size=1, stride=1,bias=False)
         self.compression2norm=nn.BatchNorm3d(compress_targ)
-        self.up2=nn.Upsample(scale_factor=(4,4,2))
+        self.up2=nn.Upsample(scale_factor=(1,2,2))
 
         #still at same level 64x40x8
         n_filt_in=n_filt
@@ -136,7 +182,7 @@ class ThreeDCN(nn.Module):
         self.ASPP3D3=ASPP3D(n_filt_in,n_filt, atrous_rates=((3,3,1),(6,6,1),(9,9,2)))
         self.compressionASPP3D3conv=nn.Conv3d(n_filt, compress_targ, kernel_size=1, stride=1,bias=False)
         self.compressionASPP3D3norm=nn.BatchNorm3d(compress_targ)#compress to send up
-        self.up3=nn.Upsample(scale_factor=(8,8,4))
+        self.up3=nn.Upsample(scale_factor=(1,4,4))
 
         #continue going down, 16x10x4 for us no z
         n_filt_in=n_filt
@@ -144,7 +190,7 @@ class ThreeDCN(nn.Module):
         self.ASPP3D4=ASPP3D(n_filt_in,n_filt, atrous_rates=((2,2,1),(3,3,1),(4,4,2),(5,5,2)))
         self.compressionASPP3D4conv=nn.Conv3d(n_filt, compress_targ, kernel_size=1, stride=1,bias=False)
         self.compressionASPP3D4norm=nn.BatchNorm3d(compress_targ)#compress to send up
-        self.up4=nn.Upsample(scale_factor=(16,16,4))
+        self.up4=nn.Upsample(scale_factor=(1,8,8))
 
         self.conv_out=nn.Conv3d(n_channels+n_filt_init+(n_filt_init+growth)+4*compress_targ,num_classes, kernel_size=1, stride=1,bias=True)
 
@@ -179,7 +225,8 @@ class ThreeDCN(nn.Module):
             print(x.size())
         x=self.relu(self.norm3(self.conv3(x)))
         x=self.relu(self.norm4(self.conv4(x)))
-        send1=self.up1(x) #n_filt_init+growth
+        # send1=self.up1(x) #n_filt_init+growth
+        send1=chunked_upsample(x,2,16)
         x=self.down_noz(x)
 
         #remember we don't down 64x40x8
@@ -187,23 +234,30 @@ class ThreeDCN(nn.Module):
             print(x.size())
         x=self.relu(self.norm5(self.conv5(x)))
         x=self.relu(self.norm6(self.conv6(x)))#48+32
-        send2=self.up2(self.relu(self.compression2norm(self.compression2conv(x)))) #64->save memory
+        send2=chunked_upsample(self.relu(self.compression2norm(self.compression2conv(x))),(2,2,1),16) #64->save memory
         #compress_targ
 
         x=self.ASPP3D2(x)
-        send2ASPP3D=self.up2(self.relu(self.compressionASPP3D2norm(self.compressionASPP3D2conv(x))))
+        send2ASPP3D=chunked_upsample(self.relu(self.compressionASPP3D2norm(self.compressionASPP3D2conv(x))),(2,2,1),16)
         x=self.down(x)
 
         #remember we don't down z 32x20x4
         x=self.ASPP3D3(x)
-        send3ASPP3D=self.up3(self.relu(self.compressionASPP3D3norm(self.compressionASPP3D3conv(x))))
+        send3ASPP3D=chunked_upsample(self.relu(self.compressionASPP3D3norm(self.compressionASPP3D3conv(x))),(4,4,2),16)
         x=self.down_noz(x)
 
         #remember we don't down z 16x10x4
         x=self.ASPP3D4(x)
-        send4ASPP3D=self.up4(self.relu(self.compressionASPP3D4norm(self.compressionASPP3D4conv(x))))
+        send4ASPP3D=chunked_upsample(self.relu(self.compressionASPP3D4norm(self.compressionASPP3D4conv(x))),(8,8,2),16)
 
         #1+32+(32+32)+(32)+4*32
+        torch.cuda.empty_cache()
+        send1 = chunked_interpolate(send1, target_size=ori.shape[2:],chunk_size=4, mode='nearest')
+        send2 = chunked_interpolate(send2, target_size=ori.shape[2:],chunk_size=4, mode='nearest')
+        send2ASPP3D = chunked_interpolate(send2ASPP3D, target_size=ori.shape[2:],chunk_size=4, mode='nearest')
+        send3ASPP3D = chunked_interpolate(send3ASPP3D, target_size=ori.shape[2:],chunk_size=4,mode='nearest')
+        send4ASPP3D = chunked_interpolate(send4ASPP3D, target_size=ori.shape[2:],chunk_size=4,mode='nearest')
+        # print(f"ori: {ori.size()}, send0: {send0.size()}, send1: {send1.size()}, send2: {send2.size()}, send2ASPP3D: {send2ASPP3D.size()}, send3ASPP3D: {send3ASPP3D.size()}, send4ASPP3D: {send4ASPP3D.size()}")
         x=torch.cat([ori,send0,send1,send2,send2ASPP3D,send3ASPP3D,send4ASPP3D],dim=1)#n_channel+32+64+32+32+32
 
         x=self.conv_out(x)

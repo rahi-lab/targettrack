@@ -11,7 +11,7 @@ import scipy.ndimage as sim
 import threading
 import time
 import scipy.spatial as sspat
-
+from torch.nn import DataParallel
 import matplotlib.pyplot as plt
 
 class NNTA():
@@ -195,6 +195,7 @@ class NNTA():
         if True:
             self.state=["Training Network",0]
             self.net=getattr(Networks,self.params["network"])(n_channels=n_channels,num_classes=N_labels)
+            self.net = DataParallel(self.net)
             self.net.to(device=self.device,dtype=torch.float32)
             if self.params["use_path"] is not None:
                 self.net.load_state_dict(torch.load(self.params["use_path"]))
