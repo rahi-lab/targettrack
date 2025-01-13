@@ -6,3 +6,6 @@ src/neural_network_scripts/184.h5
 .idea/
 Data*/
 *DS_store*
+*.log
+*checkpoints*
+*.h5
