@@ -1810,23 +1810,41 @@ class DashboardTab(QWidget):
         self.chunknumber = 0
         self.current_i = 0   # the line number of the current time t, i.e. t%self.chunksize
         self.grid = QGridLayout()
+        self.grid.setSpacing(2)  # Add minimal spacing between grid items
+        self.grid.setContentsMargins(2, 2, 2, 2)  # Add minimal margins
+        
         self.time_label_buttons = []
         self.button_columns = {}
-        for i in range(self.chunksize):   # TODO AD align left rather than centering (when no neuron is assigned)
+        
+        # Create a container widget for buttons with fixed width
+        button_container = QWidget()
+        button_layout = QVBoxLayout()
+        button_layout.setSpacing(2)  # Minimal spacing between buttons
+        button_layout.setContentsMargins(2, 2, 2, 2)  # Minimal margins
+        
+        for i in range(self.chunksize):
             label_button = QPushButton(str(i) if i < self.T else "")
             label_button.clicked.connect(self._make_button_press_function_t(i))
             label_button.setStyleSheet("background-color : rgb(255,255,255); border-radius: 4px;")
-            label_button.setFixedWidth(30)
+            # Set size policy to fixed width but allow vertical expansion
+            label_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
             self.time_label_buttons.append(label_button)
-            self.grid.addWidget(label_button, i, 0)
+            button_layout.addWidget(label_button)
+
+        button_container.setLayout(button_layout)
+        self.grid.addWidget(button_container, 0, 0, self.chunksize, 1)
 
         current_btn = self.current_label_button
         current_btn.setStyleSheet("background-color : rgb(42,99,246); border-radius: 4px;")
+        
         self.scrollwidget.setLayout(self.grid)
-
         self.scrollarea.setWidget(self.scrollwidget)
+        
+        # Set minimum width based on content
         self.scrollarea.setMinimumWidth(
-            self.scrollarea.sizeHint().width() + self.scrollarea.verticalScrollBar().sizeHint().width())
+            button_container.sizeHint().width() + 
+            self.scrollarea.verticalScrollBar().sizeHint().width() + 10)  # Add padding
+            
         self.scrollarea.horizontalScrollBar().setEnabled(False)
         self.scrollarea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.scrollarea.setWidgetResizable(True)
@@ -1839,8 +1857,11 @@ class DashboardTab(QWidget):
         topscrollarea.setContentsMargins(5, 5, 5, 5)
         topscrollwidget = QWidget()
         self.topgrid = QGridLayout()
+        self.topgrid.setSpacing(2)
+        self.topgrid.setContentsMargins(2, 2, 2, 2)
+        
         button = QPushButton("")
-        button.setFixedWidth(30)
+        button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         button.setStyleSheet("background-color : rgb(255,255,255); border-radius: 4px;")
         self.topgrid.addWidget(button, 0, 0)
         self.keys = {}
@@ -1848,12 +1869,22 @@ class DashboardTab(QWidget):
         topscrollwidget.setLayout(self.topgrid)
         topscrollarea.setWidget(topscrollwidget)
         topscrollarea.setMinimumWidth(
-            topscrollarea.sizeHint().width() + topscrollarea.verticalScrollBar().sizeHint().width())
+            topscrollarea.sizeHint().width() + 
+            topscrollarea.verticalScrollBar().sizeHint().width() + 10)
         topscrollarea.horizontalScrollBar().setEnabled(False)
         topscrollarea.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        
         maingrid.addWidget(topscrollarea)
         maingrid.addWidget(self.scrollarea)
         self.setLayout(maingrid)
+
+    def resizeEvent(self, event):
+        """Handle widget resize events"""
+        super().resizeEvent(event)
+        # Update button sizes based on widget width
+        button_width = min(50, max(30, self.width() // 10))  # Scale width with widget, but keep within bounds
+        for button in self.time_label_buttons:
+            button.setFixedSize(button_width, button_width)  # Make buttons square
 
     @property
     def current_label_button(self):
