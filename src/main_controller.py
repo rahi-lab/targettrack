@@ -37,6 +37,14 @@ from .mask_processing.image_processing import blur, blacken_background, resize_f
 # SJR: message box for indicating neuron number of new neuron and for renumbering neuron
 from .msgboxes import EnterCellValue as ecv
 
+import logging
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('gui_single')
+
+
 
 class Controller():
     """
@@ -86,10 +94,12 @@ class Controller():
             self.pointdat = np.full((self.frame_num,self.n_neurons + 1, 3), np.nan)
         self.neuron_presence = self.data.neuron_presence   # self.frame_num * self.n_neurons+1 array of booleans
         # todo Warning, this will be saved automatically in mask mode but not in point mode (in point mode it is saved only when pointdat is saved)
+
         if self.neuron_presence is None or self.frame_num > self.neuron_presence.shape[0]:
             self._fill_neuron_presence()
         elif self.frame_num > self.neuron_presence.shape[0]:
             self._fill_neuron_presence()
+
         self.NN_pointdat = np.full((self.frame_num,self.n_neurons+1,3),np.nan)
         self.NN_or_GT = np.where(np.isnan(self.pointdat),self.NN_pointdat,self.pointdat)   # TODO AD: init using method?
 
@@ -228,16 +238,18 @@ class Controller():
         # calcium activities
         self.hlab = HarvardLab.HarvardLab(self, self.data, self.settings)
 
-        if not self.hlab.correct_existed:
-            self.update_ci()
-            self.data.ca_act = self.hlab.ci_int
-
+        
+        # if not self.hlab.correct_existed:
+        #     self.update_ci()
+        #     self.data.ca_act = self.hlab.ci_int
+        
     def set_point_data(self, value:bool):
         self.data.point_data = value
         self.point_data = value
 
     def set_up(self):
         # now we actually initialize
+        #import pdb; pdb.set_trace()
         self.select_frames()
         self.ready = True
         self.signal_nb_neurons_changed()
@@ -264,55 +276,59 @@ class Controller():
                     if present[0] == 0:   # should be the case (background)
                         present = present[1:]
                     self.neuron_presence[t, present] = True
+        
         self.data.neuron_presence = self.neuron_presence
 
     def update(self, t_change=False):
-        if not self.ready:   # this is jsut to avoid gui elements from calling callbacks resulting in update during their init   # todo: find more elegant way
+        """
+        Update the controller state, including images and client notifications.
+        """
+        if not self.ready:  # Prevent updates during initialization
             return
-        # TODO AD: maybe split into smaller methods, and replace calls to update by methods updating only some parts
 
+        # Ensure updates happen only if allowed by timer
         if not self.timer.update_allowed(t_change):
             return
 
-        # save at update if autosave
+        # Save automatically if autosave is enabled
         if self.options["autosave"]:
             self.save_status()
 
-
-        # time change event
+        # Handle time change event
         if t_change:
             for client in self.frame_registered_clients:
                 client.change_t(self.i)
 
-            # SJR: next step deletes the old mask to prevent "undo" from being based on the previous frame
+            # Clear temporary mask for new frames in annotation mode
             if self.options["mask_annotation_mode"]:
                 self.mask_temp = None
 
-        #load the images from the dataset
-
-        if self.channel_num == 2:
-            if self.options["first_channel_only"]:
-                self.im_rraw = self.data.get_frame(self.i)
-                self.im_graw = None
-            elif self.options["second_channel_only"]:#MB: switch R and G channel if g is only supposed to show
-                self.im_rraw = self.data.get_frame(self.i, col="green")
-                self.im_graw = None
+        # Load images through the `data` model
+        try:
+            if self.channel_num == 2:
+                if self.options["first_channel_only"]:
+                    self.im_rraw = self.data.get_frame(self.i, col="red")
+                    self.im_graw = None
+                elif self.options["second_channel_only"]:
+                    self.im_rraw = self.data.get_frame(self.i, col="green")
+                    self.im_graw = None
+                else:
+                    self.im_rraw = self.data.get_frame(self.i, col="red")
+                    self.im_graw = self.data.get_frame(self.i, col="green")
             else:
-                self.im_rraw = self.data.get_frame(self.i)
-                self.im_graw = self.data.get_frame(self.i, col="green")
+                self.im_rraw = self.data.get_frame(self.i, col="red")
+                self.im_graw = None
 
-        else:
-            self.im_rraw = self.data.get_frame(self.i)
-            self.im_graw = None
+            if self.options["ShowDim"]:
+                print("Frame dimensions: " + str(np.shape(np.array(self.im_rraw))))
+                self.options["ShowDim"] = False
 
-        #show the dimension of the image fot check:
-        if self.options["ShowDim"]:
-            print("Frame dimensions: "+ str(np.shape(self.im_rraw)))
-            self.options["ShowDim"]=False
+            # Notify clients of updated frame image data
+            for client in self.frame_img_registered_clients:
+                client.change_img_data(np.array(self.im_rraw), np.array(self.im_graw))
 
-        for client in self.frame_img_registered_clients:
-            client.change_img_data(self.im_rraw, self.im_graw)
-
+        except Exception as e:
+            print(f"Error updating frame data: {str(e)}")
         #load the mask, from ground truth or neural network
         #show mask if either the "overlay mask" OR the "mask annotation mode" checkboxes are checked
         self.update_mask_display()
@@ -335,14 +351,12 @@ class Controller():
         return (self.options["overlay_mask"] or self.options["mask_annotation_mode"]
                 or self.options["boxing_mode"] or self.data.only_NN_mask_mode)
 
-    def valid_points_from_all_points(self, points):
-        """
-        Keeps only the points in points that have valid (non-nan) coordinates
-        :param points: (nb_neurons+1)*3 array, the xyz coords of the point of each neuron (possibly nan if not defined)
-        :return: n*3 array (n <= nb_neurons), same as above with all nan lines removed
-        """
-        valids = np.logical_not(np.isnan(points[:, 0]))
-        return points[valids]
+    def valid_points_from_all_points(self, points: np.ndarray) -> np.ndarray:
+        if points.size == 0:
+            logger.warning("No valid points found. Returning empty array.")
+            return np.zeros((0, 3))
+        return points[~np.isnan(points).any(axis=1)]
+
 
     @property
     def i(self):
@@ -428,6 +442,7 @@ class Controller():
         method existed, and would update not only the points but also the image etc)
         """
         # Todo AD: could simplify if only one point was changed...
+        #import pdb; pdb.set_trace()
         if not self.point_data:
             return
 
@@ -2054,7 +2069,7 @@ class Controller():
 
     #we save the point data
     def save_pointdat(self):
-        self.data.set_poindat(self.pointdat)
+        self.data.set_pointdat(self.pointdat)
 
     def save_and_repack(self):
         print("Repacking")
