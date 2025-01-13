@@ -3,6 +3,12 @@ import pyqtgraph as pg
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFontMetrics
 
+import logging
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger('gui_single')
 
 # this is the main figure
 class MainFigWidget(pg.PlotWidget,QGraphicsItem):
@@ -76,7 +82,14 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
         for key in pointsetnames:
             self.pointsetplots[key]=pg.ScatterPlotItem(pen=(self.pens[key] if key!="pts_act" else None),brush=(0,0,0,0))
             self.addItem(self.pointsetplots[key])
-        self.pointsetsdata = {}   # will contain the x,y,z position of the points of each set.
+       
+        self.pointsetsdata = {
+            "pts_pointdat": np.zeros((0, 3)),
+            "pts_adj": np.zeros((0, 3)),
+            "pts_NN_pointdat": np.zeros((0, 3)),
+            "pts_act": np.zeros((0, 3)),
+            "pts_high": np.zeros((0, 3))
+        }  # will contain the x,y,z position of the points of each set.
 
         self.linkplot=pg.GraphItem()
         self.addItem(self.linkplot)
@@ -128,14 +141,25 @@ class MainFigWidget(pg.PlotWidget,QGraphicsItem):
             coordinates of the point of each neuron
         """
         for key, val in pts_dict.items():
+            if val.size == 0:  # Skip if data is empty
+                #logger.warning(f"Skipping empty data for key: {key}")
+                continue
+
             if key == "pts_act":
                 colors = self.controller.neuron_color()
-                pens = [pg.mkPen(width=self.s_thick, color=color) for color in colors]   # Todo no need to create new pens every time
+                pens = [pg.mkPen(width=self.s_thick, color=color) for color in colors]  # Avoid unnecessary pen creation
                 self.pointsetplots[key].setData(pen=pens, pos=val[:, :2])
             else:
                 self.pointsetplots[key].setData(pos=val[:, :2])
-            self.pointsetplots[key].setSize(size=self.size_func(val[:,2]))
+
+            if val.shape[1] > 2:  # Ensure there is a third dimension for `z`
+                self.pointsetplots[key].setSize(size=self.size_func(val[:, 2]))
+            else:
+                logger.warning(f"Skipping size calculation for key: {key}, insufficient dimensions.")
+                self.pointsetplots[key].setSize(size=self.min_s_size)
+
             self.pointsetsdata[key] = val
+
 
     def change_highlighted_neuron(self, high: int=None, unhigh:int=None, high_pointdat=None, **kwargs):
         """

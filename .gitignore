@@ -5,6 +5,7 @@ src/neural_network_scripts/184.h5
 *__pycache__*
 .idea/
 Data*/
+*DS_store*
 *.log
 *checkpoints*
 *.h5

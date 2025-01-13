@@ -82,10 +82,10 @@ class DataTypeChoice:
 
     @staticmethod
     def choose_data():
-        msgBox = QtGui.QMessageBox()
+        msgBox = QMessageBox()
         msgBox.setText('Is the annotation in the form of points or regions/masks??')
-        msgBox.addButton(QtGui.QPushButton('Points'), 0)
-        msgBox.addButton(QtGui.QPushButton('Masks'), 0)
+        msgBox.addButton(QPushButton('Points'), 0)
+        msgBox.addButton(QPushButton('Masks'), 0)
         ret = msgBox.exec_()
         if ret == 0:
             return "points"
