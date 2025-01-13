@@ -5,3 +5,6 @@ src/neural_network_scripts/184.h5
 *__pycache__*
 .idea/
 Data*/
+*.log
+*checkpoints*
+*.h5

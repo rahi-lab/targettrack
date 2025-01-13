@@ -1,0 +1,24 @@
+name: targettrack_server
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.8.13
+  - numpy=1.23.4  # Pinned to match GUI
+  - pytorch=2.1.0  # Pinned for CUDA compatibility
+  - pytorch-cuda=11.7
+  - torchvision=0.16.0  # Pinned to match PyTorch
+  - scipy
+  - scikit-image
+  - scikit-learn
+  - umap-learn
+  - sparse
+  - h5py=3.6.0  # Pinned to match GUI
+  - pip
+  - pip:
+    - rpyc==5.3.1  # Pinned to match GUI
+    - albumentations
+    - alphashape
+    - connected-components-3d
