@@ -3,4 +3,4 @@ server:
 
 client:
   node: dgx001
-  file_path: /nese/mit/group/boydenlab/Konstantinos/targettrack_data/unlabeled_worm_head_example.h5
+  file_path: /nese/mit/group/boydenlab/Konstantinos/targettrack_data/small_GT_annotation_worm_head_example.h5

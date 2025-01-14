@@ -313,7 +313,21 @@ class RemoteH5File(DataSet):
         except Exception as e:
             logger.error(f"Error getting mask {t}: {str(e)}")
             return False
-    
+    @property
+    def pointdat(self):
+        """Fetch the point data from the dataset."""
+        logger.debug("load")
+        try:
+            dataset = self._get_dataset("/pointdat")
+            if dataset is not None:
+                return obtain(dataset[:])  # Fetch all point data
+            else:
+                logger.warning("Point data not found in the file.")
+                return np.full((self.frame_num, self.nb_neurons + 1, 3), np.nan)  # Default empty data
+        except Exception as e:
+            logger.error(f"Error fetching point data: {str(e)}")
+            return None
+
     def available_NNdats(self) -> List[str]:
         """Return a list of available NN datasets"""
         nn_datasets = []
@@ -348,7 +362,8 @@ class RemoteH5File(DataSet):
             logger.error(f"Error getting NN mask {t}: {str(e)}")
             return False
     
-    def set_pointdat(self, pointdat: np.ndarray):
+    # Never called?
+    def set_point_data(self, pointdat: np.ndarray):
         """
         Set the pointdat on the remote dataset.
         """
@@ -359,23 +374,30 @@ class RemoteH5File(DataSet):
             elif not self.point_data:
                 raise ValueError("Masks and point data would interfere.")
 
-            # # Call server to create or validate the dataset
-            # self.conn.root.create_dataset(
-            #     self.file_id,
-            #     "/pointdat",
-            #     shape=pointdat.shape,
-            #     dtype="float32",
-            #     compression="gzip"
-            # )
+            # Call server to create or validate the dataset
+            self.conn.root.create_dataset(
+                self.file_id,
+                "/pointdat",
+                shape=pointdat.shape,
+                dtype="float32",
+                compression="gzip"
+            )
 
             # Write data to the dataset
-            self.conn.root.write_dataset(self.file_id, "/pointdat", pointdat)
+            # self.conn.root.write_dataset(self.file_id, "/pointdat", pointdat)
             logger.info("Point data successfully updated in the remote dataset.")
 
         except Exception as e:
             logger.error(f"Error setting pointdat: {str(e)}")
             raise
-
+    def send_patch_to_server(self, frame, neuron, coord):
+            """Send only the updated data to the remote server."""
+            try:
+                patch_data = {"frame": frame, "neuron": neuron, "coord": coord}
+                self.conn.root.update_dataset(self.file_id, "/pointdat", patch_data)
+                logger.info(f"Patch sent for frame {frame}, neuron {neuron}: {coord}")
+            except Exception as e:
+                logger.error(f"Failed to send patch: {e}")
     def _is_expected_missing(self, path: str) -> bool:
         """Check if this is an expected missing path"""
         expected = ['/mask', '/coarse_mask', '/transform1', 
@@ -474,7 +496,14 @@ class RemoteH5File(DataSet):
                 return
 
             # Write the data
-            self.conn.root.write_dataset(self.file_id, "/ci_int", ca_activity)
+            self.conn.root.create_dataset(
+                self.file_id,
+                "/ci_int",
+                shape=ca_activity.shape,
+                dtype="float32",
+                compression=None
+            )
+            # self.conn.root.write_dataset(self.file_id, "/ci_int", ca_activity)
             # Update the structure locally
             logger.info("Calcium activity data updated on remote server")
         except Exception as e:
