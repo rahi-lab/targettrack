@@ -9,3 +9,5 @@ Data*/
 *.log
 *checkpoints*
 *.h5
+*.tif
+*.nwb
