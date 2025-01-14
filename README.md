@@ -11,13 +11,13 @@ TargetTrack is a user-friendly graphical interface designed for annotating 3D re
 
 ### Prerequisites
 •	Local Machine:
-	•	Python 3.8 or higher
-	•	Conda or Mamba for environment management
-	•	SSH access to the remote server
+	-	Python 3.8 or higher
+	-	Conda or Mamba for environment management
+	-	SSH access to the remote server
 
 •	Remote Server:
-	•	Python 3.8 or higher
-	•	Necessary computational resources for backend processing
+	-	Python 3.8 or higher
+	-	Necessary computational resources for backend processing
 
 ### Setup Steps
 1.	**Clone the Repository:**
