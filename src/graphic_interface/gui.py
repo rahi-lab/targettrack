@@ -4,7 +4,7 @@ from . import gui_elements_controls as controls
 from . import image_rendering
 from PyQt5.QtWidgets import *
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt
 from ..helpers import QtHelpers
 
 from PyQt5.QtGui import QKeySequence
@@ -23,7 +23,6 @@ class gui(QMainWindow):
         self.settings = settings
         self.parent = parent
         logger.debug(parent)
-        self.closing_signal = pyqtSignal()
 
         self.setWindowTitle("Targettrack")
         self.resize(self.settings["screen_w"]*4//5, self.settings["screen_h"]*4//5)

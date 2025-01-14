@@ -48,7 +48,6 @@ if __name__ == "__main__":
     #     print("\nExample:")
     #     print("  python gui_launcher.py dgx001:/om2/user/name/data.h5")
     #     sys.exit(1)
-    print(os.getenv('DEFAULT_DATASET_DIR'))
 
     dataset_path = os.path.join(os.getenv('DEFAULT_DATASET_DIR'), args.dataset_path) if os.getenv('DEFAULT_DATASET_DIR') and not args.full_path else args.dataset_path
     dataset_path = args.node + ":" + dataset_path if args.node else dataset_path
