@@ -2,10 +2,10 @@
 import sys
 import re
 import logging
-import os
-import argparse
 from PyQt5.QtWidgets import QApplication
 from src.graphic_interface import gui_single
+import hydra
+from omegaconf import DictConfig
 
 # Configure logging
 logging.basicConfig(
@@ -14,11 +14,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger('gui_launcher')
 
-parser = argparse.ArgumentParser()
-parser.add_argument('dataset_path', type=str, help='Path to the dataset file')
-parser.add_argument('-n', '--node', type=str, help='Port number for the server')
-parser.add_argument('-p', '--full-path', help="Use full path instead of default dataset dir", action="store_true")
-args = parser.parse_args()
+
 def parse_remote_path(path):
     """
     Parse remote path for a tunneled connection
@@ -38,19 +34,14 @@ def parse_remote_path(path):
     logger.info(f"Using tunneled connection for node {node}")
     
     return node, filepath
+@hydra.main(version_base=None, config_path="conf", config_name="config")
+def app(cfg: DictConfig):
+    node = cfg.client.node
+    file_path = cfg.client.file_path
+    assert file_path is not None, "file_path must be provided"
+    
 
-if __name__ == "__main__":
-    # if len(sys.argv) != 2:
-    #     print("Usage:")
-    #     print("  Local:  python gui_launcher.py /path/to/file.h5")
-    #     print("  Remote: python gui_launcher.py node:/path/to/file.h5")
-    #     print("\nNote: For remote files, ensure SSH tunnel is active to node:18861")
-    #     print("\nExample:")
-    #     print("  python gui_launcher.py dgx001:/om2/user/name/data.h5")
-    #     sys.exit(1)
-
-    dataset_path = os.path.join(os.getenv('DEFAULT_DATASET_DIR'), args.dataset_path) if os.getenv('DEFAULT_DATASET_DIR') and not args.full_path else args.dataset_path
-    dataset_path = args.node + ":" + dataset_path if args.node else dataset_path
+    dataset_path = node + ":" + file_path if node else file_path
     # Parse path
     remote_info = parse_remote_path(dataset_path)
 
@@ -70,3 +61,15 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(f"Failed to start GUI: {str(e)}")
         sys.exit(1)
+  
+if __name__ == "__main__":
+    # if len(sys.argv) != 2:
+    #     print("Usage:")
+    #     print("  Local:  python gui_launcher.py /path/to/file.h5")
+    #     print("  Remote: python gui_launcher.py node:/path/to/file.h5")
+    #     print("\nNote: For remote files, ensure SSH tunnel is active to node:18861")
+    #     print("\nExample:")
+    #     print("  python gui_launcher.py dgx001:/om2/user/name/data.h5")
+    #     sys.exit(1)
+
+    

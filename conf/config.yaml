@@ -1,0 +1,6 @@
+server:
+  port: 18861
+
+client:
+  node: dgx001
+  file_path: /nese/mit/group/boydenlab/Konstantinos/targettrack_data/unlabeled_worm_head_example.h5
