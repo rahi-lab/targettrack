@@ -4,21 +4,26 @@ from . import gui_elements_controls as controls
 from . import image_rendering
 from PyQt5.QtWidgets import *
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, pyqtSignal
 from ..helpers import QtHelpers
 
 from PyQt5.QtGui import QKeySequence
 
+import logging
+logger = logging.getLogger('gui_single')
 
 class gui(QMainWindow):
 
     reserved_keys = ["z", "c", "a", "d", "v", "b", "n", "m", ",", ".", "\n", "", " "]
 
-    def __init__(self, controller, settings):
+    def __init__(self, controller, settings, parent=None):
         super().__init__()
         self.controller = controller
         self.controller.freeze_registered_clients.append(self)
         self.settings = settings
+        self.parent = parent
+        logger.debug(parent)
+        self.closing_signal = pyqtSignal()
 
         self.setWindowTitle("Targettrack")
         self.resize(self.settings["screen_w"]*4//5, self.settings["screen_h"]*4//5)
@@ -177,8 +182,11 @@ class gui(QMainWindow):
 
     def unfreeze(self):
         self.setEnabled(True)
-
+    def closeEvent(self, event):
+      self.parent.closeEvent(event)
+      # self.close()
     def close(self,arg,msg):
+        logger.debug("Closing GUI")
         ####Dependency
         ok,msg=self.controller.close(arg,msg)
         ####Self Behavior

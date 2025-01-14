@@ -16,8 +16,9 @@ from ..datasets_code.DataSet import DataSet
 from .. import main_controller
 
 logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True
 )
 logger = logging.getLogger('gui_single')
 
@@ -508,7 +509,7 @@ def loaddict(fn: str) -> Dict[str, str]:
                     logger.warning(f"Invalid line in settings file: {line}")
     return set_dict
 
-class gui_single:
+class gui_single():
     def __init__(self, dataset_path: str, tunneled: bool = False, node: Optional[str] = None):
         """
         Initialize GUI with either local or remote dataset
@@ -556,20 +557,21 @@ class gui_single:
         """Initialize the user interface"""
         self.app = QApplication([])
         self.app.setWindowIcon(QIcon(os.path.join("src", "Images", "icon.png")))
-
+        logger.debug("initUI")
         screen = self.app.primaryScreen()
         size = screen.size()
         self.settings["screen_w"] = size.width()
         self.settings["screen_h"] = size.height()
         self.fps = float(self.settings["fps"])
 
-        self.gui = gui.gui(self.controller, self.settings)
+        self.gui = gui.gui(self.controller, self.settings, self)
         self.gui.show()
 
     def closeEvent(self, event):
         """Handle application closing"""
+        logger.debug("close")
         reply = QMessageBox.question(
-            self, "Closing",
+            self.gui, "Closing",
             "Save remaining annotations and Neural Networks?",
             QMessageBox.Save | QMessageBox.Close | QMessageBox.Cancel,
             QMessageBox.Save)
