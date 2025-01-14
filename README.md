@@ -3,9 +3,9 @@
 TargetTrack is a user-friendly graphical interface designed for annotating 3D recordings of C. elegans and tracking neuronal activity. This fork enhances the original functionality by enabling the GUI to run on a local client machine while delegating backend processing to a remote server, optimizing performance and resource utilization.
 
 ## Features
-	•	Local GUI Execution: Run the graphical interface on your local machine for responsive interaction.
-	•	Remote Backend Processing: Offload computationally intensive tasks to a remote server, leveraging its processing power.
-	•	Secure SSH Tunneling: Establish secure connections between the client and server to ensure data integrity and confidentiality.
+•	Local GUI Execution: Run the graphical interface on your local machine for responsive interaction.
+•	Remote Backend Processing: Offload computationally intensive tasks to a remote server, leveraging its processing power.
+•	Secure SSH Tunneling: Establish secure connections between the client and server to ensure data integrity and confidentiality.
 
 ## Installation
 
