@@ -74,7 +74,7 @@ class Controller():
 
         # whether data is going to be as points or as masks:
         
-        self.point_data = self.data['point_data'][0] if self.data['point_data'] else False
+        self.point_data = self.data['point_data'][0] if self.data['point_data'] else None
 
         self.frame_num = self.data.frame_num
         self.data_name = self.data.name

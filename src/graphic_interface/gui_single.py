@@ -276,8 +276,8 @@ class RemoteH5File(DataSet):
             
         except Exception as e:
             if not self._is_expected_missing(path):
-                logger.error(f"Error getting dataset {path}: {str(e)}")
-            raise
+                logger.warn(f"Error getting dataset {path}: {str(e)}")
+            return None
 
     def _get_frame(self, t: int, col: str = "red") -> Optional[np.ndarray]:
       """
@@ -467,7 +467,7 @@ class RemoteH5File(DataSet):
     def _is_expected_missing(self, path: str) -> bool:
         """Check if this is an expected missing path"""
         expected = ['/mask', '/coarse_mask', '/transform1', 
-                   '/transfo_matrix', '/high', '/predmask', '/point_data']
+                   '/transfo_matrix', '/high', '/predmask']
         return any(path.endswith(suffix) for suffix in expected)
 
     def clear_cache(self):
