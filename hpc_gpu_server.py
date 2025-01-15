@@ -190,17 +190,60 @@ class H5StreamService(rpyc.Service):
         self.file_manager = H5FileManager()
         self.cache = DatasetCache()
         
+        self._prefetch_queue = queue.Queue()
+        self._stop_event = threading.Event()  # Stop signal
+        self._prefetch_thread = threading.Thread(target=self._prefetch_worker, daemon=True)
+        self._prefetch_thread.start()
+
         # Log initialization
         gpu_info = get_gpu_info()
         if gpu_info['cuda_available']:
             logger.info(f"GPU available: {gpu_info['device_name']}")
         else:
             logger.warning("No GPU available")
-    
+    def _prefetch_worker(self):
+        """Worker thread to prefetch data"""
+        file_id_old = None
+        h5file = None
+        while not self._stop_event.is_set():
+            try:
+                file_id, frame_num, slices = self._prefetch_queue.get(timeout=1)
+                path = f"{frame_num}/frame"
+                cached_data = self.cache.get(path, slices)
+                if cached_data is not None:
+                    # logger.info(f"Cache hit for path: {path}, slices: {slice_info}")
+                    return cached_data
+
+                # Retrieve file handle
+                h5file = self.file_manager.get_file(file_id) if h5file is None or file_id_old != file_id else h5file
+                if h5file is None:
+                    logger.error(f"File not found or closed: {file_id}")
+                    return None
+                
+                if path not in h5file:
+                    logger.warning(f"Dataset path not found in file: {path}")
+                    return None
+                dataset = h5file[path]
+                chunk_data = dataset[slices]
+                logger.info(chunk_data)
+                if chunk_data.nbytes < 10 * 1024 * 1024:
+                  try:
+                      self.cache.put(path, slices, chunk_data)
+                      logger.info(f"Cached chunk for path: {path}")
+                  except Exception as e:
+                      logger.warning(f"Failed to cache chunk: {e}")
+                self._prefetch_queue.task_done()
+            except queue.Empty:
+                # Timeout reached; loop continues, checking for stop signal
+                continue
+            except Exception as e:
+                logger.warning(f"Error during background prefetch: {e}")
     def on_connect(self, conn):
         logger.info(f"New connection from {conn._config['endpoints'][1]}")
     
     def on_disconnect(self, conn):
+        # CLose the thread with a close signa
+        self._stop_event.set()
         logger.info(f"Client disconnected: {conn._config['endpoints'][1]}")
     
     def exposed_check_connection(self):
@@ -409,7 +452,6 @@ class H5StreamService(rpyc.Service):
             # Retrieve dataset
             dataset = h5file[path]
             chunk_data = dataset[slices]
-
             # Ensure data is a NumPy array with consistent dtype
             chunk_data = np.asarray(chunk_data, dtype=dataset.dtype)
 
@@ -420,7 +462,11 @@ class H5StreamService(rpyc.Service):
                     logger.info(f"Cached chunk for path: {path}, slices: {slice_info}")
                 except Exception as e:
                     logger.warning(f"Failed to cache chunk: {e}")
-
+            if path.endswith("/frame"):
+                max_frames = h5file["pointdat"].shape[0]
+                for i in range(max(0, int(path.split("/")[0]) - 20), min(int(path.split("/")[0]) + 20, max_frames)):
+                  logger.debug(f"Frame # {i}")
+                  self._prefetch_queue.put((file_id, i, slices))
             return chunk_data
 
         except Exception as e:

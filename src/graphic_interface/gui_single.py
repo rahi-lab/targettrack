@@ -322,13 +322,6 @@ class RemoteH5File(DataSet):
           except Exception as e:
               logger.warning(f"Error during background prefetch: {e}")
 
-    def prefetch_frames(self, t: int, col: str = "red"):
-      """Queue ±10 frames for background prefetching."""
-      start = max(0, t - 10)
-      end = min(self.frame_num, t + 11)
-      for frame in range(start, end):
-          self._prefetch_queue.put((frame, col))
-
     def stop_prefetching(self, immediate: bool = False):
       """
       Stop the background prefetching thread.
@@ -342,39 +335,6 @@ class RemoteH5File(DataSet):
 
       self._prefetch_thread.join()
       logger.info("Prefetching thread stopped.")
-    def _prefetch_frames(self, t: int, col: str = "red"):
-      """
-      Prefetch ±10 frames and cache them.
-      """
-      start = max(0, t - 10)  # Prevent accessing before the first frame
-      end = min(self.frame_num, t + 11)  # Prevent accessing beyond the last frame
-      logger.info(f"Prefetching frames {start} to {end - 1} ({col})")
-      for i in range(start, end):
-        try:
-            # Generate a cache key for the frame
-            cache_key = f"{i}/frame:{col}"
-
-            # Skip if the frame is already cached
-            if self._chunk_cache.get(cache_key) is not None:
-                continue
-
-            # Fetch the frame dataset
-            dataset = self._get_dataset(f"{i}/frame")
-            if dataset is None:
-                continue
-
-            frame = obtain(dataset[:])
-            if frame is None:
-                logger.debug(f"Skipping prefetch for frame {i}, data unavailable.")
-                continue
-
-            # Cache the requested channel
-            channel_data = frame[0] if col == "red" else frame[1]
-            self._chunk_cache.put(cache_key, channel_data)
-
-        except Exception as e:
-            logger.warning(f"Error during prefetch for frame {i}: {e}")
-
     def _get_mask(self, t: int) -> Optional[np.ndarray]:
         """Get mask with error handling"""
         try:
