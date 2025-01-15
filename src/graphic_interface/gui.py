@@ -21,7 +21,6 @@ class gui(QMainWindow):
         self.controller.freeze_registered_clients.append(self)
         self.settings = settings
         self.parent = parent
-        logger.debug(parent)
 
         self.setWindowTitle("Targettrack")
         self.resize(self.settings["screen_w"]*4//5, self.settings["screen_h"]*4//5)

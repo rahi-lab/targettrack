@@ -146,7 +146,7 @@ class LazyDataset:
 
 class RemoteConnection:
     """Handles remote server connection through SSH tunnel with retry logic"""
-    def __init__(self, port=18862, max_retries=3, retry_delay=2):
+    def __init__(self, port=18861, max_retries=3, retry_delay=2):
         self.port = port
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -235,8 +235,9 @@ class RemoteH5File(DataSet):
         self.file_id = result['file_id']
         self.structure = result['structure']
         self._attrs = result['attributes']
-
+                
         self._prefetch_queue = queue.Queue()
+        self._stop_event = threading.Event()  # Stop signal
         self._prefetch_thread = threading.Thread(target=self._prefetch_worker, daemon=True)
         self._prefetch_thread.start()
 
@@ -306,30 +307,41 @@ class RemoteH5File(DataSet):
           logger.error(f"Error getting frame {t}: {str(e)}")
           return None
     def _prefetch_worker(self):
-        """Background worker to process prefetch requests."""
-        while True:
-            try:
-                t, col = self._prefetch_queue.get()
-                if t is None:  # Sentinel to stop the thread
-                    break
-                logger.debug(f"Prefetching frame {t} in the background...")
-                self._get_frame(t, col)  # Cache frame in the foreground logic
-                self._prefetch_queue.task_done()
-            except Exception as e:
-                logger.warning(f"Error during background prefetch: {e}")
+      """Background worker to process prefetch requests."""
+      while not self._stop_event.is_set():
+          try:
+              # Use timeout to periodically check for the stop event
+              t, col = self._prefetch_queue.get(timeout=1)
+              if t is None:  # Sentinel to break out of loop
+                  break
+              self._get_frame(t, col)  # Load the frame to cache it
+              self._prefetch_queue.task_done()
+          except queue.Empty:
+              # Timeout reached; loop continues, checking for stop signal
+              continue
+          except Exception as e:
+              logger.warning(f"Error during background prefetch: {e}")
 
     def prefetch_frames(self, t: int, col: str = "red"):
-        """Queue ±10 frames for background prefetching."""
-        start = max(0, t - 10)
-        end = min(self.frame_num, t + 11)
-        for frame in range(start, end):
-            self._prefetch_queue.put((frame, col))
+      """Queue ±10 frames for background prefetching."""
+      start = max(0, t - 10)
+      end = min(self.frame_num, t + 11)
+      for frame in range(start, end):
+          self._prefetch_queue.put((frame, col))
 
-    def stop_prefetching(self):
-        """Stop the background prefetching thread."""
-        self._prefetch_queue.put((None, None))  # Sentinel value to stop the thread
-        self._prefetch_thread.join()
-    
+    def stop_prefetching(self, immediate: bool = False):
+      """
+      Stop the background prefetching thread.
+      Args:
+          immediate (bool): If True, force the thread to stop immediately.
+      """
+      if immediate:
+          self._stop_event.set()  # Signal the thread to stop immediately
+      else:
+          self._prefetch_queue.put((None, None))  # Graceful stop using sentinel value
+
+      self._prefetch_thread.join()
+      logger.info("Prefetching thread stopped.")
     def _prefetch_frames(self, t: int, col: str = "red"):
       """
       Prefetch ±10 frames and cache them.
@@ -358,7 +370,6 @@ class RemoteH5File(DataSet):
 
             # Cache the requested channel
             channel_data = frame[0] if col == "red" else frame[1]
-            logger.debug(f"Prefetching frame {i} ({col})")
             self._chunk_cache.put(cache_key, channel_data)
 
         except Exception as e:
@@ -382,7 +393,6 @@ class RemoteH5File(DataSet):
     @property
     def pointdat(self):
         """Fetch the point data from the dataset."""
-        logger.debug("load")
         try:
             dataset = self._get_dataset("/pointdat")
             if dataset is not None:
