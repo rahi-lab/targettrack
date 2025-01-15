@@ -509,7 +509,7 @@ def loaddict(fn: str) -> Dict[str, str]:
                     logger.warning(f"Invalid line in settings file: {line}")
     return set_dict
 
-class gui_single():
+class gui_single:
     def __init__(self, dataset_path: str, tunneled: bool = False, node: Optional[str] = None):
         """
         Initialize GUI with either local or remote dataset
