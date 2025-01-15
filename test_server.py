@@ -3,10 +3,7 @@ from rpyc.utils.server import ThreadedServer
 import logging
 import socket
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+
 logger = logging.getLogger('test_server')
 
 class TestService(rpyc.Service):

@@ -4,7 +4,6 @@ import logging
 from typing import Optional, Dict, Any
 import time
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('targettrack_client')
 
 class TargetTrackClient:

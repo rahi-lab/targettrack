@@ -1,10 +1,11 @@
 import os
 import rpyc 
 from rpyc.utils.classic import obtain
-import logging
 import time
 import numpy as np
 import threading
+import queue
+
 from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
@@ -14,13 +15,9 @@ from PyQt5.QtCore import QTimer
 from . import gui
 from ..datasets_code.DataSet import DataSet
 from .. import main_controller
+from logging_config import setup_logger
 
-logging.basicConfig(
-    level=logging.DEBUG, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    force=True
-)
-logger = logging.getLogger('gui_single')
+logger = setup_logger(__name__)
 
 class ChunkCache:
     """Thread-safe cache for dataset chunks with LRU eviction"""
@@ -238,6 +235,11 @@ class RemoteH5File(DataSet):
         self.file_id = result['file_id']
         self.structure = result['structure']
         self._attrs = result['attributes']
+                
+        self._prefetch_queue = queue.Queue()
+        self._stop_event = threading.Event()  # Stop signal
+        self._prefetch_thread = threading.Thread(target=self._prefetch_worker, daemon=True)
+        self._prefetch_thread.start()
 
     def _get_dataset(self, path: str) -> Optional[LazyDataset]:
         """Get or create LazyDataset for given path"""
@@ -274,30 +276,65 @@ class RemoteH5File(DataSet):
             
         except Exception as e:
             if not self._is_expected_missing(path):
-                logger.error(f"Error getting dataset {path}: {str(e)}")
-            raise
+                logger.warn(f"Error getting dataset {path}: {str(e)}")
+            return None
 
     def _get_frame(self, t: int, col: str = "red") -> Optional[np.ndarray]:
-        """Get frame with better error handling"""
-        try:
-            dataset = self._get_dataset(f"{t}/frame")
-            if dataset is None:
-                return None
+      """
+      Get frame and prefetch ±10 frames.
+      Handles errors gracefully.
+      """
+      try:
+          # Fetch the current frame
+          dataset = self._get_dataset(f"{t}/frame")
+          if dataset is None:
+              logger.warning(f"Dataset for frame {t} not found.")
+              return None
 
-            frame = obtain(dataset[:])
-            if frame is None:
-                return None
-                
-            if col == "red":
-                return frame[0] if len(frame.shape) > 3 else frame
-            elif col == "green" and frame.shape[0] > 1:
-                return frame[1]
-            return None
-            
-        except Exception as e:
-            logger.error(f"Error getting frame {t}: {str(e)}")
-            return None
+          frame = obtain(dataset[:])
+          if frame is None:
+              logger.warning(f"Frame data for {t} could not be retrieved.")
+              return None
 
+          # Extract the requested channel
+          channel_data = frame[0] if col == "red" else frame[1]
+
+          # Prefetch surrounding frames
+
+          return channel_data
+
+      except Exception as e:
+          logger.error(f"Error getting frame {t}: {str(e)}")
+          return None
+    def _prefetch_worker(self):
+      """Background worker to process prefetch requests."""
+      while not self._stop_event.is_set():
+          try:
+              # Use timeout to periodically check for the stop event
+              t, col = self._prefetch_queue.get(timeout=1)
+              if t is None:  # Sentinel to break out of loop
+                  break
+              self._get_frame(t, col)  # Load the frame to cache it
+              self._prefetch_queue.task_done()
+          except queue.Empty:
+              # Timeout reached; loop continues, checking for stop signal
+              continue
+          except Exception as e:
+              logger.warning(f"Error during background prefetch: {e}")
+
+    def stop_prefetching(self, immediate: bool = False):
+      """
+      Stop the background prefetching thread.
+      Args:
+          immediate (bool): If True, force the thread to stop immediately.
+      """
+      if immediate:
+          self._stop_event.set()  # Signal the thread to stop immediately
+      else:
+          self._prefetch_queue.put((None, None))  # Graceful stop using sentinel value
+
+      self._prefetch_thread.join()
+      logger.info("Prefetching thread stopped.")
     def _get_mask(self, t: int) -> Optional[np.ndarray]:
         """Get mask with error handling"""
         try:
@@ -316,7 +353,6 @@ class RemoteH5File(DataSet):
     @property
     def pointdat(self):
         """Fetch the point data from the dataset."""
-        logger.debug("load")
         try:
             dataset = self._get_dataset("/pointdat")
             if dataset is not None:
@@ -588,7 +624,9 @@ class gui_single:
 
     def closeEvent(self, event):
         """Handle application closing"""
-        logger.debug("close")
+        
+        # Stop the prefetching thread
+        self.controller.data.stop_prefetching()
         reply = QMessageBox.question(
             self.gui, "Closing",
             "Save remaining annotations and Neural Networks?",

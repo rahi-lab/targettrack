@@ -32,8 +32,7 @@ def check_environment() -> Dict[str, Any]:
     return env_info
 
 # Configure logging
-logging.basicConfig(level=logging.INFO,
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
 logger = logging.getLogger('points_server')
 
 class PointsTrainingService(rpyc.Service):

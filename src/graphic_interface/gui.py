@@ -8,9 +8,8 @@ from PyQt5.QtCore import Qt
 from ..helpers import QtHelpers
 
 from PyQt5.QtGui import QKeySequence
-
-import logging
-logger = logging.getLogger('gui_single')
+from logging_config import setup_logger
+logger = setup_logger(__name__)
 
 class gui(QMainWindow):
 
@@ -22,7 +21,6 @@ class gui(QMainWindow):
         self.controller.freeze_registered_clients.append(self)
         self.settings = settings
         self.parent = parent
-        logger.debug(parent)
 
         self.setWindowTitle("Targettrack")
         self.resize(self.settings["screen_w"]*4//5, self.settings["screen_h"]*4//5)

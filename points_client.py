@@ -4,7 +4,7 @@ from pathlib import Path
 import tempfile
 import shutil
 
-logging.basicConfig(level=logging.INFO)
+# logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger('points_client')
 
 class PointsTrainingClient:
