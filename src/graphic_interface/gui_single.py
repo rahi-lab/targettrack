@@ -362,8 +362,7 @@ class RemoteH5File(DataSet):
             logger.error(f"Error getting NN mask {t}: {str(e)}")
             return False
     
-    # Never called?
-    def set_point_data(self, pointdat: np.ndarray):
+    def set_point_data(self):
         """
         Set the pointdat on the remote dataset.
         """
@@ -374,27 +373,18 @@ class RemoteH5File(DataSet):
             elif not self.point_data:
                 raise ValueError("Masks and point data would interfere.")
 
-            # Call server to create or validate the dataset
-            self.conn.root.create_dataset(
-                self.file_id,
-                "/pointdat",
-                shape=pointdat.shape,
-                dtype="float32",
-                compression="gzip"
-            )
-
             # Write data to the dataset
-            # self.conn.root.write_dataset(self.file_id, "/pointdat", pointdat)
+            self.conn.root.write_dataset_point_data(self.file_id, "/point_data", [self.point_data])
             logger.info("Point data successfully updated in the remote dataset.")
 
         except Exception as e:
             logger.error(f"Error setting pointdat: {str(e)}")
             raise
-    def send_patch_to_server(self, frame, neuron, coord):
+    def send_pointdat_patch_to_server(self, frame, neuron, coord):
             """Send only the updated data to the remote server."""
             try:
                 patch_data = {"frame": frame, "neuron": neuron, "coord": coord}
-                self.conn.root.update_dataset(self.file_id, "/pointdat", patch_data)
+                self.conn.root.update_dataset_pointdat(self.file_id, "/pointdat", patch_data)
                 logger.info(f"Patch sent for frame {frame}, neuron {neuron}: {coord}")
             except Exception as e:
                 logger.error(f"Failed to send patch: {e}")
@@ -579,7 +569,7 @@ class gui_single:
         except Exception as e:
             if self.connection:
                 self.connection.close()
-            logger.error(f"Failed to initialize GUI: {str(e)}")
+            logger.error(f"Failed to initialize GUI: {str(e)}", exc_info=True)
             raise
 
     def initUI(self):

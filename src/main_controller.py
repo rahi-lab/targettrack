@@ -39,10 +39,11 @@ from .msgboxes import EnterCellValue as ecv
 
 import logging
 logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True
 )
-logger = logging.getLogger('gui_single')
+logger = logging.getLogger('main_controller')
 
 
 
@@ -69,14 +70,15 @@ class Controller():
         #this sets up the environment
         self.data = dataset
         self.settings=settings
-        print("Loading dataset:",self.data.name)
+        logger.info(f"Loading dataset: {self.data.name}")
 
         self.ready = False
 
         self.timer = misc.UpdateTimer(1. / int(self.settings["fps"]), self.update)
 
         # whether data is going to be as points or as masks:
-        self.point_data = self.data.point_data
+        
+        self.point_data = self.data['point_data'][0] if self.data['point_data'] else False
 
         self.frame_num = self.data.frame_num
         self.data_name = self.data.name
@@ -247,7 +249,7 @@ class Controller():
         #     self.data.ca_act = self.hlab.ci_int
         
     def set_point_data(self, value:bool):
-        self.data.point_data = value
+        self.data.set_point_data()
         self.point_data = value
         self.pointdat = self.data.pointdat
 
@@ -2075,7 +2077,7 @@ class Controller():
     def save_pointdat(self):
       for frame, updates in self.updated_points.items():
         for neuron, coord in updates.items():
-            self.data.send_patch_to_server(frame, neuron, coord)
+            self.data.send_pointdat_patch_to_server(frame, neuron, coord)
       self.updated_points.clear()
 
     def save_and_repack(self):
