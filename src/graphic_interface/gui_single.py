@@ -605,7 +605,7 @@ def loaddict(fn: str) -> Dict[str, str]:
     return set_dict
 
 class gui_single:
-    def __init__(self, dataset_path: str, port: int, tunneled: bool = False, node: Optional[str] = None):
+    def __init__(self, dataset_path: str, port: int, tunneled: bool = False, node: Optional[str] = None ):
         """
         Initialize GUI with either local or remote dataset
         

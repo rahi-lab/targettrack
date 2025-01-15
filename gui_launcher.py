@@ -68,5 +68,4 @@ if __name__ == "__main__":
     #     print("\nExample:")
     #     print("  python gui_launcher.py dgx001:/om2/user/name/data.h5")
     #     sys.exit(1)
-    
     app()
