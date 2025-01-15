@@ -1,10 +1,11 @@
 import os
 import rpyc 
 from rpyc.utils.classic import obtain
-import logging
 import time
 import numpy as np
 import threading
+import queue
+
 from collections import OrderedDict
 from pathlib import Path
 from typing import Dict, Any, Optional, Tuple, List
@@ -14,13 +15,9 @@ from PyQt5.QtCore import QTimer
 from . import gui
 from ..datasets_code.DataSet import DataSet
 from .. import main_controller
+from logging_config import setup_logger
 
-logging.basicConfig(
-    level=logging.DEBUG, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    force=True
-)
-logger = logging.getLogger('gui_single')
+logger = setup_logger(__name__)
 
 class ChunkCache:
     """Thread-safe cache for dataset chunks with LRU eviction"""
@@ -149,7 +146,7 @@ class LazyDataset:
 
 class RemoteConnection:
     """Handles remote server connection through SSH tunnel with retry logic"""
-    def __init__(self, port=18861, max_retries=3, retry_delay=2):
+    def __init__(self, port=18862, max_retries=3, retry_delay=2):
         self.port = port
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -239,6 +236,10 @@ class RemoteH5File(DataSet):
         self.structure = result['structure']
         self._attrs = result['attributes']
 
+        self._prefetch_queue = queue.Queue()
+        self._prefetch_thread = threading.Thread(target=self._prefetch_worker, daemon=True)
+        self._prefetch_thread.start()
+
     def _get_dataset(self, path: str) -> Optional[LazyDataset]:
         """Get or create LazyDataset for given path"""
         if path not in self._dataset_cache:
@@ -278,25 +279,90 @@ class RemoteH5File(DataSet):
             raise
 
     def _get_frame(self, t: int, col: str = "red") -> Optional[np.ndarray]:
-        """Get frame with better error handling"""
+      """
+      Get frame and prefetch ±10 frames.
+      Handles errors gracefully.
+      """
+      try:
+          # Fetch the current frame
+          dataset = self._get_dataset(f"{t}/frame")
+          if dataset is None:
+              logger.warning(f"Dataset for frame {t} not found.")
+              return None
+
+          frame = obtain(dataset[:])
+          if frame is None:
+              logger.warning(f"Frame data for {t} could not be retrieved.")
+              return None
+
+          # Extract the requested channel
+          channel_data = frame[0] if col == "red" else frame[1]
+
+          # Prefetch surrounding frames
+
+          return channel_data
+
+      except Exception as e:
+          logger.error(f"Error getting frame {t}: {str(e)}")
+          return None
+    def _prefetch_worker(self):
+        """Background worker to process prefetch requests."""
+        while True:
+            try:
+                t, col = self._prefetch_queue.get()
+                if t is None:  # Sentinel to stop the thread
+                    break
+                logger.debug(f"Prefetching frame {t} in the background...")
+                self._get_frame(t, col)  # Cache frame in the foreground logic
+                self._prefetch_queue.task_done()
+            except Exception as e:
+                logger.warning(f"Error during background prefetch: {e}")
+
+    def prefetch_frames(self, t: int, col: str = "red"):
+        """Queue ±10 frames for background prefetching."""
+        start = max(0, t - 10)
+        end = min(self.frame_num, t + 11)
+        for frame in range(start, end):
+            self._prefetch_queue.put((frame, col))
+
+    def stop_prefetching(self):
+        """Stop the background prefetching thread."""
+        self._prefetch_queue.put((None, None))  # Sentinel value to stop the thread
+        self._prefetch_thread.join()
+    
+    def _prefetch_frames(self, t: int, col: str = "red"):
+      """
+      Prefetch ±10 frames and cache them.
+      """
+      start = max(0, t - 10)  # Prevent accessing before the first frame
+      end = min(self.frame_num, t + 11)  # Prevent accessing beyond the last frame
+      logger.info(f"Prefetching frames {start} to {end - 1} ({col})")
+      for i in range(start, end):
         try:
-            dataset = self._get_dataset(f"{t}/frame")
+            # Generate a cache key for the frame
+            cache_key = f"{i}/frame:{col}"
+
+            # Skip if the frame is already cached
+            if self._chunk_cache.get(cache_key) is not None:
+                continue
+
+            # Fetch the frame dataset
+            dataset = self._get_dataset(f"{i}/frame")
             if dataset is None:
-                return None
+                continue
 
             frame = obtain(dataset[:])
             if frame is None:
-                return None
-                
-            if col == "red":
-                return frame[0] if len(frame.shape) > 3 else frame
-            elif col == "green" and frame.shape[0] > 1:
-                return frame[1]
-            return None
-            
+                logger.debug(f"Skipping prefetch for frame {i}, data unavailable.")
+                continue
+
+            # Cache the requested channel
+            channel_data = frame[0] if col == "red" else frame[1]
+            logger.debug(f"Prefetching frame {i} ({col})")
+            self._chunk_cache.put(cache_key, channel_data)
+
         except Exception as e:
-            logger.error(f"Error getting frame {t}: {str(e)}")
-            return None
+            logger.warning(f"Error during prefetch for frame {i}: {e}")
 
     def _get_mask(self, t: int) -> Optional[np.ndarray]:
         """Get mask with error handling"""
@@ -588,7 +654,9 @@ class gui_single:
 
     def closeEvent(self, event):
         """Handle application closing"""
-        logger.debug("close")
+        
+        # Stop the prefetching thread
+        self.controller.data.stop_prefetching()
         reply = QMessageBox.question(
             self.gui, "Closing",
             "Save remaining annotations and Neural Networks?",

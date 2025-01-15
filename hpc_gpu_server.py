@@ -2,7 +2,7 @@
 
 import rpyc
 from rpyc.utils.server import ThreadedServer
-import logging
+from logging_config import setup_logger
 import socket
 import subprocess
 import os
@@ -18,16 +18,7 @@ import hydra
 from omegaconf import DictConfig
 
 # Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(),
-        logging.FileHandler('hpc_gpu_server.log')
-    ],
-    force=True
-)
-logger = logging.getLogger('hpc_gpu_server')
+logger = setup_logger(__name__)
 def get_gpu_info() -> Dict[str, Any]:
     """Get comprehensive GPU information using multiple methods"""
     info = {}

@@ -1,18 +1,14 @@
 #!/usr/bin/env python3
 import sys
 import re
-import logging
+
 from PyQt5.QtWidgets import QApplication
 from src.graphic_interface import gui_single
 import hydra
 from omegaconf import DictConfig
-
+from logging_config import setup_logger
 # Configure logging
-logging.basicConfig(
-    level=logging.DEBUG,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger('gui_launcher')
+logger = setup_logger(__name__)
 
 
 def parse_remote_path(path):
@@ -71,5 +67,5 @@ if __name__ == "__main__":
     #     print("\nExample:")
     #     print("  python gui_launcher.py dgx001:/om2/user/name/data.h5")
     #     sys.exit(1)
-    app()
     
+    app()

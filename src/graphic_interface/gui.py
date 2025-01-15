@@ -8,9 +8,8 @@ from PyQt5.QtCore import Qt
 from ..helpers import QtHelpers
 
 from PyQt5.QtGui import QKeySequence
-
-import logging
-logger = logging.getLogger('gui_single')
+from logging_config import setup_logger
+logger = setup_logger(__name__)
 
 class gui(QMainWindow):
 

@@ -9,14 +9,7 @@ import torch
 from datetime import datetime
 
 # Set up logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('targettrack_service.log'),
-        logging.StreamHandler(sys.stdout)
-    ]
-)
+
 logger = logging.getLogger('targettrack_service')
 
 class TargetTrackService(rpyc.Service):

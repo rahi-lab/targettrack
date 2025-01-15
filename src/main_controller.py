@@ -13,6 +13,7 @@ import skimage.feature as skfeat
 import scipy.spatial as spat
 import scipy.ndimage as sim
 import cv2
+import threading
 
 #Internal classes
 from .helpers import SubProcManager, QtHelpers, misc
@@ -36,14 +37,9 @@ from .mask_processing.image_processing import blur, blacken_background, resize_f
 
 # SJR: message box for indicating neuron number of new neuron and for renumbering neuron
 from .msgboxes import EnterCellValue as ecv
+from logging_config import setup_logger
+logger = setup_logger(__name__)
 
-import logging
-logging.basicConfig(
-    level=logging.DEBUG, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    force=True
-)
-logger = logging.getLogger('main_controller')
 
 
 
@@ -332,7 +328,8 @@ class Controller():
             # Notify clients of updated frame image data
             for client in self.frame_img_registered_clients:
                 client.change_img_data(np.array(self.im_rraw), np.array(self.im_graw))
-
+            
+            threading.Thread(target=self.data.prefetch_frames, args=(self.i, "red"), daemon=True).start()
         except Exception as e:
             print(f"Error updating frame data: {str(e)}")
         #load the mask, from ground truth or neural network

@@ -3,12 +3,8 @@ import pyqtgraph as pg
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QFontMetrics
 
-import logging
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger('gui_single')
+from logging_config import setup_logger
+logger = setup_logger(__name__)
 
 # this is the main figure
 class MainFigWidget(pg.PlotWidget,QGraphicsItem):
