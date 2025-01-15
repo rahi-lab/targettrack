@@ -6,7 +6,6 @@ import logging
 import socket
 import subprocess
 import os
-import sys
 import h5py
 import numpy as np
 import torch
@@ -15,6 +14,8 @@ import queue
 import time
 from typing import Dict, Any, Optional, Tuple, List
 from pathlib import Path
+import hydra
+from omegaconf import DictConfig
 
 # Configure logging
 logging.basicConfig(
@@ -407,10 +408,11 @@ class H5StreamService(rpyc.Service):
         """Clean up resources"""
         self.file_manager.close_all()
         self.cache.clear()
-
-if __name__ == "__main__":
+@hydra.main(version_base=None, config_path="conf", config_name="config")
+def app(cfg: DictConfig):
+    """Main function to start the server"""
     # Set up server
-    port = 18861
+    port = cfg.server.port
     host = '0.0.0.0'
     
     # Get hostname for client connection info
@@ -453,3 +455,6 @@ if __name__ == "__main__":
         # Clean up
         if hasattr(server.service, '_cleanup'):
             server.service._cleanup()
+
+if __name__ == "__main__":
+    app()

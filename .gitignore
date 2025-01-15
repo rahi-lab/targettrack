@@ -11,3 +11,4 @@ Data*/
 *.h5
 *.tif
 *.nwb
+.hydra
