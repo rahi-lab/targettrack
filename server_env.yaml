@@ -16,6 +16,7 @@ dependencies:
   - umap-learn=0.5.6
   - sparse=0.15.4
   - h5py=3.6.0  # Pinned to match GUI
+  - hydra-core
   - pip
   - pip:
     - rpyc==5.3.1  # Pinned to match GUI

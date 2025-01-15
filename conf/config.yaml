@@ -2,5 +2,6 @@ server:
   port: 18861
 
 client:
+  port: 18861
   node: dgx001
   file_path: /nese/mit/group/boydenlab/Konstantinos/targettrack_data/small_GT_annotation_worm_head_example.h5
