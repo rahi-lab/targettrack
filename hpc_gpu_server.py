@@ -312,8 +312,20 @@ class H5StreamService(rpyc.Service):
         except Exception as e:
             logger.error(f"Error writing to dataset {path}: {str(e)}")
             raise
-        
-    def exposed_update_dataset(self, file_id, dataset_path, patch_data):
+    def exposed_write_dataset_point_data(self, file_id, path, point_data: bool):
+        try:
+            h5file = self.file_manager.get_file(file_id)
+            if not (path in h5file.keys()):
+              data = np.array([point_data], dtype=bool)
+              h5file.create_dataset(path, data=data, compression=None)
+            else:
+              h5file[path][...] = np.array([point_data], dtype=bool)
+            logger.info(f"Dataset {path} updated with data {point_data}.")
+            return 
+        except Exception as e:
+            logger.error(f"Error writing to dataset {path}: {str(e)}")
+            raise
+    def exposed_update_dataset_pointdat(self, file_id, dataset_path, patch_data):
         """Apply updates to the specified dataset."""
         try:
             h5file = self.file_manager.get_file(file_id)
