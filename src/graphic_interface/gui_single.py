@@ -149,7 +149,7 @@ class LazyDataset:
 
 class RemoteConnection:
     """Handles remote server connection through SSH tunnel with retry logic"""
-    def __init__(self, port=18861, max_retries=3, retry_delay=2):
+    def __init__(self, port, max_retries=3, retry_delay=2):
         self.port = port
         self.max_retries = max_retries
         self.retry_delay = retry_delay
@@ -510,7 +510,7 @@ def loaddict(fn: str) -> Dict[str, str]:
     return set_dict
 
 class gui_single:
-    def __init__(self, dataset_path: str, tunneled: bool = False, node: Optional[str] = None):
+    def __init__(self, dataset_path: str, port: int, tunneled: bool = False, node: Optional[str] = None ):
         """
         Initialize GUI with either local or remote dataset
         
@@ -529,7 +529,7 @@ class gui_single:
             if tunneled:
                 # Remote mode via SSH tunnel
                 logger.info(f"Connecting via SSH tunnel to {node}...")
-                self.connection = RemoteConnection()
+                self.connection = RemoteConnection(port=port)
                 self.dataset = RemoteH5File(
                     self.connection,
                     dataset_path,

@@ -38,6 +38,7 @@ def parse_remote_path(path):
 def app(cfg: DictConfig):
     node = cfg.client.node
     file_path = cfg.client.file_path
+    port = cfg.client.port
     assert file_path is not None, "file_path must be provided"
     
 
@@ -51,7 +52,7 @@ def app(cfg: DictConfig):
         if remote_info:
             node, filepath = remote_info
             # Connect via SSH tunnel on localhost
-            gui = gui_single.gui_single(filepath, tunneled=True, node=node)
+            gui = gui_single.gui_single(filepath, tunneled=True, node=node, port=port)
         else:
             # Local path
             gui = gui_single.gui_single(dataset_path)
