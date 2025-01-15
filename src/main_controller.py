@@ -39,10 +39,11 @@ from .msgboxes import EnterCellValue as ecv
 
 import logging
 logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    force=True
 )
-logger = logging.getLogger('gui_single')
+logger = logging.getLogger('main_controller')
 
 
 
@@ -57,6 +58,7 @@ class Controller():
     -n_neurons: number of neurons
     -pointdat: ground truth annotations
     -NN_pointdat: neural network predictions
+    -updated_points: changes from streamed dataset
     """
     def __init__(self,dataset: DataSet,settings,i_init=0):
         """
@@ -68,14 +70,15 @@ class Controller():
         #this sets up the environment
         self.data = dataset
         self.settings=settings
-        print("Loading dataset:",self.data.name)
+        logger.info(f"Loading dataset: {self.data.name}")
 
         self.ready = False
 
         self.timer = misc.UpdateTimer(1. / int(self.settings["fps"]), self.update)
 
         # whether data is going to be as points or as masks:
-        self.point_data = self.data.point_data
+        
+        self.point_data = self.data['point_data'][0] if self.data['point_data'] else False
 
         self.frame_num = self.data.frame_num
         self.data_name = self.data.name
@@ -88,6 +91,7 @@ class Controller():
         self.NNmask_key=""
 
         # all points are loaded in memory
+        self.pointdat = self.data.pointdat
         if self.point_data:
             self.pointdat = self.data.pointdat
         else:   # either masks, or yet unknown
@@ -238,14 +242,16 @@ class Controller():
         # calcium activities
         self.hlab = HarvardLab.HarvardLab(self, self.data, self.settings)
 
+        self.updated_points = {}
         
         # if not self.hlab.correct_existed:
         #     self.update_ci()
         #     self.data.ca_act = self.hlab.ci_int
         
     def set_point_data(self, value:bool):
-        self.data.point_data = value
+        self.data.set_point_data()
         self.point_data = value
+        self.pointdat = self.data.pointdat
 
     def set_up(self):
         # now we actually initialize
@@ -2069,7 +2075,10 @@ class Controller():
 
     #we save the point data
     def save_pointdat(self):
-        self.data.set_pointdat(self.pointdat)
+      for frame, updates in self.updated_points.items():
+        for neuron, coord in updates.items():
+            self.data.send_pointdat_patch_to_server(frame, neuron, coord)
+      self.updated_points.clear()
 
     def save_and_repack(self):
         print("Repacking")
@@ -2107,6 +2116,7 @@ class Controller():
     #when a key for a neuron is clicked the point is now annotated. rm is the remove option
     def registerpointdat(self,i_from1,coord,rm=False):
         assert self.point_data, "Not available for mask data."
+        print(coord)
         if rm:
             print("Removing neuron",i_from1,"at time",self.i)
             self.pointdat[self.i][i_from1,:]=np.nan
@@ -2124,6 +2134,12 @@ class Controller():
 
         for client in self.calcium_registered_clients:
             client.change_ca_activity(self.hlab.ci_int[i_from1-1][:, :2], neuron_id_from1=i_from1)
+        
+        # NEW 1/14/24
+        if self.i not in self.updated_points:
+          self.updated_points[self.i] = {}
+        self.updated_points[self.i][i_from1] = coord if not rm else None
+        
         self.signal_pts_changed(t_change=False)
         if rm:
             for client in self.present_neurons_registered_clients:

@@ -19,15 +19,15 @@ from omegaconf import DictConfig
 
 # Configure logging
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(),
         logging.FileHandler('hpc_gpu_server.log')
-    ]
+    ],
+    force=True
 )
 logger = logging.getLogger('hpc_gpu_server')
-
 def get_gpu_info() -> Dict[str, Any]:
     """Get comprehensive GPU information using multiple methods"""
     info = {}
@@ -294,9 +294,11 @@ class H5StreamService(rpyc.Service):
                         f"Dataset {path} already exists with shape {dataset.shape} "
                         f"and dtype {dataset.dtype}, which does not match the requested shape {shape} and dtype {dtype}."
                     )
-            else:
-                # Create the dataset if it does not exist
-                h5file.create_dataset(path, shape=shape, dtype=dtype, compression=compression)
+                print(h5file[path][:3])
+                del h5file[path]
+            # Create the dataset if it does not exist
+            h5file.create_dataset(path, shape=shape, dtype=dtype, compression=compression)
+            logger.info(f"Dataset {path} created with shape {shape} and dtype {dtype}.")
         except Exception as e:
             logger.error(f"Error creating dataset {path}: {str(e)}")
             raise
@@ -304,11 +306,42 @@ class H5StreamService(rpyc.Service):
     def exposed_write_dataset(self, file_id: str, path: str, data: List[List[List[float]]]):
         try:
             h5file = self.file_manager.get_file(file_id)
-            h5file[path][...] = np.array(data).astype(np.float32)
+            data = np.array(data).astype(np.float32)
+            print(f"Data Shape: {data.shape}, Data Type: {data.dtype}")
+            h5file[path][...] = data
         except Exception as e:
             logger.error(f"Error writing to dataset {path}: {str(e)}")
             raise
+    def exposed_write_dataset_point_data(self, file_id, path, point_data: bool):
+        try:
+            h5file = self.file_manager.get_file(file_id)
+            if not (path in h5file.keys()):
+              data = np.array([point_data], dtype=bool)
+              h5file.create_dataset(path, data=data, compression=None)
+            else:
+              h5file[path][...] = np.array([point_data], dtype=bool)
+            logger.info(f"Dataset {path} updated with data {point_data}.")
+            return 
+        except Exception as e:
+            logger.error(f"Error writing to dataset {path}: {str(e)}")
+            raise
+    def exposed_update_dataset_pointdat(self, file_id, dataset_path, patch_data):
+        """Apply updates to the specified dataset."""
+        try:
+            h5file = self.file_manager.get_file(file_id)
+            dataset = h5file[dataset_path]
+            frame, neuron, coord = patch_data["frame"], patch_data["neuron"], patch_data["coord"]
 
+            # Update only the necessary part
+            if coord is None:
+                dataset[frame, neuron, :] = np.nan
+            else:
+                dataset[frame, neuron, :] = coord
+
+            logger.info(f"Updated dataset at frame {frame}, neuron {neuron} with {coord}")
+            h5file.flush()
+        except Exception as e:
+            logger.error(f"Error updating dataset: {str(e)}")
 
     def exposed_get_dataset_info(self, file_id: str, path: str) -> Optional[Dict[str, Any]]:
         """Get dataset metadata without loading data"""
