@@ -16,6 +16,7 @@ from typing import Dict, Any, Optional, Tuple, List
 from pathlib import Path
 import hydra
 from omegaconf import DictConfig
+from src.calcium_activity.CalciumAnalyzer import CalciumAnalyzer
 
 # Configure logging
 logger = setup_logger(__name__)
@@ -229,10 +230,10 @@ class H5StreamService(rpyc.Service):
                 if chunk_data.nbytes < 10 * 1024 * 1024:
                   try:
                       self.cache.put(path, slices, chunk_data)
-                      logger.info(f"Cached chunk for path: {path}")
                   except Exception as e:
                       logger.warning(f"Failed to cache chunk: {e}")
                 self._prefetch_queue.task_done()
+                
             except queue.Empty:
                 # Timeout reached; loop continues, checking for stop signal
                 continue
@@ -359,11 +360,11 @@ class H5StreamService(rpyc.Service):
         except Exception as e:
             logger.error(f"Error writing to dataset {path}: {str(e)}")
             raise
-    def exposed_update_dataset_pointdat(self, file_id, dataset_path, patch_data):
+    def exposed_update_dataset_pointdat(self, file_id, patch_data, path="/pointdat",):
         """Apply updates to the specified dataset."""
         try:
             h5file = self.file_manager.get_file(file_id)
-            dataset = h5file[dataset_path]
+            dataset = h5file[path]
             frame, neuron, coord = patch_data["frame"], patch_data["neuron"], patch_data["coord"]
 
             # Update only the necessary part
@@ -373,10 +374,28 @@ class H5StreamService(rpyc.Service):
                 dataset[frame, neuron, :] = coord
 
             logger.info(f"Updated dataset at frame {frame}, neuron {neuron} with {coord}")
-            h5file.flush()
         except Exception as e:
             logger.error(f"Error updating dataset: {str(e)}")
+    def exposed_update_dataset_ci_int_t(self, file_id, patch_data, settings, path="/ci_int"):
+        """Update a calcium intensity value for a frame in the dataset."""
+        try:
+            h5file = self.file_manager.get_file(file_id)
+            num_neurons = h5file.attrs['N_neurons']
+            num_frames = h5file.attrs['T']
+            if (path not in h5file.keys()):
+              h5file.create_dataset(path, shape=(num_neurons, num_frames, 2), dtype=np.float32, compression=None)         
 
+            frame = patch_data["frame"]
+            image = h5file[f"{frame}/frame"]
+            img_shape = np.array(image[0]).shape
+            logger.info(f"Image shape: {image.shape}")
+            # Image shape is the shape of given frame's red channel
+            calcium_analyzer = CalciumAnalyzer(frame_shape=img_shape, num_neurons=num_neurons, num_frames=num_frames, settings=settings)
+            total_changes = calcium_analyzer.update_ci_pointdata(pointdat=h5file["pointdat"], frame=image, t=frame)
+            h5file[path][:,frame] = total_changes[0]
+            logger.info(f"Updated dataset at frame {frame}")
+        except Exception as e:
+            logger.error(f"Error updating dataset: {str(e)}", exc_info=True)
     def exposed_get_dataset_info(self, file_id: str, path: str) -> Optional[Dict[str, Any]]:
         """Get dataset metadata without loading data"""
         try:
@@ -459,13 +478,12 @@ class H5StreamService(rpyc.Service):
             if chunk_data.nbytes < 10 * 1024 * 1024:
                 try:
                     self.cache.put(path, slices, chunk_data)
-                    logger.info(f"Cached chunk for path: {path}, slices: {slice_info}")
+                    # logger.info(f"Cached chunk for path: {path}, slices: {slice_info}")
                 except Exception as e:
                     logger.warning(f"Failed to cache chunk: {e}")
             if path.endswith("/frame"):
                 max_frames = h5file["pointdat"].shape[0]
                 for i in range(max(0, int(path.split("/")[0]) - 20), min(int(path.split("/")[0]) + 20, max_frames)):
-                  logger.debug(f"Frame # {i}")
                   self._prefetch_queue.put((file_id, i, slices))
             return chunk_data
 
