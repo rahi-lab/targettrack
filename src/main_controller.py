@@ -14,7 +14,6 @@ import scipy.spatial as spat
 import scipy.ndimage as sim
 import cv2
 import threading
-
 #Internal classes
 from .helpers import SubProcManager, QtHelpers, misc
 from . import h5utils
@@ -579,7 +578,6 @@ class Controller():
                 client.change_mask_data(self.mask)
 
         # recompute corresponding calcium activities
-        self.update_ci(t=t)
         for client in self.calcium_registered_clients:
             client.change_ca_activity(self.ci_int)
 
@@ -1686,7 +1684,6 @@ class Controller():
         self.pointdat[self.i] = np.nan
         self.NN_pointdat[self.i] = np.nan
         # self.neuron_presence[self.i] = False   # now useless due to recompute_point_presence in update()
-        self.update_ci(t=self.i)
         for client in self.calcium_registered_clients:
             client.change_ca_activity(self.ci_int)
         self.update()
@@ -1707,8 +1704,7 @@ class Controller():
             self.pointdat[fro:to + 1, self.highlighted, :] = np.nan
             self.NN_pointdat[fro:to + 1, self.highlighted, :] = np.nan
             # self.neuron_presence[fro:to + 1, self.highlighted] = False   # now useless due to recompute_point_presence in signal_pts_changed in update
-            for t in range(fro, to+1):
-                self.update_ci(t=t)
+
             for client in self.calcium_registered_clients:
                 client.change_ca_activity(self.ci_int)
             self.update()
@@ -1719,10 +1715,18 @@ class Controller():
                     mask_k[mask_k == self.highlighted] = 0
                     self.mask_change(k)
             self.highlight_neuron(self.highlighted)   # todo: why not for point_data too?
+    def debug_trace(self):
+      '''Set a tracepoint in the Python debugger that works with Qt'''
+      from PyQt5.QtCore import pyqtRemoveInputHook
+
+      from pdb import set_trace
+      pyqtRemoveInputHook()
+      set_trace()
     #TODO delete the x thing everywhere 
     def update_ci(self, t, x=None):
       self.data.send_ci_int_patch_to_server(frame=t, settings=self.settings)
       self.ci_int = self.data.ca_act
+      self.debug_trace()
 
     def approve_selective(self, fro, to):
         """
@@ -1740,8 +1744,7 @@ class Controller():
         self.pointdat[fro:to + 1, self.highlighted, :] = np.where(
             np.isnan(self.pointdat[fro:to + 1, self.highlighted, :]), self.NN_pointdat[fro:to + 1, self.highlighted, :],
             self.pointdat[fro:to + 1, self.highlighted, :])
-        for t in range(fro, to + 1):
-            self.update_ci(t=t)
+
         for client in self.calcium_registered_clients:
             client.change_ca_activity(self.ci_int)
         self.update()
@@ -2112,7 +2115,6 @@ class Controller():
         if rm:
             print("Removing neuron",i_from1,"at time",self.i)
             self.pointdat[self.i][i_from1,:]=np.nan
-            self.update_ci(self.i, i_from1)
             # self.neuron_presence[self.i, i_from1] = False   # now useless due to recompute_point_presence in signal_pts_changed
         else:
             if any(np.isnan(self.pointdat[self.i][i_from1])):
@@ -2122,7 +2124,6 @@ class Controller():
                 add = False
             print("Setting neuron",i_from1,"at time",self.i,"to",coord)
             self.pointdat[self.i][i_from1]=coord
-            self.update_ci(self.i, i_from1)
 
         for client in self.calcium_registered_clients:
             if (self.ci_int is not None):
