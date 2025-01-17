@@ -65,6 +65,7 @@ class Controller():
         """
         #this sets up the environment
         self.data = dataset
+
         self.settings=settings
         logger.info(f"Loading dataset: {self.data.name}")
 
@@ -95,6 +96,7 @@ class Controller():
         self.neuron_presence = self.data.neuron_presence   # self.frame_num * self.n_neurons+1 array of booleans
         # todo Warning, this will be saved automatically in mask mode but not in point mode (in point mode it is saved only when pointdat is saved)
 
+        self.ci_int = np.zeros((self.n_neurons, self.frame_num, 2))  
         if self.neuron_presence is None or self.frame_num > self.neuron_presence.shape[0]:
             self._fill_neuron_presence()
         elif self.frame_num > self.neuron_presence.shape[0]:
@@ -236,13 +238,10 @@ class Controller():
         self.color_manager = misc.ColorAssignment(self)
 
         # calcium activities
-        self.hlab = HarvardLab.HarvardLab(self, self.data, self.settings)
+        #TODO set self ci_int
 
         self.updated_points = {}
         
-        # if not self.hlab.correct_existed:
-        #     self.update_ci()
-        #     self.data.ca_act = self.hlab.ci_int
         
     def set_point_data(self, value:bool):
         self.data.set_point_data()
@@ -580,9 +579,9 @@ class Controller():
                 client.change_mask_data(self.mask)
 
         # recompute corresponding calcium activities
-        self.hlab.update_ci(self.data, t=t)
+        self.update_ci(t=t)
         for client in self.calcium_registered_clients:
-            client.change_ca_activity(self.hlab.ci_int)
+            client.change_ca_activity(self.ci_int)
 
     def frame_clicked(self, button, coords):
         # a click with coordinates is received
@@ -1678,16 +1677,7 @@ class Controller():
                 self.data.save_mask(self.i, self.mask)
                 self.mask_change()
 
-    ####################################################################################################################
-    # self.hlab and ci related methods
 
-    def update_ci(self):
-        """Recomputes all calcium intensities"""
-        self.hlab.update_ci(self.data)
-        for client in self.calcium_registered_clients:
-            client.change_ca_activity(self.hlab.ci_int)
-
-    ####################################################################################################################
     # NN related methods
 
     def clear_frame_NN(self):
@@ -1696,9 +1686,9 @@ class Controller():
         self.pointdat[self.i] = np.nan
         self.NN_pointdat[self.i] = np.nan
         # self.neuron_presence[self.i] = False   # now useless due to recompute_point_presence in update()
-        self.hlab.update_ci(self.data, t=self.i)
+        self.update_ci(t=self.i)
         for client in self.calcium_registered_clients:
-            client.change_ca_activity(self.hlab.ci_int)
+            client.change_ca_activity(self.ci_int)
         self.update()
 
     def clear_NN_selective(self, fro, to):
@@ -1718,9 +1708,9 @@ class Controller():
             self.NN_pointdat[fro:to + 1, self.highlighted, :] = np.nan
             # self.neuron_presence[fro:to + 1, self.highlighted] = False   # now useless due to recompute_point_presence in signal_pts_changed in update
             for t in range(fro, to+1):
-                self.hlab.update_ci(self.data, t=t)
+                self.update_ci(t=t)
             for client in self.calcium_registered_clients:
-                client.change_ca_activity(self.hlab.ci_int)
+                client.change_ca_activity(self.ci_int)
             self.update()
         else:   # MB added this to use this feature for epfl data
             for k in range(fro,to):
@@ -1729,6 +1719,10 @@ class Controller():
                     mask_k[mask_k == self.highlighted] = 0
                     self.mask_change(k)
             self.highlight_neuron(self.highlighted)   # todo: why not for point_data too?
+    #TODO delete the x thing everywhere 
+    def update_ci(self, t, x=None):
+      self.data.send_ci_int_patch_to_server(frame=t, settings=self.settings)
+      self.ci_int = self.data.ca_act
 
     def approve_selective(self, fro, to):
         """
@@ -1747,9 +1741,9 @@ class Controller():
             np.isnan(self.pointdat[fro:to + 1, self.highlighted, :]), self.NN_pointdat[fro:to + 1, self.highlighted, :],
             self.pointdat[fro:to + 1, self.highlighted, :])
         for t in range(fro, to + 1):
-            self.hlab.update_ci(self.data, t=t)
+            self.update_ci(t=t)
         for client in self.calcium_registered_clients:
-            client.change_ca_activity(self.hlab.ci_int)
+            client.change_ca_activity(self.ci_int)
         self.update()
 
     def select_NN_instance_points(self, helper_name:str):
@@ -2063,10 +2057,11 @@ class Controller():
 
     #this saves the status of the current annotations
     def save_status(self):
+        # Probably delete because of autosave
         if self.point_data:
             self.save_pointdat()
         self.data.neuron_presence = self.neuron_presence   # todo I think it could be just for points
-        self.data.ca_act = self.hlab.ci_int
+        # self.data.ca_act = self.ci_int # TODO delete probably
         self.data.save()
         print("Saved")
 
@@ -2117,7 +2112,7 @@ class Controller():
         if rm:
             print("Removing neuron",i_from1,"at time",self.i)
             self.pointdat[self.i][i_from1,:]=np.nan
-            self.hlab.update_ci(self.data, self.i, i_from1)
+            self.update_ci(self.i, i_from1)
             # self.neuron_presence[self.i, i_from1] = False   # now useless due to recompute_point_presence in signal_pts_changed
         else:
             if any(np.isnan(self.pointdat[self.i][i_from1])):
@@ -2127,10 +2122,11 @@ class Controller():
                 add = False
             print("Setting neuron",i_from1,"at time",self.i,"to",coord)
             self.pointdat[self.i][i_from1]=coord
-            self.hlab.update_ci(self.data, self.i, i_from1)
+            self.update_ci(self.i, i_from1)
 
         for client in self.calcium_registered_clients:
-            client.change_ca_activity(self.hlab.ci_int[i_from1-1][:, :2], neuron_id_from1=i_from1)
+            if (self.ci_int is not None):
+              client.change_ca_activity(self.ci_int[i_from1-1][:, :2], neuron_id_from1=i_from1)
         
         # NEW 1/14/24
         if self.i not in self.updated_points:
@@ -2152,7 +2148,7 @@ class Controller():
         :return activity: array of shape nb_frames * 2 with activity[t] is the activity value and error bars of neuron
             neuron_id_from1 at time t
         """
-        return self.hlab.ci_int[neuron_id_from1-1][:, :2]
+        return self.ci_int[neuron_id_from1-1][:, :2]
 
     def times_of_presence(self, neuron_idx_from1):
         if self.point_data:
