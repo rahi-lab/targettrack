@@ -460,7 +460,7 @@ class RemoteH5File(DataSet):
             """Send only the updated data to the remote server."""
             try:
                 patch_data = {"frame": frame, "neuron": neuron, "coord": coord}
-                self.conn.root.update_dataset_pointdat(self.file_id, "/pointdat", patch_data)
+                self.conn.root.update_dataset_pointdat(self.file_id, path="/pointdat", patch_data=patch_data)
                 logger.info(f"Patch sent for frame {frame}, neuron {neuron}: {coord}")
             except Exception as e:
                 logger.error(f"Failed to send patch: {e}")
