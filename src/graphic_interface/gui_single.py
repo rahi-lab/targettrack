@@ -322,6 +322,13 @@ class RemoteH5File(DataSet):
           except Exception as e:
               logger.warning(f"Error during background prefetch: {e}")
 
+    def prefetch_frames(self, t: int, col: str = "red"):
+      """Queue ±10 frames for background prefetching."""
+      start = max(0, t - 10)
+      end = min(self.frame_num, t + 11)
+      for frame in range(start, end):
+          self._prefetch_queue.put((frame, col))
+
     def stop_prefetching(self, immediate: bool = False):
       """
       Stop the background prefetching thread.
@@ -335,6 +342,39 @@ class RemoteH5File(DataSet):
 
       self._prefetch_thread.join()
       logger.info("Prefetching thread stopped.")
+    def _prefetch_frames(self, t: int, col: str = "red"):
+      """
+      Prefetch ±10 frames and cache them.
+      """
+      start = max(0, t - 10)  # Prevent accessing before the first frame
+      end = min(self.frame_num, t + 11)  # Prevent accessing beyond the last frame
+      logger.info(f"Prefetching frames {start} to {end - 1} ({col})")
+      for i in range(start, end):
+        try:
+            # Generate a cache key for the frame
+            cache_key = f"{i}/frame:{col}"
+
+            # Skip if the frame is already cached
+            if self._chunk_cache.get(cache_key) is not None:
+                continue
+
+            # Fetch the frame dataset
+            dataset = self._get_dataset(f"{i}/frame")
+            if dataset is None:
+                continue
+
+            frame = obtain(dataset[:])
+            if frame is None:
+                logger.debug(f"Skipping prefetch for frame {i}, data unavailable.")
+                continue
+
+            # Cache the requested channel
+            channel_data = frame[0] if col == "red" else frame[1]
+            self._chunk_cache.put(cache_key, channel_data)
+
+        except Exception as e:
+            logger.warning(f"Error during prefetch for frame {i}: {e}")
+
     def _get_mask(self, t: int) -> Optional[np.ndarray]:
         """Get mask with error handling"""
         try:
@@ -420,10 +460,20 @@ class RemoteH5File(DataSet):
             """Send only the updated data to the remote server."""
             try:
                 patch_data = {"frame": frame, "neuron": neuron, "coord": coord}
-                self.conn.root.update_dataset_pointdat(self.file_id, "/pointdat", patch_data)
+                self.conn.root.update_dataset_pointdat(self.file_id, path="/pointdat", patch_data=patch_data)
                 logger.info(f"Patch sent for frame {frame}, neuron {neuron}: {coord}")
             except Exception as e:
                 logger.error(f"Failed to send patch: {e}")
+    
+    def send_ci_int_patch_to_server(self, frame, settings):
+        """Send only the updated data to the remote server."""
+        try:
+            patch_data = {"frame": frame, "settings": settings}
+            self.conn.root.exposed_update_dataset_ci_int_t(self.file_id, patch_data, settings)
+            logger.info(f"Patch sent for frame {frame}")
+        except Exception as e:
+            logger.error(f"Failed to send patch: {e}")
+
     def _is_expected_missing(self, path: str) -> bool:
         """Check if this is an expected missing path"""
         expected = ['/mask', '/coarse_mask', '/transform1', 
@@ -488,8 +538,8 @@ class RemoteH5File(DataSet):
         Get calcium activity data (ci_int) from the remote dataset.
         """
         try:
-            if "/ci_int" not in self.structure:
-                return None
+            # if "/ci_int" not in self.structure:
+            #     return None
             dataset = self._get_dataset("/ci_int")
             if dataset is None:
                 return None
@@ -565,7 +615,7 @@ def loaddict(fn: str) -> Dict[str, str]:
     return set_dict
 
 class gui_single:
-    def __init__(self, dataset_path: str, port: int, tunneled: bool = False, node: Optional[str] = None ):
+    def __init__(self, dataset_path: str, port: int, tunneled: bool = False, node: Optional[str] = None):
         """
         Initialize GUI with either local or remote dataset
         
