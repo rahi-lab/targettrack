@@ -174,11 +174,15 @@ class RemoteConnection:
                 if not self.validate_connection():
                     raise ConnectionError("Failed to validate connection")
                 
-                gpu_info = obtain(self.root.get_gpu_info())
-                if 'error' in gpu_info:
-                    logger.warning(f"Server GPU status: {gpu_info['error']}")
+                # Get server info
+                server_info = obtain(self.root.get_server_info())
+                if 'error' in server_info:
+                    logger.warning(f"Server status: {server_info['error']}")
                 else:
-                    logger.info(f"Server GPU: {gpu_info['device_name']}")
+                    device_type = "GPU" if server_info.get('cuda_available', False) else "CPU"
+                    logger.info(f"Server running on {device_type}")
+                    if device_type == "GPU" and 'device_name' in server_info:
+                        logger.info(f"Server GPU: {server_info['device_name']}")
                 
                 logger.info("Successfully connected to remote server")
                 return

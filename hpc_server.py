@@ -22,43 +22,29 @@ from src.calcium_activity.CalciumAnalyzer import CalciumAnalyzer
 logger = setup_logger(__name__)
 def get_gpu_info() -> Dict[str, Any]:
     """Get comprehensive GPU information using multiple methods"""
-    info = {}
+    info = {
+        'cuda_available': torch.cuda.is_available(),
+        'device_count': 0,
+        'devices': []
+    }
     
-    # PyTorch GPU info
-    info['cuda_available'] = torch.cuda.is_available()
     if info['cuda_available']:
         info['device_count'] = torch.cuda.device_count()
         info['current_device'] = torch.cuda.current_device()
-        info['device_name'] = torch.cuda.get_device_name(0)
-        
-        # Get per-device info
+        info['device_name'] = torch.cuda.get_device_name(info['current_device'])
+        # Add per-device info if needed
         devices = []
         for i in range(info['device_count']):
             props = torch.cuda.get_device_properties(i)
-            dev_info = {
+            devices.append({
                 'name': props.name,
                 'compute_capability': f"{props.major}.{props.minor}",
                 'total_memory': props.total_memory,
                 'memory_allocated': torch.cuda.memory_allocated(i),
                 'memory_reserved': torch.cuda.memory_reserved(i),
-            }
-            devices.append(dev_info)
+            })
         info['devices'] = devices
     
-    # nvidia-smi output
-    try:
-        nvidia_smi = subprocess.check_output(['nvidia-smi'], stderr=subprocess.STDOUT)
-        info['nvidia_smi'] = nvidia_smi.decode()
-    except Exception as e:
-        info['nvidia_smi_error'] = str(e)
-    
-    # nvcc version
-    try:
-        nvcc = subprocess.check_output(['nvcc', '--version'], stderr=subprocess.STDOUT)
-        info['nvcc'] = nvcc.decode()
-    except Exception as e:
-        info['nvcc_error'] = str(e)
-        
     return info
 
 class DatasetCache:
@@ -184,24 +170,34 @@ class H5StreamService(rpyc.Service):
     """RPyC service for streaming HDF5 data"""
     
     def __init__(self):
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        logger.info(f"Using device: {self.device}")
+        # Try to use GPU, fallback to CPU if not available
+        try:
+            if torch.cuda.is_available():
+                self.device = torch.device('cuda')
+                logger.info(f"Using GPU device: {torch.cuda.get_device_name(0)}")
+            else:
+                self.device = torch.device('cpu')
+                logger.info("No GPU available, using CPU")
+        except Exception as e:
+            logger.warning(f"Error initializing CUDA device, falling back to CPU: {e}")
+            self.device = torch.device('cpu')
         
         # Initialize managers
         self.file_manager = H5FileManager()
         self.cache = DatasetCache()
         
         self._prefetch_queue = queue.Queue()
-        self._stop_event = threading.Event()  # Stop signal
+        self._stop_event = threading.Event()
         self._prefetch_thread = threading.Thread(target=self._prefetch_worker, daemon=True)
         self._prefetch_thread.start()
 
-        # Log initialization
+        # Log initialization and GPU status
         gpu_info = get_gpu_info()
         if gpu_info['cuda_available']:
             logger.info(f"GPU available: {gpu_info['device_name']}")
         else:
-            logger.warning("No GPU available")
+            logger.info("Running in CPU-only mode")
+
     def _prefetch_worker(self):
         """Worker thread to prefetch data"""
         file_id_old = None
@@ -496,21 +492,34 @@ class H5StreamService(rpyc.Service):
         """Clean up resources"""
         self.file_manager.close_all()
         self.cache.clear()
+
+    def get_server_info(self) -> Dict[str, Any]:
+        """Get information about the server environment"""
+        info = {
+            'cuda_available': torch.cuda.is_available()
+        }
+        
+        # Add GPU info if available
+        if info['cuda_available']:
+            info['device_count'] = torch.cuda.device_count()
+            info['current_device'] = torch.cuda.current_device()
+            info['device_name'] = torch.cuda.get_device_name(info['current_device'])
+        
+        return info
+
 @hydra.main(version_base=None, config_path="conf", config_name="config")
 def app(cfg: DictConfig):
     """Main function to start the server"""
-    # Set up server
     port = cfg.server.port
     host = '0.0.0.0'
     
-    # Get hostname for client connection info
     node_hostname = socket.gethostname()
-    logger.info(f"Starting HPC GPU server on {host}:{port}")
+    logger.info(f"Starting HPC server on {host}:{port}")
     logger.info(f"Connect using hostname: {node_hostname}")
     
     # Log environment info
     gpu_info = get_gpu_info()
-    logger.info(f"\nGPU Information:")
+    logger.info(f"\nHardware Information:")
     if gpu_info['cuda_available']:
         logger.info(f"CUDA Device: {gpu_info['device_name']}")
         logger.info(f"Device Count: {gpu_info['device_count']}")
@@ -520,7 +529,7 @@ def app(cfg: DictConfig):
             logger.info(f"  Compute Capability: {dev['compute_capability']}")
             logger.info(f"  Total Memory: {dev['total_memory'] / 1024**2:.1f} MB")
     else:
-        logger.warning("No GPU available")
+        logger.info("Running in CPU-only mode")
     
     # Start server
     server = ThreadedServer(

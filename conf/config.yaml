@@ -2,6 +2,6 @@ server:
   port: 1886
 
 client:
-  port: 18861
-  node: dgx001
+  port: 1886
+  node: node084
   file_path: /nese/mit/group/boydenlab/Konstantinos/targettrack-dev/2025_01_16-test-2channel-5filteredframes.h5
