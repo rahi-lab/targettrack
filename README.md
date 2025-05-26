@@ -13,26 +13,26 @@ We understand it could be exhaustive to install and run external code. If you en
 - :red_circle: GPU: (optional but highly recommended if training a network) NVIDIA 2080 Ti or higher recommended, a large-memory GPU is preferred over a fast boost clock GPU. Especially, gaming GPUs are enough for this purpose.
 
 ## Dependencies
-- python=3.8.13  #3.9 and 3.10 works but hasn't been tested throughly
-- pytorch=1.11.0 # 1.8 ~ 1.10 all seems to work, but is not guaranteed
-- matplotlib>=3.5.2
-- numpy>=1.23.4
+- python=3.8.15  #3.9 and 3.10 works but hasn't been tested throughly
+- pytorch=1.7.1 # 1.8 ~ 1.10 all seems to work, but is not guaranteed
+- matplotlib>=3.3.2
+- numpy>=1.24.4
 - pandas=1.1.3
-- scikit-image>=0.18.1
-- scikit-learn>=0.23.0
+- scikit-image>=0.18.3
+- scikit-learn>=1.3.2
 - umap-learn=0.5.3
-- scipy>=1.9.1
-- tqdm>=4.59.0
+- scipy>=1.10.1
+- tqdm>=4.50.2
 - sparse=0.13.0
 - nd2reader=3.2.3
 - PyQt5=5.12
-- pyqtgraph>=0.11.0
+- pyqtgraph>=0.11.1
 - opencv-python>=4.5.1.48
-- opencv-python-headless>=4.5.1.48
-- h5py>=3.6.0
+- opencv-python-headless>=4.4.0.46
+- h5py>=3.1.0
 - albumentations>=0.5.2
-- connected-components-3d>=3.2.0
-- torchvision>=0.12.0
+- connected-components-3d>=2.0.0
+- torchvision>=0.8.2
 - alphashape>=1.3.1
 - jupyter=1.0.0 # Only if you want to customizer your deformations
 
